@@ -1,0 +1,31 @@
+# Ignora arquivos e diretórios gerados pelo Gradle
+.gradle/
+build/
+.idea/                  # Ignora arquivos do IntelliJ IDEA
+.vscode/                # Ignora arquivos do VS Code
+*.iml                   # Ignora arquivos de módulo do IntelliJ IDEA
+out/                    # Ignora diretórios de saída de compilação
+
+# Ignora arquivos de log
+*.log
+logs/
+
+# Ignora arquivos de configuração sensíveis ou específicos do ambiente
+*.properties            # Pode ser ajustado se houver properties que DEVEM ser versionados
+database.properties     # Especificamente o arquivo de configuração do banco de dados
+
+# Ignora arquivos de sistema operacional
+.DS_Store
+Thumbs.db
+
+# Ignora arquivos de pacotes WAR/JAR
+*.war
+*.jar
+
+# Ignora arquivos de dependências de IDEs
+*.ipr
+*.iws
+.classpath
+.project
+.settings/
+bin/
