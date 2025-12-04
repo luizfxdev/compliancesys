@@ -1,48 +1,50 @@
 package com.compliancesys.model;
 
-import java.time.LocalDateTime; // Importa para usar LocalDateTime.
+import java.time.LocalDateTime;
+import java.util.Objects;
 
 /**
  * Representa uma empresa no sistema.
- * Corresponde à tabela 'Company' no banco de dados.
+ * Corresponde à tabela 'companies' no banco de dados.
  */
 public class Company {
-    private int companyId; // ID único da empresa.
-    private String cnpj; // CNPJ da empresa, único e não nulo.
-    private String legalName; // Razão social da empresa, não nula.
-    private String tradingName; // Nome fantasia da empresa.
-    private LocalDateTime createdAt; // Timestamp de criação do registro.
+    private int id;
+    private String cnpj;
+    private String legalName;
+    private String tradingName;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 
-    /**
-     * Construtor padrão.
-     */
     public Company() {
     }
 
-    /**
-     * Construtor com todos os campos.
-     * @param companyId ID da empresa.
-     * @param cnpj CNPJ da empresa.
-     * @param legalName Razão social.
-     * @param tradingName Nome fantasia.
-     * @param createdAt Data e hora de criação.
-     */
-    public Company(int companyId, String cnpj, String legalName, String tradingName, LocalDateTime createdAt) {
-        this.companyId = companyId;
+    // Construtor completo
+    public Company(int id, String cnpj, String legalName, String tradingName, LocalDateTime createdAt, LocalDateTime updatedAt) {
+        this.id = id;
         this.cnpj = cnpj;
         this.legalName = legalName;
         this.tradingName = tradingName;
         this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
     }
 
-    // Getters e Setters para todos os campos.
-
-    public int getCompanyId() {
-        return companyId;
+    // Construtor para inserção (sem ID, createdAt, updatedAt)
+    public Company(String cnpj, String legalName, String tradingName) {
+        this(0, cnpj, legalName, tradingName, null, null);
     }
 
-    public void setCompanyId(int companyId) {
-        this.companyId = companyId;
+    // Construtor para atualização (com ID, sem createdAt, updatedAt)
+    public Company(int id, String cnpj, String legalName, String tradingName) {
+        this(id, cnpj, legalName, tradingName, null, null);
+    }
+
+    // Getters e Setters
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
     }
 
     public String getCnpj() {
@@ -57,7 +59,7 @@ public class Company {
         return legalName;
     }
 
-    public void voidsetLegalName(String legalName) {
+    public void setLegalName(String legalName) {
         this.legalName = legalName;
     }
 
@@ -77,18 +79,36 @@ public class Company {
         this.createdAt = createdAt;
     }
 
-    /**
-     * Retorna uma representação em String do objeto Company.
-     * @return String formatada.
-     */
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
     @Override
     public String toString() {
         return "Company{" +
-               "companyId=" + companyId +
-               ", cnpj='" + cnpj + '\'' +
-               ", legalName='" + legalName + '\'' +
-               ", tradingName='" + tradingName + '\'' +
-               ", createdAt=" + createdAt +
-               '}';
+                "id=" + id +
+                ", cnpj='" + cnpj + '\'' +
+                ", legalName='" + legalName + '\'' +
+                ", tradingName='" + tradingName + '\'' +
+                ", createdAt=" + createdAt +
+                ", updatedAt=" + updatedAt +
+                '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Company company = (Company) o;
+        return id == company.id && Objects.equals(cnpj, company.cnpj) && Objects.equals(legalName, company.legalName) && Objects.equals(tradingName, company.tradingName);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, cnpj, legalName, tradingName);
     }
 }

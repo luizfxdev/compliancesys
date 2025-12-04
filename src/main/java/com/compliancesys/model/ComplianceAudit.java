@@ -1,51 +1,53 @@
 package com.compliancesys.model;
 
-import java.time.LocalDateTime; // Importa para usar LocalDateTime para o timestamp de cálculo.
+import com.compliancesys.model.enums.ComplianceStatus; // Importa o enum ComplianceStatus
+import java.time.LocalDateTime;
+import java.util.Objects;
 
 /**
- * Representa um registro de auditoria de conformidade.
- * Corresponde à tabela 'ComplianceAudit' no banco de dados.
+ * Representa um registro de auditoria de conformidade para uma jornada.
+ * Corresponde à tabela 'compliance_audits' no banco de dados.
  */
 public class ComplianceAudit {
-    private int auditId; // ID único da auditoria.
-    private int journeyId; // ID da jornada auditada.
-    private String violatedRule; // Regra da Lei do Caminhoneiro violada.
-    private String alertDescription; // Descrição detalhada do alerta.
-    private LocalDateTime calculationTimestamp; // Timestamp do cálculo da auditoria.
-    private String alertJson; // JSON com detalhes adicionais do alerta.
+    private int id;
+    private int journeyId;
+    private LocalDateTime auditDate; // Renomeado de timestamp para auditDate para clareza
+    private ComplianceStatus status; // Alterado para o enum ComplianceStatus
+    private String details;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt; // Adicionado para consistência com o schema e DAOs
 
-    /**
-     * Construtor padrão.
-     */
     public ComplianceAudit() {
     }
 
-    /**
-     * Construtor com todos os campos.
-     * @param auditId ID da auditoria.
-     * @param journeyId ID da jornada.
-     * @param violatedRule Regra violada.
-     * @param alertDescription Descrição do alerta.
-     * @param calculationTimestamp Timestamp do cálculo.
-     * @param alertJson JSON do alerta.
-     */
-    public ComplianceAudit(int auditId, int journeyId, String violatedRule, String alertDescription, LocalDateTime calculationTimestamp, String alertJson) {
-        this.auditId = auditId;
+    // Construtor completo
+    public ComplianceAudit(int id, int journeyId, LocalDateTime auditDate, ComplianceStatus status, String details, LocalDateTime createdAt, LocalDateTime updatedAt) {
+        this.id = id;
         this.journeyId = journeyId;
-        this.violatedRule = violatedRule;
-        this.alertDescription = alertDescription;
-        this.calculationTimestamp = calculationTimestamp;
-        this.alertJson = alertJson;
+        this.auditDate = auditDate;
+        this.status = status;
+        this.details = details;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
     }
 
-    // Getters e Setters para todos os campos.
-
-    public int getAuditId() {
-        return auditId;
+    // Construtor para inserção (sem ID, createdAt, updatedAt)
+    public ComplianceAudit(int journeyId, LocalDateTime auditDate, ComplianceStatus status, String details) {
+        this(0, journeyId, auditDate, status, details, null, null);
     }
 
-    public void setAuditId(int auditId) {
-        this.auditId = auditId;
+    // Construtor para atualização (com ID, sem createdAt, updatedAt)
+    public ComplianceAudit(int id, int journeyId, LocalDateTime auditDate, ComplianceStatus status, String details) {
+        this(id, journeyId, auditDate, status, details, null, null);
+    }
+
+    // Getters e Setters
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
     }
 
     public int getJourneyId() {
@@ -56,51 +58,69 @@ public class ComplianceAudit {
         this.journeyId = journeyId;
     }
 
-    public String getViolatedRule() {
-        return violatedRule;
+    public LocalDateTime getAuditDate() { // Getter renomeado
+        return auditDate;
     }
 
-    public void setViolatedRule(String violatedRule) {
-        this.violatedRule = violatedRule;
+    public void setAuditDate(LocalDateTime auditDate) { // Setter renomeado
+        this.auditDate = auditDate;
     }
 
-    public String getAlertDescription() {
-        return alertDescription;
+    public ComplianceStatus getStatus() { // Getter alterado para ComplianceStatus
+        return status;
     }
 
-    public void setAlertDescription(String alertDescription) {
-        this.alertDescription = alertDescription;
+    public void setStatus(ComplianceStatus status) { // Setter alterado para ComplianceStatus
+        this.status = status;
     }
 
-    public LocalDateTime getCalculationTimestamp() {
-        return calculationTimestamp;
+    public String getDetails() {
+        return details;
     }
 
-    public void setCalculationTimestamp(LocalDateTime calculationTimestamp) {
-        this.calculationTimestamp = calculationTimestamp;
+    public void setDetails(String details) {
+        this.details = details;
     }
 
-    public String getAlertJson() {
-        return alertJson;
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
     }
 
-    public void setAlertJson(String alertJson) {
-        this.alertJson = alertJson;
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
     }
 
-    /**
-     * Retorna uma representação em String do objeto ComplianceAudit.
-     * @return String formatada.
-     */
+    public LocalDateTime getUpdatedAt() { // Getter adicionado
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) { // Setter adicionado
+        this.updatedAt = updatedAt;
+    }
+
     @Override
     public String toString() {
         return "ComplianceAudit{" +
-               "auditId=" + auditId +
-               ", journeyId=" + journeyId +
-               ", violatedRule='" + violatedRule + '\'' +
-               ", alertDescription='" + alertDescription + '\'' +
-               ", calculationTimestamp=" + calculationTimestamp +
-               ", alertJson='" + alertJson + '\'' +
-               '}';
+                "id=" + id +
+                ", journeyId=" + journeyId +
+                ", auditDate=" + auditDate +
+                ", status=" + status +
+                ", details='" + details + '\'' +
+                ", createdAt=" + createdAt +
+                ", updatedAt=" + updatedAt +
+                '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        ComplianceAudit that = (ComplianceAudit) o;
+        return id == that.id && journeyId == that.journeyId && Objects.equals(auditDate, that.auditDate) && status == that.status && Objects.equals(details, that.details);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, journeyId, auditDate, status, details);
     }
 }

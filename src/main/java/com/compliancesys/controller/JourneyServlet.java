@@ -2,7 +2,9 @@ package com.compliancesys.controller;
 
 import com.compliancesys.model.Journey;
 import com.compliancesys.service.JourneyService;
-import com.compliancesys.util.GsonSerializer;
+import com.compliancesys.service.impl.JourneyServiceImpl; // Assumindo uma implementação
+import com.compliancesys.util.GsonUtil;
+import com.compliancesys.util.impl.GsonUtilImpl; // Assumindo uma implementação
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
@@ -20,18 +22,17 @@ import java.util.Optional;
  * Responde a requisições HTTP para /journeys.
  * Inclui API para comunicação JSON (Gson).
  */
-@WebServlet("/journeys")
+@WebServlet("/journeys/*") // Adicionado /* para permitir pathInfo
 public class JourneyServlet extends HttpServlet {
 
     private JourneyService journeyService;
-    private GsonSerializer gsonSerializer;
+    private GsonUtil gsonSerializer;
 
     @Override
     public void init() throws ServletException {
-        // TODO: Injetar JourneyService e GsonSerializer (ex: via CDI/Spring ou instanciar diretamente para este exemplo)
-        // Por simplicidade, instanciando diretamente para o exemplo. Em um projeto real, use injeção de dependência.
-        this.journeyService = null; // Substituir pela implementação real
-        this.gsonSerializer = null; // Substituir pela implementação real
+        // Instanciando diretamente para o exemplo. Em um projeto real, use injeção de dependência.
+        this.journeyService = new JourneyServiceImpl(); // Você precisará criar JourneyServiceImpl
+        this.gsonSerializer = new GsonUtilImpl(); // Você precisará criar GsonUtilImpl
     }
 
     @Override
@@ -118,7 +119,7 @@ public class JourneyServlet extends HttpServlet {
             out.print(gsonSerializer.serialize(new ErrorResponse("Erro ao criar jornada: " + e.getMessage())));
         } catch (Exception e) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Dados de jornada inválidos: " + e.getMessage())));
+            out.print(gsonSerializer.serialize(new ErrorResponse("Dados da jornada inválidos: " + e.getMessage())));
         }
         out.flush();
     }
@@ -160,7 +161,7 @@ public class JourneyServlet extends HttpServlet {
             out.print(gsonSerializer.serialize(new ErrorResponse("Erro ao atualizar jornada: " + e.getMessage())));
         } catch (Exception e) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Dados de jornada inválidos: " + e.getMessage())));
+            out.print(gsonSerializer.serialize(new ErrorResponse("Dados da jornada inválidos: " + e.getMessage())));
         }
         out.flush();
     }
@@ -200,9 +201,6 @@ public class JourneyServlet extends HttpServlet {
     // Classe auxiliar para padronizar respostas de erro
     private static class ErrorResponse {
         private String message;
-
-        public ErrorResponse(String message) {
-            this.message = message;
-        }
+        public ErrorResponse(String message) { this.message = message; }
     }
 }

@@ -1,55 +1,55 @@
 package com.compliancesys.model;
 
-import java.time.LocalDate;      // Importa para usar LocalDate para a data de contratação.
-import java.time.LocalDateTime;  // Importa para usar LocalDateTime para a data de criação.
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Objects;
 
 /**
  * Representa um motorista no sistema.
- * Corresponde à tabela 'Driver' no banco de dados.
+ * Corresponde à tabela 'drivers' no banco de dados.
  */
 public class Driver {
-    private int driverId; // ID único do motorista.
-    private String name; // Nome completo do motorista.
-    private String cpf; // CPF do motorista, único e não nulo.
-    private String licenseCategory; // Categoria da CNH (ex: "C", "D", "E").
-    private LocalDate hireDate; // Data de contratação do motorista.
-    private int companyId; // ID da empresa à qual o motorista está vinculado.
-    private LocalDateTime createdAt; // Timestamp de criação do registro.
+    private int id;
+    private String name;
+    private String cpf;
+    private LocalDate birthDate; // Alterado para LocalDate
+    private String licenseNumber;
+    // private int companyId; // Removido para alinhar com o schema atual
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 
-    /**
-     * Construtor padrão.
-     */
     public Driver() {
     }
 
-    /**
-     * Construtor com todos os campos.
-     * @param driverId ID do motorista.
-     * @param name Nome do motorista.
-     * @param cpf CPF do motorista.
-     * @param licenseCategory Categoria da CNH.
-     * @param hireDate Data de contratação.
-     * @param companyId ID da empresa.
-     * @param createdAt Data e hora de criação.
-     */
-    public Driver(int driverId, String name, String cpf, String licenseCategory, LocalDate hireDate, int companyId, LocalDateTime createdAt) {
-        this.driverId = driverId;
+    // Construtor completo
+    public Driver(int id, String name, String cpf, LocalDate birthDate, String licenseNumber, LocalDateTime createdAt, LocalDateTime updatedAt) {
+        this.id = id;
         this.name = name;
         this.cpf = cpf;
-        this.licenseCategory = licenseCategory;
-        this.hireDate = hireDate;
-        this.companyId = companyId;
+        this.birthDate = birthDate;
+        this.licenseNumber = licenseNumber;
+        // this.companyId = companyId;
         this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
     }
 
-    // Getters e Setters para todos os campos.
-
-    public int getDriverId() {
-        return driverId;
+    // Construtor para inserção (sem ID, createdAt, updatedAt)
+    public Driver(String name, String cpf, LocalDate birthDate, String licenseNumber) {
+        this(0, name, cpf, birthDate, licenseNumber, null, null);
     }
 
-    public void setDriverId(int driverId) {
-        this.driverId = driverId;
+    // Construtor para atualização (com ID, sem createdAt, updatedAt)
+    public Driver(int id, String name, String cpf, LocalDate birthDate, String licenseNumber) {
+        this(id, name, cpf, birthDate, licenseNumber, null, null);
+    }
+
+    // Getters e Setters
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
     }
 
     public String getName() {
@@ -68,22 +68,23 @@ public class Driver {
         this.cpf = cpf;
     }
 
-    public String getLicenseCategory() {
-        return licenseCategory;
+    public LocalDate getBirthDate() {
+        return birthDate;
     }
 
-    public void setLicenseCategory(String licenseCategory) {
-        this.licenseCategory = licenseCategory;
+    public void setBirthDate(LocalDate birthDate) {
+        this.birthDate = birthDate;
     }
 
-    public LocalDate getHireDate() {
-        return hireDate;
+    public String getLicenseNumber() {
+        return licenseNumber;
     }
 
-    public void setHireDate(LocalDate hireDate) {
-        this.hireDate = hireDate;
+    public void setLicenseNumber(String licenseNumber) {
+        this.licenseNumber = licenseNumber;
     }
 
+    /*
     public int getCompanyId() {
         return companyId;
     }
@@ -91,6 +92,7 @@ public class Driver {
     public void setCompanyId(int companyId) {
         this.companyId = companyId;
     }
+    */
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
@@ -100,20 +102,38 @@ public class Driver {
         this.createdAt = createdAt;
     }
 
-    /**
-     * Retorna uma representação em String do objeto Driver.
-     * @return String formatada.
-     */
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
     @Override
     public String toString() {
         return "Driver{" +
-               "driverId=" + driverId +
-               ", name='" + name + '\'' +
-               ", cpf='" + cpf + '\'' +
-               ", licenseCategory='" + licenseCategory + '\'' +
-               ", hireDate=" + hireDate +
-               ", companyId=" + companyId +
-               ", createdAt=" + createdAt +
-               '}';
+                "id=" + id +
+                ", name='" + name + '\'' +
+                ", cpf='" + cpf + '\'' +
+                ", birthDate=" + birthDate +
+                ", licenseNumber='" + licenseNumber + '\'' +
+                // ", companyId=" + companyId +
+                ", createdAt=" + createdAt +
+                ", updatedAt=" + updatedAt +
+                '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Driver driver = (Driver) o;
+        return id == driver.id && Objects.equals(name, driver.name) && Objects.equals(cpf, driver.cpf) && Objects.equals(birthDate, driver.birthDate) && Objects.equals(licenseNumber, driver.licenseNumber);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, name, cpf, birthDate, licenseNumber);
     }
 }

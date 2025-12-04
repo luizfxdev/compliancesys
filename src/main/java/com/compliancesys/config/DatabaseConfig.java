@@ -1,13 +1,13 @@
 package com.compliancesys.config;
 
-import java.io.IOException;       // Importa para lidar com exceções de I/O.
-import java.io.InputStream;       // Importa para ler o arquivo de propriedades.
-import java.sql.Connection;       // Importa para a interface Connection do JDBC.
-import java.sql.DriverManager;    // Importa para gerenciar drivers JDBC.
-import java.sql.SQLException;     // Importa para lidar com exceções SQL.
-import java.util.Properties;      // Importa para carregar propriedades de um arquivo.
-import java.util.logging.Level;   // Importa para níveis de log.
-import java.util.logging.Logger;  // Importa para logging.
+import java.io.IOException;         // Importa para lidar com exceções de I/O.
+import java.io.InputStream;         // Importa para ler o arquivo de propriedades.
+import java.sql.Connection;         // Importa para a interface Connection do JDBC.
+import java.sql.DriverManager;      // Importa para gerenciar drivers JDBC.
+import java.sql.SQLException;       // Importa para lidar com exceções SQL.
+import java.util.Properties;        // Importa para carregar propriedades de um arquivo.
+import java.util.logging.Level;     // Importa para níveis de log.
+import java.util.logging.Logger;    // Importa para logging.
 
 /**
  * Classe de configuração do banco de dados.

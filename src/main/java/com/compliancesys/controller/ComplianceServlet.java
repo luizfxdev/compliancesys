@@ -2,7 +2,9 @@ package com.compliancesys.controller;
 
 import com.compliancesys.model.ComplianceAudit;
 import com.compliancesys.service.ComplianceService;
-import com.compliancesys.util.GsonSerializer;
+import com.compliancesys.service.impl.ComplianceServiceImpl; // Assumindo uma implementação
+import com.compliancesys.util.GsonUtil;
+import com.compliancesys.util.impl.GsonUtilImpl; // Assumindo uma implementação
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
@@ -20,18 +22,17 @@ import java.util.Optional;
  * Servlet para gerenciar operações de auditoria e relatórios de conformidade.
  * Responde a requisições HTTP para /compliance.
  */
-@WebServlet("/compliance")
+@WebServlet("/compliance/*") // Adicionado /* para permitir pathInfo
 public class ComplianceServlet extends HttpServlet {
 
     private ComplianceService complianceService;
-    private GsonSerializer gsonSerializer;
+    private GsonUtil gsonSerializer;
 
     @Override
     public void init() throws ServletException {
-        // TODO: Injetar ComplianceService e GsonSerializer (ex: via CDI/Spring ou instanciar diretamente para este exemplo)
-        // Por simplicidade, instanciando diretamente para o exemplo. Em um projeto real, use injeção de dependência.
-        this.complianceService = null; // Substituir pela implementação real
-        this.gsonSerializer = null; // Substituir pela implementação real
+        // Instanciando diretamente para o exemplo. Em um projeto real, use injeção de dependência.
+        this.complianceService = new ComplianceServiceImpl(); // Você precisará criar ComplianceServiceImpl
+        this.gsonSerializer = new GsonUtilImpl(); // Você precisará criar GsonUtilImpl
     }
 
     @Override
@@ -128,9 +129,9 @@ public class ComplianceServlet extends HttpServlet {
             // Espera um JSON com o ID da jornada para auditar
             // Ex: {"journeyId": 123}
             String requestBody = request.getReader().readLine();
-            // Uma forma simples de extrair o journeyId sem criar um POJO específico para a requisição
-            // Em um cenário real, seria melhor ter um DTO para a requisição.
-            int journeyId = Integer.parseInt(requestBody.replaceAll("[^0-9]", "")); // Extrai apenas números
+            // Melhor desserializar para um POJO específico para a requisição
+            AuditRequest auditRequest = gsonSerializer.deserialize(requestBody, AuditRequest.class);
+            int journeyId = auditRequest.getJourneyId();
 
             int newAuditId = complianceService.performComplianceAudit(journeyId);
             response.setStatus(HttpServletResponse.SC_CREATED);
@@ -154,18 +155,19 @@ public class ComplianceServlet extends HttpServlet {
     // Classe auxiliar para padronizar respostas de erro
     private static class ErrorResponse {
         private String message;
-
-        public ErrorResponse(String message) {
-            this.message = message;
-        }
+        public ErrorResponse(String message) { this.message = message; }
     }
 
     // Classe auxiliar para padronizar respostas de sucesso (se necessário)
     private static class SuccessResponse {
         private String message;
+        public SuccessResponse(String message) { this.message = message; }
+    }
 
-        public SuccessResponse(String message) {
-            this.message = message;
-        }
+    // POJO para desserializar a requisição de auditoria
+    private static class AuditRequest {
+        private int journeyId;
+        public int getJourneyId() { return journeyId; }
+        public void setJourneyId(int journeyId) { this.journeyId = journeyId; }
     }
 }

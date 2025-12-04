@@ -8,7 +8,7 @@ import java.util.List;
  * Interface para validações específicas de objetos java.time.
  * Contém métodos para validar períodos de tempo e sequências de eventos.
  */
-public interface TimeValidator {
+public interface TimeUtil {
 
     /**
      * Valida se um período de tempo (Duration) é positivo.

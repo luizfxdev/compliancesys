@@ -4,7 +4,7 @@ package com.compliancesys.util;
  * Interface para um serviço de serialização e desserialização usando Gson.
  * Define métodos genéricos para converter objetos Java para JSON e JSON para objetos Java.
  */
-public interface GsonSerializer {
+public interface GsonUtil {
 
     /**
      * Serializa um objeto Java para uma string JSON.

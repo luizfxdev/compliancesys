@@ -1,8 +1,8 @@
 package com.compliancesys.controller;
 
-import com.compliancesys.model.TimeRecord;
-import com.compliancesys.service.TimeRecordService;
-import com.compliancesys.service.impl.TimeRecordServiceImpl; // Assumindo uma implementação
+import com.compliancesys.model.MobileCommunication;
+import com.compliancesys.service.MobileCommunicationService;
+import com.compliancesys.service.impl.MobileCommunicationServiceImpl; // Assumindo uma implementação
 import com.compliancesys.util.GsonUtil;
 import com.compliancesys.util.impl.GsonUtilImpl; // Assumindo uma implementação
 import javax.servlet.ServletException;
@@ -13,26 +13,24 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.sql.SQLException;
-import java.time.LocalDate;
-import java.time.format.DateTimeParseException; // Import adicionado para tratamento de exceção
 import java.util.List;
 import java.util.Optional;
 
 /**
- * Servlet para gerenciar operações CRUD de registros de ponto (TimeRecord).
- * Responde a requisições HTTP para /timerecords.
+ * Servlet para gerenciar operações CRUD de comunicações móveis.
+ * Responde a requisições HTTP para /mobilecommunications.
  */
-@WebServlet("/timerecords/*") // Adicionado /* para permitir pathInfo
-public class TimeRecordServlet extends HttpServlet {
+@WebServlet("/mobilecommunications/*") // Adicionado /* para permitir pathInfo
+public class MobileCommunicationServlet extends HttpServlet {
 
-    private TimeRecordService timeRecordService;
+    private MobileCommunicationService mobileCommunicationService;
     private GsonUtil gsonSerializer;
 
     @Override
     public void init() throws ServletException {
         // Instanciando diretamente para o exemplo. Em um projeto real, use injeção de dependência.
-        this.timeRecordService = new TimeRecordServiceImpl(); // Substituído por implementação real
-        this.gsonSerializer = new GsonUtilImpl(); // Substituído por implementação real
+        this.mobileCommunicationService = new MobileCommunicationServiceImpl(); // Você precisará criar MobileCommunicationServiceImpl
+        this.gsonSerializer = new GsonUtilImpl(); // Você precisará criar GsonUtilImpl
     }
 
     @Override
@@ -41,43 +39,32 @@ public class TimeRecordServlet extends HttpServlet {
         response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
 
-        String pathInfo = request.getPathInfo(); // /timerecords/{id} ou /timerecords/driver/{driverId}?date=YYYY-MM-DD
+        String pathInfo = request.getPathInfo(); // /mobilecommunications/{id} ou /mobilecommunications/record/{recordId}
 
         try {
             if (pathInfo == null || pathInfo.equals("/")) {
-                // GET /timerecords - Retorna todos os registros de ponto
-                List<TimeRecord> timeRecords = timeRecordService.getAllTimeRecords();
-                out.print(gsonSerializer.serialize(timeRecords));
-            } else if (pathInfo.startsWith("/driver/")) {
-                // GET /timerecords/driver/{driverId}?date=YYYY-MM-DD
-                int driverId = Integer.parseInt(pathInfo.substring("/driver/".length()));
-                String dateParam = request.getParameter("date");
-                List<TimeRecord> records;
-
-                if (dateParam != null && !dateParam.isEmpty()) {
-                    LocalDate date = LocalDate.parse(dateParam);
-                    records = timeRecordService.getTimeRecordsByDriverIdAndDate(driverId, date);
-                } else {
-                    records = timeRecordService.getTimeRecordsByDriverId(driverId);
-                }
-                out.print(gsonSerializer.serialize(records));
+                // GET /mobilecommunications - Retorna todas as comunicações
+                List<MobileCommunication> communications = mobileCommunicationService.getAllMobileCommunications();
+                out.print(gsonSerializer.serialize(communications));
+            } else if (pathInfo.startsWith("/record/")) {
+                // GET /mobilecommunications/record/{recordId} - Retorna comunicações para um TimeRecord específico
+                int recordId = Integer.parseInt(pathInfo.substring("/record/".length()));
+                List<MobileCommunication> communications = mobileCommunicationService.getMobileCommunicationsByRecordId(recordId);
+                out.print(gsonSerializer.serialize(communications));
             } else {
-                // GET /timerecords/{id} - Retorna um registro de ponto específico
-                int recordId = Integer.parseInt(pathInfo.substring(1)); // Remove a barra inicial
-                Optional<TimeRecord> timeRecord = timeRecordService.getTimeRecordById(recordId);
-                if (timeRecord.isPresent()) {
-                    out.print(gsonSerializer.serialize(timeRecord.get()));
+                // GET /mobilecommunications/{id} - Retorna uma comunicação específica
+                int commId = Integer.parseInt(pathInfo.substring(1)); // Remove a barra inicial
+                Optional<MobileCommunication> communication = mobileCommunicationService.getMobileCommunicationById(commId);
+                if (communication.isPresent()) {
+                    out.print(gsonSerializer.serialize(communication.get()));
                 } else {
                     response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                    out.print(gsonSerializer.serialize(new ErrorResponse("Registro de ponto não encontrado.")));
+                    out.print(gsonSerializer.serialize(new ErrorResponse("Comunicação móvel não encontrada.")));
                 }
             }
         } catch (NumberFormatException e) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             out.print(gsonSerializer.serialize(new ErrorResponse("ID inválido no caminho da URL.")));
-        } catch (DateTimeParseException e) { // Adicionado tratamento para erro de parsing de data
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Formato de data inválido. Use YYYY-MM-DD.")));
         } catch (SQLException e) {
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
             out.print(gsonSerializer.serialize(new ErrorResponse("Erro de banco de dados: " + e.getMessage())));
@@ -95,20 +82,20 @@ public class TimeRecordServlet extends HttpServlet {
         PrintWriter out = response.getWriter();
 
         try {
-            TimeRecord timeRecord = gsonSerializer.deserialize(request.getReader().readLine(), TimeRecord.class);
-            int newRecordId = timeRecordService.registerTimeRecord(timeRecord);
-            timeRecord.setId(newRecordId); // Define o ID gerado no objeto
+            MobileCommunication communication = gsonSerializer.deserialize(request.getReader().readLine(), MobileCommunication.class);
+            int newCommId = mobileCommunicationService.registerMobileCommunication(communication);
+            communication.setId(newCommId); // Define o ID gerado no objeto
             response.setStatus(HttpServletResponse.SC_CREATED);
-            out.print(gsonSerializer.serialize(timeRecord));
+            out.print(gsonSerializer.serialize(communication));
         } catch (IllegalArgumentException e) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             out.print(gsonSerializer.serialize(new ErrorResponse(e.getMessage())));
         } catch (SQLException e) {
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Erro ao registrar ponto: " + e.getMessage())));
+            out.print(gsonSerializer.serialize(new ErrorResponse("Erro ao registrar comunicação móvel: " + e.getMessage())));
         } catch (Exception e) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Dados de registro de ponto inválidos: " + e.getMessage())));
+            out.print(gsonSerializer.serialize(new ErrorResponse("Dados de comunicação móvel inválidos: " + e.getMessage())));
         }
         out.flush();
     }
@@ -122,35 +109,35 @@ public class TimeRecordServlet extends HttpServlet {
         String pathInfo = request.getPathInfo();
         if (pathInfo == null || pathInfo.equals("/")) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse("ID do registro de ponto é obrigatório para atualização.")));
+            out.print(gsonSerializer.serialize(new ErrorResponse("ID da comunicação móvel é obrigatório para atualização.")));
             out.flush();
             return;
         }
 
         try {
-            int recordId = Integer.parseInt(pathInfo.substring(1));
-            TimeRecord timeRecord = gsonSerializer.deserialize(request.getReader().readLine(), TimeRecord.class);
-            timeRecord.setId(recordId); // Garante que o ID do path seja usado
+            int commId = Integer.parseInt(pathInfo.substring(1));
+            MobileCommunication communication = gsonSerializer.deserialize(request.getReader().readLine(), MobileCommunication.class);
+            communication.setId(commId); // Garante que o ID do path seja usado
 
-            if (timeRecordService.updateTimeRecord(timeRecord)) {
+            if (mobileCommunicationService.updateMobileCommunication(communication)) {
                 response.setStatus(HttpServletResponse.SC_OK);
-                out.print(gsonSerializer.serialize(timeRecord));
+                out.print(gsonSerializer.serialize(communication));
             } else {
                 response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                out.print(gsonSerializer.serialize(new ErrorResponse("Registro de ponto não encontrado para atualização.")));
+                out.print(gsonSerializer.serialize(new ErrorResponse("Comunicação móvel não encontrada para atualização.")));
             }
         } catch (NumberFormatException e) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse("ID de registro de ponto inválido.")));
+            out.print(gsonSerializer.serialize(new ErrorResponse("ID da comunicação móvel inválido.")));
         } catch (IllegalArgumentException e) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             out.print(gsonSerializer.serialize(new ErrorResponse(e.getMessage())));
         } catch (SQLException e) {
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Erro ao atualizar registro de ponto: " + e.getMessage())));
+            out.print(gsonSerializer.serialize(new ErrorResponse("Erro ao atualizar comunicação móvel: " + e.getMessage())));
         } catch (Exception e) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Dados de registro de ponto inválidos: " + e.getMessage())));
+            out.print(gsonSerializer.serialize(new ErrorResponse("Dados de comunicação móvel inválidos: " + e.getMessage())));
         }
         out.flush();
     }
@@ -164,25 +151,25 @@ public class TimeRecordServlet extends HttpServlet {
         String pathInfo = request.getPathInfo();
         if (pathInfo == null || pathInfo.equals("/")) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse("ID do registro de ponto é obrigatório para exclusão.")));
+            out.print(gsonSerializer.serialize(new ErrorResponse("ID da comunicação móvel é obrigatório para exclusão.")));
             out.flush();
             return;
         }
 
         try {
-            int recordId = Integer.parseInt(pathInfo.substring(1));
-            if (timeRecordService.deleteTimeRecord(recordId)) {
+            int commId = Integer.parseInt(pathInfo.substring(1));
+            if (mobileCommunicationService.deleteMobileCommunication(commId)) {
                 response.setStatus(HttpServletResponse.SC_NO_CONTENT); // 204 No Content para exclusão bem-sucedida
             } else {
                 response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                out.print(gsonSerializer.serialize(new ErrorResponse("Registro de ponto não encontrado para exclusão.")));
+                out.print(gsonSerializer.serialize(new ErrorResponse("Comunicação móvel não encontrada para exclusão.")));
             }
         } catch (NumberFormatException e) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse("ID de registro de ponto inválido.")));
+            out.print(gsonSerializer.serialize(new ErrorResponse("ID da comunicação móvel inválido.")));
         } catch (SQLException e) {
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Erro ao deletar registro de ponto: " + e.getMessage())));
+            out.print(gsonSerializer.serialize(new ErrorResponse("Erro ao deletar comunicação móvel: " + e.getMessage())));
         }
         out.flush();
     }
@@ -190,9 +177,6 @@ public class TimeRecordServlet extends HttpServlet {
     // Classe auxiliar para padronizar respostas de erro
     private static class ErrorResponse {
         private String message;
-
-        public ErrorResponse(String message) {
-            this.message = message;
-        }
+        public ErrorResponse(String message) { this.message = message; }
     }
 }

@@ -50,4 +50,26 @@ public interface Validator {
      * @return true se o objeto não é nulo, false caso contrário.
      */
     boolean isNotNull(Object object);
+
+    /**
+     * Valida se um nome é válido (não nulo, não vazio e com caracteres alfabéticos/espaços).
+     * @param name O nome a ser validado.
+     * @return true se o nome é válido, false caso contrário.
+     */
+    boolean isValidName(String name); // NOVO MÉTODO
+
+    /**
+     * Valida se um número de licença (CNH) é válido (não nulo, não vazio e alfanumérico).
+     * @param licenseNumber O número da CNH a ser validado.
+     * @return true se o número da CNH é válido, false caso contrário.
+     */
+    boolean isValidLicenseNumber(String licenseNumber); // NOVO MÉTODO
+
+    /**
+     * Valida se uma localização (cidade, endereço) é válida (não nula, não vazia).
+     * Pode ser expandido com regras mais específicas se necessário.
+     * @param location A localização a ser validada.
+     * @return true se a localização é válida, false caso contrário.
+     */
+    boolean isValidLocation(String location); // NOVO MÉTODO
 }

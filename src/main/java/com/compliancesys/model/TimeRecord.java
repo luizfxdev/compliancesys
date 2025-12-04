@@ -1,51 +1,55 @@
 package com.compliancesys.model;
 
-import java.time.LocalDateTime; // Importa para usar LocalDateTime para o timestamp do evento.
+import com.compliancesys.model.enums.EventType; // Importa o enum EventType
+import java.time.LocalDateTime;
+import java.util.Objects; // Adicionado para equals e hashCode
 
 /**
  * Representa um registro de ponto de um motorista.
- * Corresponde à tabela 'TimeRecord' no banco de dados.
+ * Corresponde à tabela 'time_records' no banco de dados.
  */
 public class TimeRecord {
-    private int recordId; // ID único do registro de ponto.
-    private int driverId; // ID do motorista associado ao registro.
-    private Integer vehicleId; // ID do veículo associado ao registro (pode ser nulo).
-    private LocalDateTime eventTimestamp; // Data e hora exata do evento de ponto.
-    private EventType eventType; // Tipo do evento de ponto (ex: INICIO_JORNADA).
-    private String notes; // Notas adicionais sobre o registro.
+    private int id; // Renomeado de recordId para id para consistência
+    private int driverId;
+    // private int vehicleId; // Removido para alinhar com o schema atual
+    private LocalDateTime recordTime; // Renomeado de timestamp para recordTime para clareza
+    private EventType eventType; // Alterado para o enum EventType
+    private String location; // Adicionado para detalhes de localização
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt; // Adicionado para consistência com o schema e DAOs
 
-    /**
-     * Construtor padrão.
-     */
     public TimeRecord() {
     }
 
-    /**
-     * Construtor com todos os campos.
-     * @param recordId ID do registro.
-     * @param driverId ID do motorista.
-     * @param vehicleId ID do veículo.
-     * @param eventTimestamp Timestamp do evento.
-     * @param eventType Tipo do evento.
-     * @param notes Notas.
-     */
-    public TimeRecord(int recordId, int driverId, Integer vehicleId, LocalDateTime eventTimestamp, EventType eventType, String notes) {
-        this.recordId = recordId;
+    // Construtor completo
+    public TimeRecord(int id, int driverId, LocalDateTime recordTime, EventType eventType, String location, LocalDateTime createdAt, LocalDateTime updatedAt) {
+        this.id = id;
         this.driverId = driverId;
-        this.vehicleId = vehicleId;
-        this.eventTimestamp = eventTimestamp;
+        // this.vehicleId = vehicleId;
+        this.recordTime = recordTime;
         this.eventType = eventType;
-        this.notes = notes;
+        this.location = location;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
     }
 
-    // Getters e Setters para todos os campos.
-
-    public int getRecordId() {
-        return recordId;
+    // Construtor para inserção (sem ID, createdAt, updatedAt)
+    public TimeRecord(int driverId, LocalDateTime recordTime, EventType eventType, String location) {
+        this(0, driverId, recordTime, eventType, location, null, null);
     }
 
-    public void setRecordId(int recordId) {
-        this.recordId = recordId;
+    // Construtor para atualização (com ID, sem createdAt, updatedAt)
+    public TimeRecord(int id, int driverId, LocalDateTime recordTime, EventType eventType, String location) {
+        this(id, driverId, recordTime, eventType, location, null, null);
+    }
+
+    // Getters e Setters
+    public int getId() { // Getter renomeado
+        return id;
+    }
+
+    public void setId(int id) { // Setter renomeado
+        this.id = id;
     }
 
     public int getDriverId() {
@@ -56,51 +60,80 @@ public class TimeRecord {
         this.driverId = driverId;
     }
 
-    public Integer getVehicleId() {
+    /*
+    public int getVehicleId() {
         return vehicleId;
     }
 
-    public void setVehicleId(Integer vehicleId) {
+    public void setVehicleId(int vehicleId) {
         this.vehicleId = vehicleId;
     }
+    */
 
-    public LocalDateTime getEventTimestamp() {
-        return eventTimestamp;
+    public LocalDateTime getRecordTime() { // Getter renomeado
+        return recordTime;
     }
 
-    public void setEventTimestamp(LocalDateTime eventTimestamp) {
-        this.eventTimestamp = eventTimestamp;
+    public void setRecordTime(LocalDateTime recordTime) { // Setter renomeado
+        this.recordTime = recordTime;
     }
 
-    public EventType getEventType() {
+    public EventType getEventType() { // Getter alterado para EventType
         return eventType;
     }
 
-    public void setEventType(EventType eventType) {
+    public void setEventType(EventType eventType) { // Setter alterado para EventType
         this.eventType = eventType;
     }
 
-    public String getNotes() {
-        return notes;
+    public String getLocation() { // Getter adicionado
+        return location;
     }
 
-    public void setNotes(String notes) {
-        this.notes = notes;
+    public void setLocation(String location) { // Setter adicionado
+        this.location = location;
     }
 
-    /**
-     * Retorna uma representação em String do objeto TimeRecord.
-     * @return String formatada.
-     */
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() { // Getter adicionado
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) { // Setter adicionado
+        this.updatedAt = updatedAt;
+    }
+
     @Override
     public String toString() {
         return "TimeRecord{" +
-               "recordId=" + recordId +
-               ", driverId=" + driverId +
-               ", vehicleId=" + vehicleId +
-               ", eventTimestamp=" + eventTimestamp +
-               ", eventType=" + eventType +
-               ", notes='" + notes + '\'' +
-               '}';
+                "id=" + id +
+                ", driverId=" + driverId +
+                // ", vehicleId=" + vehicleId +
+                ", recordTime=" + recordTime +
+                ", eventType=" + eventType +
+                ", location='" + location + '\'' +
+                ", createdAt=" + createdAt +
+                ", updatedAt=" + updatedAt +
+                '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        TimeRecord that = (TimeRecord) o;
+        return id == that.id && driverId == that.driverId && Objects.equals(recordTime, that.recordTime) && eventType == that.eventType && Objects.equals(location, that.location);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, driverId, recordTime, eventType, location);
     }
 }

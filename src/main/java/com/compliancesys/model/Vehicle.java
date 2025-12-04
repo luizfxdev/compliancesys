@@ -1,63 +1,60 @@
 package com.compliancesys.model;
 
-import java.math.BigDecimal;    // Importa para usar BigDecimal para load_capacity.
-import java.time.LocalDateTime; // Importa para usar LocalDateTime para a data de criação.
+import java.time.LocalDateTime;
+import java.util.Objects; // Adicionado para equals e hashCode
 
 /**
  * Representa um veículo no sistema.
- * Corresponde à tabela 'Vehicle' no banco de dados.
+ * Corresponde à tabela 'vehicles' no banco de dados.
  */
 public class Vehicle {
-    private int vehicleId; // ID único do veículo.
-    private String licensePlate; // Placa do veículo, única e não nula.
-    private String model; // Modelo do veículo.
-    private int year; // Ano de fabricação do veículo.
-    private BigDecimal loadCapacity; // Capacidade de carga do veículo.
-    private int companyId; // ID da empresa à qual o veículo pertence.
-    private LocalDateTime createdAt; // Timestamp de criação do registro.
+    private int id; // Renomeado de vehicleId para id para consistência
+    private String plate;
+    private String model;
+    private int year;
+    private int companyId; // Mantido para alinhar com o schema corrigido
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt; // Adicionado para consistência com o schema e DAOs
 
-    /**
-     * Construtor padrão.
-     */
     public Vehicle() {
     }
 
-    /**
-     * Construtor com todos os campos.
-     * @param vehicleId ID do veículo.
-     * @param licensePlate Placa do veículo.
-     * @param model Modelo do veículo.
-     * @param year Ano de fabricação.
-     * @param loadCapacity Capacidade de carga.
-     * @param companyId ID da empresa.
-     * @param createdAt Data e hora de criação.
-     */
-    public Vehicle(int vehicleId, String licensePlate, String model, int year, BigDecimal loadCapacity, int companyId, LocalDateTime createdAt) {
-        this.vehicleId = vehicleId;
-        this.licensePlate = licensePlate;
+    // Construtor completo
+    public Vehicle(int id, String plate, String model, int year, int companyId, LocalDateTime createdAt, LocalDateTime updatedAt) {
+        this.id = id;
+        this.plate = plate;
         this.model = model;
         this.year = year;
-        this.loadCapacity = loadCapacity;
         this.companyId = companyId;
         this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
     }
 
-    // Getters e Setters para todos os campos.
-
-    public int getVehicleId() {
-        return vehicleId;
+    // Construtor para inserção (sem ID, createdAt, updatedAt)
+    public Vehicle(String plate, String model, int year, int companyId) {
+        this(0, plate, model, year, companyId, null, null);
     }
 
-    public void setVehicleId(int vehicleId) {
-        this.vehicleId = vehicleId;
+    // Construtor para atualização (com ID, sem createdAt, updatedAt)
+    public Vehicle(int id, String plate, String model, int year, int companyId) {
+        this(id, plate, model, year, companyId, null, null);
     }
 
-    public String getLicensePlate() {
-        return licensePlate;
+    // Getters e Setters
+    public int getId() { // Getter renomeado
+        return id;
     }
 
-    public void setLicensePlate(String licensePlate) {
-        this.licensePlate = licensePlate;
+    public void setId(int id) { // Setter renomeado
+        this.id = id;
+    }
+
+    public String getPlate() {
+        return plate;
+    }
+
+    public void setPlate(String plate) {
+        this.plate = plate;
     }
 
     public String getModel() {
@@ -76,14 +73,6 @@ public class Vehicle {
         this.year = year;
     }
 
-    public BigDecimal getLoadCapacity() {
-        return loadCapacity;
-    }
-
-    public void setLoadCapacity(BigDecimal loadCapacity) {
-        this.loadCapacity = loadCapacity;
-    }
-
     public int getCompanyId() {
         return companyId;
     }
@@ -100,20 +89,37 @@ public class Vehicle {
         this.createdAt = createdAt;
     }
 
-    /**
-     * Retorna uma representação em String do objeto Vehicle.
-     * @return String formatada.
-     */
+    public LocalDateTime getUpdatedAt() { // Getter adicionado
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) { // Setter adicionado
+        this.updatedAt = updatedAt;
+    }
+
     @Override
     public String toString() {
         return "Vehicle{" +
-               "vehicleId=" + vehicleId +
-               ", licensePlate='" + licensePlate + '\'' +
-               ", model='" + model + '\'' +
-               ", year=" + year +
-               ", loadCapacity=" + loadCapacity +
-               ", companyId=" + companyId +
-               ", createdAt=" + createdAt +
-               '}';
+                "id=" + id +
+                ", plate='" + plate + '\'' +
+                ", model='" + model + '\'' +
+                ", year=" + year +
+                ", companyId=" + companyId +
+                ", createdAt=" + createdAt +
+                ", updatedAt=" + updatedAt +
+                '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Vehicle vehicle = (Vehicle) o;
+        return id == vehicle.id && year == vehicle.year && companyId == vehicle.companyId && Objects.equals(plate, vehicle.plate) && Objects.equals(model, vehicle.model);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, plate, model, year, companyId);
     }
 }

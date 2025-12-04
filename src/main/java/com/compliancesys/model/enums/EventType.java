@@ -1,7 +1,8 @@
-package com.compliancesys.model;
+package com.compliancesys.model.enums; // Pacote corrigido para 'enums'
 
 /**
- * Enum para tipos de eventos de registro de ponto.
+ * Enumeração para os tipos de eventos de registro de ponto de um motorista.
+ * Reflete os eventos da Lei 13.103/2015.
  */
 public enum EventType {
     INICIO_JORNADA("Início de Jornada"),
@@ -11,7 +12,10 @@ public enum EventType {
     INICIO_REFEICAO("Início de Refeição"),
     FIM_REFEICAO("Fim de Refeição"),
     ESPERA("Espera"),
-    MOVIMENTACAO("Movimentação");
+    MOVIMENTACAO("Movimentação"),
+    // Adicionados para consistência com a lógica de jornada, se necessário
+    INICIO_DIRECAO("Início de Direção"),
+    FIM_DIRECAO("Fim de Direção");
 
     private final String description; // Descrição legível do tipo de evento.
 
