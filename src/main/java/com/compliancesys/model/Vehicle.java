@@ -1,15 +1,16 @@
 package com.compliancesys.model;
 
 import java.time.LocalDateTime;
-import java.util.Objects; // Adicionado para equals e hashCode
+import java.util.Objects;
 
 /**
  * Representa um veículo no sistema.
  * Corresponde à tabela 'vehicles' no banco de dados.
  */
 public class Vehicle {
-    private int id; // Renomeado de vehicleId para id para consistência
+    private int id;
     private String plate;
+    private String manufacturer; // Adicionado: Fabricante do veículo
     private String model;
     private int year;
     private int companyId; // Mantido para alinhar com o schema corrigido
@@ -20,9 +21,10 @@ public class Vehicle {
     }
 
     // Construtor completo
-    public Vehicle(int id, String plate, String model, int year, int companyId, LocalDateTime createdAt, LocalDateTime updatedAt) {
+    public Vehicle(int id, String plate, String manufacturer, String model, int year, int companyId, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.plate = plate;
+        this.manufacturer = manufacturer;
         this.model = model;
         this.year = year;
         this.companyId = companyId;
@@ -31,21 +33,21 @@ public class Vehicle {
     }
 
     // Construtor para inserção (sem ID, createdAt, updatedAt)
-    public Vehicle(String plate, String model, int year, int companyId) {
-        this(0, plate, model, year, companyId, null, null);
+    public Vehicle(String plate, String manufacturer, String model, int year, int companyId) {
+        this(0, plate, manufacturer, model, year, companyId, null, null);
     }
 
     // Construtor para atualização (com ID, sem createdAt, updatedAt)
-    public Vehicle(int id, String plate, String model, int year, int companyId) {
-        this(id, plate, model, year, companyId, null, null);
+    public Vehicle(int id, String plate, String manufacturer, String model, int year, int companyId) {
+        this(id, plate, manufacturer, model, year, companyId, null, null);
     }
 
     // Getters e Setters
-    public int getId() { // Getter renomeado
+    public int getId() {
         return id;
     }
 
-    public void setId(int id) { // Setter renomeado
+    public void setId(int id) {
         this.id = id;
     }
 
@@ -55,6 +57,14 @@ public class Vehicle {
 
     public void setPlate(String plate) {
         this.plate = plate;
+    }
+
+    public String getManufacturer() { // Getter adicionado
+        return manufacturer;
+    }
+
+    public void setManufacturer(String manufacturer) { // Setter adicionado
+        this.manufacturer = manufacturer;
     }
 
     public String getModel() {
@@ -89,11 +99,11 @@ public class Vehicle {
         this.createdAt = createdAt;
     }
 
-    public LocalDateTime getUpdatedAt() { // Getter adicionado
+    public LocalDateTime getUpdatedAt() {
         return updatedAt;
     }
 
-    public void setUpdatedAt(LocalDateTime updatedAt) { // Setter adicionado
+    public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
     }
 
@@ -102,6 +112,7 @@ public class Vehicle {
         return "Vehicle{" +
                 "id=" + id +
                 ", plate='" + plate + '\'' +
+                ", manufacturer='" + manufacturer + '\'' +
                 ", model='" + model + '\'' +
                 ", year=" + year +
                 ", companyId=" + companyId +
@@ -115,11 +126,16 @@ public class Vehicle {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Vehicle vehicle = (Vehicle) o;
-        return id == vehicle.id && year == vehicle.year && companyId == vehicle.companyId && Objects.equals(plate, vehicle.plate) && Objects.equals(model, vehicle.model);
+        return id == vehicle.id &&
+                year == vehicle.year &&
+                companyId == vehicle.companyId &&
+                Objects.equals(plate, vehicle.plate) &&
+                Objects.equals(manufacturer, vehicle.manufacturer) &&
+                Objects.equals(model, vehicle.model);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, plate, model, year, companyId);
+        return Objects.hash(id, plate, manufacturer, model, year, companyId);
     }
 }

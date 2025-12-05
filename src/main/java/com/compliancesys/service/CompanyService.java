@@ -1,64 +1,68 @@
 package com.compliancesys.service;
 
-import com.compliancesys.model.Company;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
 
+import com.compliancesys.exception.BusinessException;
+import com.compliancesys.model.Company;
+
 /**
- * Interface para a camada de serviço da entidade Company.
- * Define as operações de negócio para gerenciar empresas.
+ * Interface para o serviço de gerenciamento de empresas.
+ * Define as operações de negócio relacionadas às empresas.
  */
 public interface CompanyService {
 
     /**
      * Registra uma nova empresa no sistema.
-     * Realiza validações de negócio antes de persistir a empresa.
-     * @param company Objeto Company a ser registrado.
-     * @return O ID da empresa registrada.
+     * @param company O objeto Company a ser registrado.
+     * @return O objeto Company registrado, incluindo o ID gerado. // CORRIGIDO: Retorna Company
+     * @throws BusinessException Se houver uma regra de negócio violada.
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
-     * @throws IllegalArgumentException Se os dados da empresa forem inválidos.
      */
-    int registerCompany(Company company) throws SQLException, IllegalArgumentException;
+    Company registerCompany(Company company) throws BusinessException, SQLException; // CORRIGIDO: Retorna Company
 
     /**
      * Busca uma empresa pelo seu ID.
-     * @param companyId ID da empresa.
+     * @param companyId O ID da empresa.
      * @return Um Optional contendo a Company se encontrada, ou um Optional vazio.
+     * @throws BusinessException Se o ID for inválido.
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
      */
-    Optional<Company> getCompanyById(int companyId) throws SQLException;
+    Optional<Company> getCompanyById(int companyId) throws BusinessException, SQLException;
 
     /**
      * Busca uma empresa pelo seu CNPJ.
-     * @param cnpj CNPJ da empresa.
+     * @param cnpj O CNPJ da empresa.
      * @return Um Optional contendo a Company se encontrada, ou um Optional vazio.
+     * @throws BusinessException Se o CNPJ for inválido.
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
      */
-    Optional<Company> getCompanyByCnpj(String cnpj) throws SQLException;
+    Optional<Company> getCompanyByCnpj(String cnpj) throws BusinessException, SQLException;
 
     /**
-     * Retorna uma lista de todas as empresas registradas.
+     * Busca todas as empresas.
      * @return Uma lista de todas as empresas.
+     * @throws BusinessException Se ocorrer um erro de negócio.
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
      */
-    List<Company> getAllCompanies() throws SQLException;
+    List<Company> getAllCompanies() throws BusinessException, SQLException;
 
     /**
-     * Atualiza as informações de uma empresa existente.
-     * Realiza validações de negócio antes de atualizar.
-     * @param company Objeto Company com os dados atualizados.
-     * @return true se a empresa foi atualizada com sucesso, false caso contrário.
+     * Atualiza os dados de uma empresa existente.
+     * @param company O objeto Company com os dados atualizados.
+     * @return O objeto Company atualizado. // CORRIGIDO: Retorna Company
+     * @throws BusinessException Se houver uma regra de negócio violada ou a empresa não for encontrada.
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
-     * @throws IllegalArgumentException Se os dados da empresa forem inválidos.
      */
-    boolean updateCompany(Company company) throws SQLException, IllegalArgumentException;
+    Company updateCompany(Company company) throws BusinessException, SQLException; // CORRIGIDO: Retorna Company
 
     /**
-     * Remove uma empresa do sistema pelo seu ID.
-     * @param companyId ID da empresa a ser removida.
-     * @return true se a empresa foi removida com sucesso, false caso contrário.
+     * Deleta uma empresa pelo seu ID.
+     * @param companyId O ID da empresa a ser deletada.
+     * @return true se a empresa foi deletada com sucesso, false caso contrário.
+     * @throws BusinessException Se o ID for inválido ou a empresa não for encontrada.
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
      */
-    boolean deleteCompany(int companyId) throws SQLException;
+    boolean deleteCompany(int companyId) throws BusinessException, SQLException;
 }

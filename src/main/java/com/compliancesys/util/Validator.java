@@ -4,72 +4,77 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 
 /**
- * Interface para um serviço de validação genérico.
- * Define métodos para validar diferentes tipos de dados.
+ * Interface para validação de dados de entrada em várias entidades do sistema.
  */
 public interface Validator {
 
     /**
-     * Valida se uma string não é nula e não está vazia.
-     * @param value A string a ser validada.
-     * @return true se a string é válida, false caso contrário.
+     * Valida um nome.
+     * @param name O nome a ser validado.
+     * @return true se o nome é válido, false caso contrário.
      */
-    boolean isValidString(String value);
+    boolean isValidName(String name);
 
     /**
-     * Valida se um número inteiro é positivo.
-     * @param value O número inteiro a ser validado.
-     * @return true se o número é positivo, false caso contrário.
-     */
-    boolean isPositive(int value);
-
-    /**
-     * Valida se um CPF é válido (formato e dígitos verificadores).
+     * Valida um CPF.
      * @param cpf O CPF a ser validado.
      * @return true se o CPF é válido, false caso contrário.
      */
     boolean isValidCpf(String cpf);
 
     /**
-     * Valida se uma data não é nula e não está no futuro.
+     * Valida um número de licença (CNH).
+     * @param licenseNumber O número da licença a ser validado.
+     * @return true se o número da licença é válido, false caso contrário.
+     */
+    boolean isValidLicenseNumber(String licenseNumber);
+
+    /**
+     * Valida um endereço de e-mail.
+     * @param email O e-mail a ser validado.
+     * @return true se o e-mail é válido, false caso contrário.
+     */
+    boolean isValidEmail(String email);
+
+    /**
+     * Valida uma senha.
+     * @param password A senha a ser validada.
+     * @return true se a senha é válida, false caso contrário.
+     */
+    boolean isValidPassword(String password);
+
+    /**
+     * Valida um CNPJ.
+     * @param cnpj O CNPJ a ser validado.
+     * @return true se o CNPJ é válido, false caso contrário.
+     */
+    boolean isValidCnpj(String cnpj); // ADICIONADO: Método para validar CNPJ
+
+    /**
+     * Valida uma placa de veículo.
+     * @param plate A placa a ser validada.
+     * @return true se a placa é válida, false caso contrário.
+     */
+    boolean isValidPlate(String plate); // ADICIONADO: Método para validar placa
+
+    /**
+     * Valida se uma data está no passado ou é a data atual.
      * @param date A data a ser validada.
      * @return true se a data é válida, false caso contrário.
      */
-    boolean isValidDate(LocalDate date);
+    boolean isPastOrPresentDate(LocalDate date);
 
     /**
-     * Valida se um horário não é nulo.
+     * Valida se um horário é válido (não nulo).
      * @param time O horário a ser validado.
      * @return true se o horário é válido, false caso contrário.
      */
     boolean isValidTime(LocalTime time);
 
     /**
-     * Valida se um objeto não é nulo.
-     * @param object O objeto a ser validado.
-     * @return true se o objeto não é nulo, false caso contrário.
-     */
-    boolean isNotNull(Object object);
-
-    /**
-     * Valida se um nome é válido (não nulo, não vazio e com caracteres alfabéticos/espaços).
-     * @param name O nome a ser validado.
-     * @return true se o nome é válido, false caso contrário.
-     */
-    boolean isValidName(String name); // NOVO MÉTODO
-
-    /**
-     * Valida se um número de licença (CNH) é válido (não nulo, não vazio e alfanumérico).
-     * @param licenseNumber O número da CNH a ser validado.
-     * @return true se o número da CNH é válido, false caso contrário.
-     */
-    boolean isValidLicenseNumber(String licenseNumber); // NOVO MÉTODO
-
-    /**
-     * Valida se uma localização (cidade, endereço) é válida (não nula, não vazia).
-     * Pode ser expandido com regras mais específicas se necessário.
+     * Valida uma localização (não nula e não vazia).
      * @param location A localização a ser validada.
      * @return true se a localização é válida, false caso contrário.
      */
-    boolean isValidLocation(String location); // NOVO MÉTODO
+    boolean isValidLocation(String location);
 }

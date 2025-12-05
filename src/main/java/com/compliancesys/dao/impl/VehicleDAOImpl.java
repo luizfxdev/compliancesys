@@ -3,88 +3,78 @@ package com.compliancesys.dao.impl;
 import com.compliancesys.config.DatabaseConfig;
 import com.compliancesys.dao.VehicleDAO;
 import com.compliancesys.model.Vehicle;
-
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-/**
- * Implementação da interface VehicleDAO para operações de persistência da entidade Vehicle.
- * Interage com o banco de dados PostgreSQL.
- */
 public class VehicleDAOImpl implements VehicleDAO {
 
     private static final Logger LOGGER = Logger.getLogger(VehicleDAOImpl.class.getName());
-    private final DatabaseConfig dbConfig;
-
-    public VehicleDAOImpl() {
-        this.dbConfig = DatabaseConfig.getInstance();
-    }
 
     @Override
-    public int create(Vehicle vehicle) throws SQLException {
-        String sql = "INSERT INTO vehicles (plate, model, year, company_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?) RETURNING id";
-        try (Connection conn = dbConfig.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+    public int create(Vehicle vehicle) throws SQLException { // CORRIGIDO: Retorna int
+        String sql = "INSERT INTO vehicles (company_id, plate, manufacturer, model, year, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
-            stmt.setString(1, vehicle.getPlate());
-            stmt.setString(2, vehicle.getModel());
-            stmt.setInt(3, vehicle.getYear());
-            stmt.setInt(4, vehicle.getCompanyId()); // company_id
-            stmt.setObject(5, vehicle.getCreatedAt());
-            stmt.setObject(6, vehicle.getUpdatedAt());
+            stmt.setInt(1, vehicle.getCompanyId());
+            stmt.setString(2, vehicle.getPlate());
+            stmt.setString(3, vehicle.getManufacturer()); // CORRIGIDO: getManufacturer()
+            stmt.setString(4, vehicle.getModel());
+            stmt.setInt(5, vehicle.getYear());
+            stmt.setObject(6, vehicle.getCreatedAt());
+            stmt.setObject(7, vehicle.getUpdatedAt());
 
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next()) {
-                return rs.getInt("id");
+            int affectedRows = stmt.executeUpdate();
+
+            if (affectedRows == 0) {
+                throw new SQLException("Falha ao criar veículo, nenhuma linha afetada.");
             }
-            return -1; // Indica falha na criação
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro ao criar veículo: " + e.getMessage(), e);
-            throw e;
+
+            try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
+                if (generatedKeys.next()) {
+                    return generatedKeys.getInt(1);
+                } else {
+                    throw new SQLException("Falha ao criar veículo, nenhum ID obtido.");
+                }
+            }
         }
     }
 
     @Override
     public Optional<Vehicle> findById(int id) throws SQLException {
-        String sql = "SELECT id, plate, model, year, company_id, created_at, updated_at FROM vehicles WHERE id = ?";
-        try (Connection conn = dbConfig.getConnection();
+        String sql = "SELECT id, company_id, plate, manufacturer, model, year, created_at, updated_at FROM vehicles WHERE id = ?";
+        try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-
             stmt.setInt(1, id);
-            ResultSet rs = stmt.executeQuery();
-
-            if (rs.next()) {
-                return Optional.of(mapResultSetToVehicle(rs));
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return Optional.of(mapResultSetToVehicle(rs));
+                }
             }
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro ao buscar veículo por ID: " + e.getMessage(), e);
-            throw e;
         }
         return Optional.empty();
     }
 
     @Override
     public Optional<Vehicle> findByPlate(String plate) throws SQLException {
-        String sql = "SELECT id, plate, model, year, company_id, created_at, updated_at FROM vehicles WHERE plate = ?";
-        try (Connection conn = dbConfig.getConnection();
+        String sql = "SELECT id, company_id, plate, manufacturer, model, year, created_at, updated_at FROM vehicles WHERE plate = ?";
+        try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-
             stmt.setString(1, plate);
-            ResultSet rs = stmt.executeQuery();
-
-            if (rs.next()) {
-                return Optional.of(mapResultSetToVehicle(rs));
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return Optional.of(mapResultSetToVehicle(rs));
+                }
             }
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro ao buscar veículo por placa: " + e.getMessage(), e);
-            throw e;
         }
         return Optional.empty();
     }
@@ -92,98 +82,55 @@ public class VehicleDAOImpl implements VehicleDAO {
     @Override
     public List<Vehicle> findAll() throws SQLException {
         List<Vehicle> vehicles = new ArrayList<>();
-        String sql = "SELECT id, plate, model, year, company_id, created_at, updated_at FROM vehicles";
-        try (Connection conn = dbConfig.getConnection();
+        String sql = "SELECT id, company_id, plate, manufacturer, model, year, created_at, updated_at FROM vehicles";
+        try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
-
             while (rs.next()) {
                 vehicles.add(mapResultSetToVehicle(rs));
             }
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro ao buscar todos os veículos: " + e.getMessage(), e);
-            throw e;
-        }
-        return vehicles;
-    }
-
-    @Override
-    public List<Vehicle> findByCompanyId(int companyId) throws SQLException {
-        List<Vehicle> vehicles = new ArrayList<>();
-        String sql = "SELECT id, plate, model, year, company_id, created_at, updated_at FROM vehicles WHERE company_id = ?";
-        try (Connection conn = dbConfig.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-
-            stmt.setInt(1, companyId);
-            ResultSet rs = stmt.executeQuery();
-
-            while (rs.next()) {
-                vehicles.add(mapResultSetToVehicle(rs));
-            }
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro ao buscar veículos por ID da empresa: " + e.getMessage(), e);
-            throw e;
         }
         return vehicles;
     }
 
     @Override
     public boolean update(Vehicle vehicle) throws SQLException {
-        String sql = "UPDATE vehicles SET plate = ?, model = ?, year = ?, company_id = ?, updated_at = ? WHERE id = ?";
-        try (Connection conn = dbConfig.getConnection();
+        String sql = "UPDATE vehicles SET company_id = ?, plate = ?, manufacturer = ?, model = ?, year = ?, updated_at = ? WHERE id = ?";
+        try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-            stmt.setString(1, vehicle.getPlate());
-            stmt.setString(2, vehicle.getModel());
-            stmt.setInt(3, vehicle.getYear());
-            stmt.setInt(4, vehicle.getCompanyId());
-            stmt.setObject(5, LocalDateTime.now()); // Atualiza o updated_at automaticamente
-            stmt.setInt(6, vehicle.getId());
+            stmt.setInt(1, vehicle.getCompanyId());
+            stmt.setString(2, vehicle.getPlate());
+            stmt.setString(3, vehicle.getManufacturer()); // CORRIGIDO: getManufacturer()
+            stmt.setString(4, vehicle.getModel());
+            stmt.setInt(5, vehicle.getYear());
+            stmt.setObject(6, vehicle.getUpdatedAt());
+            stmt.setInt(7, vehicle.getId());
 
-            int affectedRows = stmt.executeUpdate();
-            return affectedRows > 0;
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro ao atualizar veículo: " + e.getMessage(), e);
-            throw e;
+            return stmt.executeUpdate() > 0;
         }
     }
 
     @Override
     public boolean delete(int id) throws SQLException {
         String sql = "DELETE FROM vehicles WHERE id = ?";
-        try (Connection conn = dbConfig.getConnection();
+        try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-
             stmt.setInt(1, id);
-            int affectedRows = stmt.executeUpdate();
-            return affectedRows > 0;
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro ao deletar veículo: " + e.getMessage(), e);
-            throw e;
+            return stmt.executeUpdate() > 0;
         }
     }
 
-    /**
-     * Mapeia um ResultSet para um objeto Vehicle.
-     * @param rs ResultSet contendo os dados do veículo.
-     * @return Objeto Vehicle.
-     * @throws SQLException Se ocorrer um erro ao acessar os dados do ResultSet.
-     */
     private Vehicle mapResultSetToVehicle(ResultSet rs) throws SQLException {
-        Vehicle vehicle = new Vehicle();
-        vehicle.setId(rs.getInt("id"));
-        vehicle.setPlate(rs.getString("plate"));
-        vehicle.setModel(rs.getString("model"));
-        vehicle.setYear(rs.getInt("year"));
-        vehicle.setCompanyId(rs.getInt("company_id"));
-
-        // Converte OffsetDateTime (timestamptz) para LocalDateTime
-        OffsetDateTime createdAtOffset = rs.getObject("created_at", OffsetDateTime.class);
-        vehicle.setCreatedAt(createdAtOffset != null ? createdAtOffset.toLocalDateTime() : null);
-
-        OffsetDateTime updatedAtOffset = rs.getObject("updated_at", OffsetDateTime.class);
-        vehicle.setUpdatedAt(updatedAtOffset != null ? updatedAtOffset.toLocalDateTime() : null);
-
-        return vehicle;
+        return new Vehicle(
+                rs.getInt("id"),
+                rs.getString("plate"),
+                rs.getString("manufacturer"), // CORRIGIDO: manufacturer
+                rs.getString("model"),
+                rs.getInt("year"),
+                rs.getInt("company_id"),
+                rs.getObject("created_at", LocalDateTime.class),
+                rs.getObject("updated_at", LocalDateTime.class)
+        );
     }
 }

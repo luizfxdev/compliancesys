@@ -4,78 +4,92 @@ import java.io.IOException;         // Importa para lidar com exceções de I/O.
 import java.io.InputStream;         // Importa para ler o arquivo de propriedades.
 import java.sql.Connection;         // Importa para a interface Connection do JDBC.
 import java.sql.DriverManager;      // Importa para gerenciar drivers JDBC.
+import java.sql.ResultSet;          // Importa para a interface ResultSet do JDBC.
 import java.sql.SQLException;       // Importa para lidar com exceções SQL.
-import java.util.Properties;        // Importa para carregar propriedades de um arquivo.
+import java.sql.Statement;          // Importa para a interface Statement do JDBC.
+import java.util.Properties;        // Importa para trabalhar com arquivos de propriedades.
 import java.util.logging.Level;     // Importa para níveis de log.
 import java.util.logging.Logger;    // Importa para logging.
 
 /**
- * Classe de configuração do banco de dados.
- * Carrega as propriedades de conexão e fornece uma conexão JDBC.
- * Implementa o padrão Singleton para garantir uma única instância.
+ * Classe de configuração do banco de dados para o sistema ComplianceSys.
+ * Gerencia o carregamento das propriedades de conexão e o estabelecimento de conexões.
  */
 public class DatabaseConfig {
+
     private static final Logger LOGGER = Logger.getLogger(DatabaseConfig.class.getName()); // Logger para a classe.
-    private static DatabaseConfig instance; // Instância única do Singleton.
-    private Properties properties; // Propriedades de conexão do banco de dados.
+    private static final Properties properties = new Properties(); // Objeto Properties para armazenar as configurações.
+    private static final String PROPERTIES_FILE = "database.properties"; // Nome do arquivo de propriedades.
 
-    /**
-     * Construtor privado para o Singleton.
-     * Carrega as propriedades do arquivo 'database.properties'.
-     */
-    private DatabaseConfig() {
-        properties = new Properties();
-        try (InputStream input = getClass().getClassLoader().getResourceAsStream("database.properties")) {
+    // Bloco estático para carregar as propriedades do banco de dados uma vez.
+    static {
+        try (InputStream input = DatabaseConfig.class.getClassLoader().getResourceAsStream(PROPERTIES_FILE)) {
             if (input == null) {
-                LOGGER.log(Level.SEVERE, "Arquivo 'database.properties' não encontrado no classpath.");
-                throw new IOException("Arquivo 'database.properties' não encontrado.");
+                LOGGER.log(Level.SEVERE, "Desculpe, não foi possível encontrar " + PROPERTIES_FILE);
+                throw new IOException("Arquivo de propriedades do banco de dados não encontrado: " + PROPERTIES_FILE);
             }
-            properties.load(input);
-            // Carrega o driver JDBC.
-            Class.forName(properties.getProperty("db.driver"));
-        } catch (IOException e) {
-            LOGGER.log(Level.SEVERE, "Erro ao carregar o arquivo de propriedades do banco de dados: " + e.getMessage(), e);
-            throw new RuntimeException("Falha ao carregar a configuração do banco de dados.", e);
-        } catch (ClassNotFoundException e) {
-            LOGGER.log(Level.SEVERE, "Driver JDBC não encontrado: " + e.getMessage(), e);
-            throw new RuntimeException("Falha ao carregar o driver JDBC.", e);
+            properties.load(input); // Carrega as propriedades do arquivo.
+            LOGGER.log(Level.INFO, "Propriedades do banco de dados carregadas com sucesso.");
+        } catch (IOException ex) {
+            LOGGER.log(Level.SEVERE, "Erro ao carregar o arquivo de propriedades do banco de dados: " + PROPERTIES_FILE, ex);
+            // Re-lança a exceção como uma RuntimeException para falha na inicialização da aplicação.
+            throw new RuntimeException("Falha ao inicializar a configuração do banco de dados.", ex);
         }
     }
 
     /**
-     * Retorna a instância única de DatabaseConfig (Singleton).
-     * @return A instância de DatabaseConfig.
+     * Retorna uma nova conexão com o banco de dados.
+     * Este método agora é estático para ser acessado diretamente pela classe.
+     * @return Uma conexão com o banco de dados.
+     * @throws SQLException Se ocorrer um erro de conexão.
      */
-    public static synchronized DatabaseConfig getInstance() {
-        if (instance == null) {
-            instance = new DatabaseConfig();
-        }
-        return instance;
-    }
-
-    /**
-     * Obtém uma nova conexão com o banco de dados.
-     * @return Uma conexão JDBC.
-     * @throws SQLException Se ocorrer um erro ao obter a conexão.
-     */
-    public Connection getConnection() throws SQLException {
+    public static Connection getConnection() throws SQLException { // CORRIGIDO: Método agora é estático
         String url = properties.getProperty("db.url");
-        String user = properties.getProperty("db.username");
+        String user = properties.getProperty("db.user");
         String password = properties.getProperty("db.password");
-        return DriverManager.getConnection(url, user, password);
+
+        LOGGER.log(Level.FINE, "Tentando conectar ao banco de dados: {0}", url);
+        Connection connection = DriverManager.getConnection(url, user, password);
+        LOGGER.log(Level.FINE, "Conexão com o banco de dados estabelecida com sucesso.");
+        return connection;
     }
 
     /**
-     * Fecha uma conexão com o banco de dados.
-     * @param connection A conexão a ser fechada.
+     * Fecha os recursos do banco de dados (Connection, Statement, ResultSet) de forma segura.
+     * @param conn A conexão a ser fechada.
+     * @param stmt O statement a ser fechado.
+     * @param rs O result set a ser fechado.
      */
-    public void closeConnection(Connection connection) {
-        if (connection != null) {
-            try {
-                connection.close();
-            } catch (SQLException e) {
-                LOGGER.log(Level.SEVERE, "Erro ao fechar a conexão com o banco de dados: " + e.getMessage(), e);
+    public static void closeResources(Connection conn, Statement stmt, ResultSet rs) {
+        try {
+            if (rs != null) {
+                rs.close();
             }
+            if (stmt != null) {
+                stmt.close();
+            }
+            if (conn != null) {
+                conn.close();
+            }
+        } catch (SQLException ex) {
+            LOGGER.log(Level.SEVERE, "Erro ao fechar recursos do banco de dados.", ex);
         }
+    }
+
+    /**
+     * Sobrecarga para fechar Connection e Statement.
+     * @param conn A conexão a ser fechada.
+     * @param stmt O statement a ser fechado.
+     */
+    public static void closeResources(Connection conn, Statement stmt) {
+        closeResources(conn, stmt, null);
+    }
+
+    /**
+     * Sobrecarga para fechar apenas a Connection.
+     * @param conn A conexão a ser fechada.
+     */
+    public static void closeResources(Connection conn) {
+        closeResources(conn, null, null);
     }
 }

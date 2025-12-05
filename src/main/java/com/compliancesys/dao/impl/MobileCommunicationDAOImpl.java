@@ -3,69 +3,66 @@ package com.compliancesys.dao.impl;
 import com.compliancesys.config.DatabaseConfig;
 import com.compliancesys.dao.MobileCommunicationDAO;
 import com.compliancesys.model.MobileCommunication;
-
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-/**
- * Implementação da interface MobileCommunicationDAO para operações de persistência da entidade MobileCommunication.
- * Interage com o banco de dados PostgreSQL.
- */
 public class MobileCommunicationDAOImpl implements MobileCommunicationDAO {
 
     private static final Logger LOGGER = Logger.getLogger(MobileCommunicationDAOImpl.class.getName());
-    private final DatabaseConfig dbConfig;
-
-    public MobileCommunicationDAOImpl() {
-        this.dbConfig = DatabaseConfig.getInstance();
-    }
 
     @Override
     public int create(MobileCommunication communication) throws SQLException {
-        String sql = "INSERT INTO mobile_communications (record_id, send_timestamp, send_success, error_message, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?) RETURNING id";
-        try (Connection conn = dbConfig.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        String sql = "INSERT INTO mobile_communications (driver_id, record_id, timestamp, latitude, longitude, send_timestamp, send_success, error_message, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
-            stmt.setInt(1, communication.getRecordId());
-            stmt.setObject(2, communication.getSendTimestamp()); // LocalDateTime
-            stmt.setBoolean(3, communication.isSendSuccess());
-            stmt.setString(4, communication.getErrorMessage());
-            stmt.setObject(5, communication.getCreatedAt());
-            stmt.setObject(6, communication.getUpdatedAt());
+            stmt.setInt(1, communication.getDriverId());
+            stmt.setInt(2, communication.getRecordId());
+            stmt.setObject(3, communication.getTimestamp());
+            stmt.setObject(4, communication.getLatitude());
+            stmt.setObject(5, communication.getLongitude());
+            stmt.setObject(6, communication.getSendTimestamp()); // CORRIGIDO: getSendTimestamp()
+            stmt.setBoolean(7, communication.isSendSuccess());   // CORRIGIDO: isSendSuccess()
+            stmt.setString(8, communication.getErrorMessage());  // CORRIGIDO: getErrorMessage()
+            stmt.setObject(9, communication.getCreatedAt());
+            stmt.setObject(10, communication.getUpdatedAt());
 
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next()) {
-                return rs.getInt("id");
+            int affectedRows = stmt.executeUpdate();
+
+            if (affectedRows == 0) {
+                throw new SQLException("Falha ao criar comunicação móvel, nenhuma linha afetada.");
             }
-            return -1; // Indica falha na criação
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro ao criar registro de comunicação móvel: " + e.getMessage(), e);
-            throw e;
+
+            try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
+                if (generatedKeys.next()) {
+                    return generatedKeys.getInt(1);
+                } else {
+                    throw new SQLException("Falha ao criar comunicação móvel, nenhum ID obtido.");
+                }
+            }
         }
     }
 
     @Override
     public Optional<MobileCommunication> findById(int id) throws SQLException {
-        String sql = "SELECT id, record_id, send_timestamp, send_success, error_message, created_at, updated_at FROM mobile_communications WHERE id = ?";
-        try (Connection conn = dbConfig.getConnection();
+        String sql = "SELECT id, driver_id, record_id, timestamp, latitude, longitude, send_timestamp, send_success, error_message, created_at, updated_at FROM mobile_communications WHERE id = ?";
+        try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-
             stmt.setInt(1, id);
-            ResultSet rs = stmt.executeQuery();
-
-            if (rs.next()) {
-                return Optional.of(mapResultSetToMobileCommunication(rs));
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return Optional.of(mapResultSetToMobileCommunication(rs));
+                }
             }
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro ao buscar registro de comunicação móvel por ID: " + e.getMessage(), e);
-            throw e;
         }
         return Optional.empty();
     }
@@ -73,98 +70,77 @@ public class MobileCommunicationDAOImpl implements MobileCommunicationDAO {
     @Override
     public List<MobileCommunication> findAll() throws SQLException {
         List<MobileCommunication> communications = new ArrayList<>();
-        String sql = "SELECT id, record_id, send_timestamp, send_success, error_message, created_at, updated_at FROM mobile_communications ORDER BY send_timestamp DESC";
-        try (Connection conn = dbConfig.getConnection();
+        String sql = "SELECT id, driver_id, record_id, timestamp, latitude, longitude, send_timestamp, send_success, error_message, created_at, updated_at FROM mobile_communications";
+        try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
-
             while (rs.next()) {
                 communications.add(mapResultSetToMobileCommunication(rs));
             }
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro ao buscar todos os registros de comunicação móvel: " + e.getMessage(), e);
-            throw e;
         }
         return communications;
     }
 
     @Override
-    public List<MobileCommunication> findByRecordId(int recordId) throws SQLException {
+    public List<MobileCommunication> findByDriverId(int driverId) throws SQLException {
         List<MobileCommunication> communications = new ArrayList<>();
-        String sql = "SELECT id, record_id, send_timestamp, send_success, error_message, created_at, updated_at FROM mobile_communications WHERE record_id = ? ORDER BY send_timestamp DESC";
-        try (Connection conn = dbConfig.getConnection();
+        String sql = "SELECT id, driver_id, record_id, timestamp, latitude, longitude, send_timestamp, send_success, error_message, created_at, updated_at FROM mobile_communications WHERE driver_id = ?";
+        try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-
-            stmt.setInt(1, recordId);
-            ResultSet rs = stmt.executeQuery();
-
-            while (rs.next()) {
-                communications.add(mapResultSetToMobileCommunication(rs));
+            stmt.setInt(1, driverId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    communications.add(mapResultSetToMobileCommunication(rs));
+                }
             }
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro ao buscar registros de comunicação móvel por ID do registro de ponto: " + e.getMessage(), e);
-            throw e;
         }
         return communications;
     }
 
     @Override
     public boolean update(MobileCommunication communication) throws SQLException {
-        String sql = "UPDATE mobile_communications SET record_id = ?, send_timestamp = ?, send_success = ?, error_message = ?, updated_at = ? WHERE id = ?";
-        try (Connection conn = dbConfig.getConnection();
+        String sql = "UPDATE mobile_communications SET driver_id = ?, record_id = ?, timestamp = ?, latitude = ?, longitude = ?, send_timestamp = ?, send_success = ?, error_message = ?, updated_at = ? WHERE id = ?";
+        try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-            stmt.setInt(1, communication.getRecordId());
-            stmt.setObject(2, communication.getSendTimestamp());
-            stmt.setBoolean(3, communication.isSendSuccess());
-            stmt.setString(4, communication.getErrorMessage());
-            stmt.setObject(5, LocalDateTime.now()); // Atualiza o updated_at automaticamente
-            stmt.setInt(6, communication.getId());
+            stmt.setInt(1, communication.getDriverId());
+            stmt.setInt(2, communication.getRecordId());
+            stmt.setObject(3, communication.getTimestamp());
+            stmt.setObject(4, communication.getLatitude());
+            stmt.setObject(5, communication.getLongitude());
+            stmt.setObject(6, communication.getSendTimestamp()); // CORRIGIDO: getSendTimestamp()
+            stmt.setBoolean(7, communication.isSendSuccess());   // CORRIGIDO: isSendSuccess()
+            stmt.setString(8, communication.getErrorMessage());  // CORRIGIDO: getErrorMessage()
+            stmt.setObject(9, communication.getUpdatedAt());
+            stmt.setInt(10, communication.getId());
 
-            int affectedRows = stmt.executeUpdate();
-            return affectedRows > 0;
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro ao atualizar registro de comunicação móvel: " + e.getMessage(), e);
-            throw e;
+            return stmt.executeUpdate() > 0;
         }
     }
 
     @Override
     public boolean delete(int id) throws SQLException {
         String sql = "DELETE FROM mobile_communications WHERE id = ?";
-        try (Connection conn = dbConfig.getConnection();
+        try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-
             stmt.setInt(1, id);
-            int affectedRows = stmt.executeUpdate();
-            return affectedRows > 0;
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro ao deletar registro de comunicação móvel: " + e.getMessage(), e);
-            throw e;
+            return stmt.executeUpdate() > 0;
         }
     }
 
-    /**
-     * Mapeia um ResultSet para um objeto MobileCommunication.
-     * @param rs ResultSet contendo os dados da comunicação móvel.
-     * @return Objeto MobileCommunication.
-     * @throws SQLException Se ocorrer um erro ao acessar os dados do ResultSet.
-     */
     private MobileCommunication mapResultSetToMobileCommunication(ResultSet rs) throws SQLException {
-        MobileCommunication communication = new MobileCommunication();
-        communication.setId(rs.getInt("id"));
-        communication.setRecordId(rs.getInt("record_id"));
-        communication.setSendTimestamp(rs.getObject("send_timestamp", LocalDateTime.class)); // LocalDateTime
-        communication.setSendSuccess(rs.getBoolean("send_success"));
-        communication.setErrorMessage(rs.getString("error_message"));
-
-        // Converte OffsetDateTime (timestamptz) para LocalDateTime
-        OffsetDateTime createdAtOffset = rs.getObject("created_at", OffsetDateTime.class);
-        communication.setCreatedAt(createdAtOffset != null ? createdAtOffset.toLocalDateTime() : null);
-
-        OffsetDateTime updatedAtOffset = rs.getObject("updated_at", OffsetDateTime.class);
-        communication.setUpdatedAt(updatedAtOffset != null ? updatedAtOffset.toLocalDateTime() : null);
-
-        return communication;
+        return new MobileCommunication(
+                rs.getInt("id"),
+                rs.getInt("driver_id"),
+                rs.getInt("record_id"),
+                rs.getObject("timestamp", LocalDateTime.class),
+                rs.getObject("latitude", Double.class),
+                rs.getObject("longitude", Double.class),
+                rs.getObject("send_timestamp", LocalDateTime.class), // CORRIGIDO: send_timestamp
+                rs.getBoolean("send_success"),                       // CORRIGIDO: send_success
+                rs.getString("error_message"),                       // CORRIGIDO: error_message
+                rs.getObject("created_at", LocalDateTime.class),
+                rs.getObject("updated_at", LocalDateTime.class)
+        );
     }
 }

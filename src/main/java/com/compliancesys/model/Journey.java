@@ -1,10 +1,11 @@
 package com.compliancesys.model;
 
-import com.compliancesys.model.enums.ComplianceStatus; // Importa o enum ComplianceStatus
-import java.time.Duration; // Importa Duration
+import java.time.Duration;
 import java.time.LocalDate;
-import java.time.LocalDateTime; // Importa LocalDateTime
+import java.time.LocalDateTime;
 import java.util.Objects;
+
+import com.compliancesys.model.enums.ComplianceStatus;
 
 /**
  * Representa uma jornada de trabalho de um motorista em um dia específico.
@@ -13,41 +14,49 @@ import java.util.Objects;
 public class Journey {
     private int id;
     private int driverId;
+    private int vehicleId;
     private LocalDate journeyDate;
-    private Duration totalDrivingTime; // Alterado para Duration
-    private Duration totalRestTime;    // Alterado para Duration
-    private ComplianceStatus complianceStatus; // Alterado para o enum ComplianceStatus
-    private boolean dailyLimitExceeded; // Adicionado para alinhar com o schema
+    private LocalDateTime startTime;
+    private LocalDateTime endTime;
+    private String startLocation;
+    private String endLocation;
+    private Duration totalDrivingTime;
+    private Duration totalRestTime;
+    private Duration totalBreakTime;
+    private ComplianceStatus status;
+    private boolean dailyLimitExceeded;
     private LocalDateTime createdAt;
-    private LocalDateTime updatedAt; // Adicionado para consistência com o schema e DAOs
+    private LocalDateTime updatedAt;
 
     public Journey() {
     }
 
-    // Construtor completo
-    public Journey(int id, int driverId, LocalDate journeyDate, Duration totalDrivingTime, Duration totalRestTime, ComplianceStatus complianceStatus, boolean dailyLimitExceeded, LocalDateTime createdAt, LocalDateTime updatedAt) {
+    public Journey(int id, int driverId, int vehicleId, LocalDate journeyDate, LocalDateTime startTime, LocalDateTime endTime, String startLocation, String endLocation, Duration totalDrivingTime, Duration totalRestTime, Duration totalBreakTime, ComplianceStatus status, boolean dailyLimitExceeded, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.driverId = driverId;
+        this.vehicleId = vehicleId;
         this.journeyDate = journeyDate;
+        this.startTime = startTime;
+        this.endTime = endTime;
+        this.startLocation = startLocation;
+        this.endLocation = endLocation;
         this.totalDrivingTime = totalDrivingTime;
         this.totalRestTime = totalRestTime;
-        this.complianceStatus = complianceStatus;
+        this.totalBreakTime = totalBreakTime;
+        this.status = status;
         this.dailyLimitExceeded = dailyLimitExceeded;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
 
-    // Construtor para inserção (sem ID, createdAt, updatedAt)
-    public Journey(int driverId, LocalDate journeyDate, Duration totalDrivingTime, Duration totalRestTime, ComplianceStatus complianceStatus, boolean dailyLimitExceeded) {
-        this(0, driverId, journeyDate, totalDrivingTime, totalRestTime, complianceStatus, dailyLimitExceeded, null, null);
+    public Journey(int driverId, int vehicleId, LocalDate journeyDate, LocalDateTime startTime, LocalDateTime endTime, String startLocation, String endLocation, Duration totalDrivingTime, Duration totalRestTime, Duration totalBreakTime, ComplianceStatus status, boolean dailyLimitExceeded) {
+        this(0, driverId, vehicleId, journeyDate, startTime, endTime, startLocation, endLocation, totalDrivingTime, totalRestTime, totalBreakTime, status, dailyLimitExceeded, null, null);
     }
 
-    // Construtor para atualização (com ID, sem createdAt, updatedAt)
-    public Journey(int id, int driverId, LocalDate journeyDate, Duration totalDrivingTime, Duration totalRestTime, ComplianceStatus complianceStatus, boolean dailyLimitExceeded) {
-        this(id, driverId, journeyDate, totalDrivingTime, totalRestTime, complianceStatus, dailyLimitExceeded, null, null);
+    public Journey(int id, int driverId, int vehicleId, LocalDate journeyDate, LocalDateTime startTime, LocalDateTime endTime, String startLocation, String endLocation, Duration totalDrivingTime, Duration totalRestTime, Duration totalBreakTime, ComplianceStatus status, boolean dailyLimitExceeded) {
+        this(id, driverId, vehicleId, journeyDate, startTime, endTime, startLocation, endLocation, totalDrivingTime, totalRestTime, totalBreakTime, status, dailyLimitExceeded, null, null);
     }
 
-    // Getters e Setters
     public int getId() {
         return id;
     }
@@ -64,6 +73,14 @@ public class Journey {
         this.driverId = driverId;
     }
 
+    public int getVehicleId() {
+        return vehicleId;
+    }
+
+    public void setVehicleId(int vehicleId) {
+        this.vehicleId = vehicleId;
+    }
+
     public LocalDate getJourneyDate() {
         return journeyDate;
     }
@@ -72,35 +89,84 @@ public class Journey {
         this.journeyDate = journeyDate;
     }
 
-    public Duration getTotalDrivingTime() { // Getter alterado para Duration
+    public LocalDateTime getStartTime() {
+        return startTime;
+    }
+
+    public void setStartTime(LocalDateTime startTime) {
+        this.startTime = startTime;
+    }
+
+    public LocalDateTime getEndTime() {
+        return endTime;
+    }
+
+    public void setEndTime(LocalDateTime endTime) {
+        this.endTime = endTime;
+    }
+
+    public String getStartLocation() {
+        return startLocation;
+    }
+
+    public void setStartLocation(String startLocation) {
+        this.startLocation = startLocation;
+    }
+
+    public String getEndLocation() {
+        return endLocation;
+    }
+
+    public void setEndLocation(String endLocation) {
+        this.endLocation = endLocation;
+    }
+
+    public Duration getTotalDrivingTime() {
         return totalDrivingTime;
     }
 
-    public void setTotalDrivingTime(Duration totalDrivingTime) { // Setter alterado para Duration
+    public void setTotalDrivingTime(Duration totalDrivingTime) {
         this.totalDrivingTime = totalDrivingTime;
     }
 
-    public Duration getTotalRestTime() { // Getter alterado para Duration
+    public Duration getTotalRestTime() {
         return totalRestTime;
     }
 
-    public void setTotalRestTime(Duration totalRestTime) { // Setter alterado para Duration
+    public void setTotalRestTime(Duration totalRestTime) {
         this.totalRestTime = totalRestTime;
     }
 
-    public ComplianceStatus getComplianceStatus() { // Getter alterado para ComplianceStatus
-        return complianceStatus;
+    public Duration getTotalBreakTime() {
+        return totalBreakTime;
     }
 
-    public void setComplianceStatus(ComplianceStatus complianceStatus) { // Setter alterado para ComplianceStatus
-        this.complianceStatus = complianceStatus;
+    public void setTotalBreakTime(Duration totalBreakTime) {
+        this.totalBreakTime = totalBreakTime;
     }
 
-    public boolean isDailyLimitExceeded() { // Getter adicionado
+    public ComplianceStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(ComplianceStatus status) {
+        this.status = status;
+    }
+
+    // Métodos alias para compatibilidade com código existente
+    public ComplianceStatus getComplianceStatus() {
+        return status;
+    }
+
+    public void setComplianceStatus(ComplianceStatus status) {
+        this.status = status;
+    }
+
+    public boolean isDailyLimitExceeded() {
         return dailyLimitExceeded;
     }
 
-    public void setDailyLimitExceeded(boolean dailyLimitExceeded) { // Setter adicionado
+    public void setDailyLimitExceeded(boolean dailyLimitExceeded) {
         this.dailyLimitExceeded = dailyLimitExceeded;
     }
 
@@ -112,11 +178,11 @@ public class Journey {
         this.createdAt = createdAt;
     }
 
-    public LocalDateTime getUpdatedAt() { // Getter adicionado
+    public LocalDateTime getUpdatedAt() {
         return updatedAt;
     }
 
-    public void setUpdatedAt(LocalDateTime updatedAt) { // Setter adicionado
+    public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
     }
 
@@ -125,10 +191,16 @@ public class Journey {
         return "Journey{" +
                 "id=" + id +
                 ", driverId=" + driverId +
+                ", vehicleId=" + vehicleId +
                 ", journeyDate=" + journeyDate +
+                ", startTime=" + startTime +
+                ", endTime=" + endTime +
+                ", startLocation='" + startLocation + '\'' +
+                ", endLocation='" + endLocation + '\'' +
                 ", totalDrivingTime=" + totalDrivingTime +
                 ", totalRestTime=" + totalRestTime +
-                ", complianceStatus=" + complianceStatus +
+                ", totalBreakTime=" + totalBreakTime +
+                ", status=" + status +
                 ", dailyLimitExceeded=" + dailyLimitExceeded +
                 ", createdAt=" + createdAt +
                 ", updatedAt=" + updatedAt +
@@ -140,11 +212,23 @@ public class Journey {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Journey journey = (Journey) o;
-        return id == journey.id && driverId == journey.driverId && dailyLimitExceeded == journey.dailyLimitExceeded && Objects.equals(journeyDate, journey.journeyDate) && Objects.equals(totalDrivingTime, journey.totalDrivingTime) && Objects.equals(totalRestTime, journey.totalRestTime) && complianceStatus == journey.complianceStatus;
+        return id == journey.id &&
+                driverId == journey.driverId &&
+                vehicleId == journey.vehicleId &&
+                dailyLimitExceeded == journey.dailyLimitExceeded &&
+                Objects.equals(journeyDate, journey.journeyDate) &&
+                Objects.equals(startTime, journey.startTime) &&
+                Objects.equals(endTime, journey.endTime) &&
+                Objects.equals(startLocation, journey.startLocation) &&
+                Objects.equals(endLocation, journey.endLocation) &&
+                Objects.equals(totalDrivingTime, journey.totalDrivingTime) &&
+                Objects.equals(totalRestTime, journey.totalRestTime) &&
+                Objects.equals(totalBreakTime, journey.totalBreakTime) &&
+                status == journey.status;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, driverId, journeyDate, totalDrivingTime, totalRestTime, complianceStatus, dailyLimitExceeded);
+        return Objects.hash(id, driverId, vehicleId, journeyDate, startTime, endTime, startLocation, endLocation, totalDrivingTime, totalRestTime, totalBreakTime, status, dailyLimitExceeded);
     }
 }

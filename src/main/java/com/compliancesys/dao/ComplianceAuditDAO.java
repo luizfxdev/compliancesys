@@ -1,59 +1,71 @@
 package com.compliancesys.dao;
 
-import com.compliancesys.model.ComplianceAudit; // Importa a classe ComplianceAudit.
-import java.sql.SQLException;                   // Importa para lidar com exceções SQL.
-import java.util.List;                          // Importa para usar List.
-import java.util.Optional;                      // Importa para usar Optional.
+import java.sql.SQLException;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+
+import com.compliancesys.model.ComplianceAudit;
 
 /**
- * Interface para operações de acesso a dados da entidade ComplianceAudit.
- * Define os métodos CRUD e de busca para ComplianceAudit.
+ * Interface para o Data Access Object (DAO) de ComplianceAudit.
+ * Define as operações CRUD e de busca específicas para auditorias de conformidade.
  */
 public interface ComplianceAuditDAO {
-
+    
     /**
-     * Insere um novo registro de auditoria de conformidade no banco de dados.
-     * @param audit Objeto ComplianceAudit a ser inserido.
-     * @return O ID da auditoria inserida.
+     * Cria uma nova auditoria de conformidade no banco de dados.
+     * @param audit O objeto ComplianceAudit a ser criado.
+     * @return O ID gerado para a nova auditoria.
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
      */
-    int insert(ComplianceAudit audit) throws SQLException;
+    int create(ComplianceAudit audit) throws SQLException;
 
     /**
-     * Busca um registro de auditoria pelo seu ID.
-     * @param id ID da auditoria.
+     * Busca uma auditoria de conformidade pelo seu ID.
+     * @param id O ID da auditoria.
      * @return Um Optional contendo o ComplianceAudit se encontrado, ou um Optional vazio.
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
      */
     Optional<ComplianceAudit> findById(int id) throws SQLException;
 
     /**
-     * Retorna todos os registros de auditoria.
-     * @return Uma lista de todos os registros de auditoria.
+     * Busca todas as auditorias de conformidade.
+     * @return Uma lista de todas as auditorias.
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
      */
     List<ComplianceAudit> findAll() throws SQLException;
 
     /**
-     * Busca registros de auditoria por ID de jornada.
-     * @param journeyId ID da jornada.
-     * @return Uma lista de registros de auditoria para a jornada especificada.
+     * Busca auditorias de conformidade por ID de jornada.
+     * @param journeyId O ID da jornada.
+     * @return Uma lista de auditorias associadas à jornada.
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
      */
     List<ComplianceAudit> findByJourneyId(int journeyId) throws SQLException;
 
     /**
-     * Atualiza os dados de um registro de auditoria existente.
-     * @param audit Objeto ComplianceAudit com os dados atualizados.
-     * @return true se o registro foi atualizado, false caso contrário.
+     * Busca auditorias de conformidade por ID de motorista e período de datas.
+     * @param driverId O ID do motorista.
+     * @param startDate Data inicial do período.
+     * @param endDate Data final do período.
+     * @return Uma lista de auditorias do motorista no período especificado.
+     * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
+     */
+    List<ComplianceAudit> findByDriverIdAndDate(int driverId, LocalDate startDate, LocalDate endDate) throws SQLException;
+
+    /**
+     * Atualiza uma auditoria de conformidade existente no banco de dados.
+     * @param audit O objeto ComplianceAudit com os dados atualizados.
+     * @return true se a auditoria foi atualizada com sucesso, false caso contrário.
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
      */
     boolean update(ComplianceAudit audit) throws SQLException;
 
     /**
-     * Deleta um registro de auditoria pelo seu ID.
-     * @param id ID da auditoria a ser deletada.
-     * @return true se a auditoria foi deletada, false caso contrário.
+     * Deleta uma auditoria de conformidade pelo seu ID.
+     * @param id O ID da auditoria a ser deletada.
+     * @return true se a auditoria foi deletada com sucesso, false caso contrário.
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
      */
     boolean delete(int id) throws SQLException;

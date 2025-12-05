@@ -1,8 +1,9 @@
 package com.compliancesys.model;
 
-import com.compliancesys.model.enums.ComplianceStatus; // Importa o enum ComplianceStatus
 import java.time.LocalDateTime;
 import java.util.Objects;
+
+import com.compliancesys.model.enums.ComplianceStatus;
 
 /**
  * Representa um registro de auditoria de conformidade para uma jornada.
@@ -11,34 +12,36 @@ import java.util.Objects;
 public class ComplianceAudit {
     private int id;
     private int journeyId;
-    private LocalDateTime auditDate; // Renomeado de timestamp para auditDate para clareza
-    private ComplianceStatus status; // Alterado para o enum ComplianceStatus
-    private String details;
+    private LocalDateTime auditDate;
+    private ComplianceStatus complianceStatus; // Renomeado de 'status' para 'complianceStatus' para evitar conflitos
+    private String auditorName; // ADICIONADO
+    private String notes; // ADICIONADO
     private LocalDateTime createdAt;
-    private LocalDateTime updatedAt; // Adicionado para consistência com o schema e DAOs
+    private LocalDateTime updatedAt;
 
     public ComplianceAudit() {
     }
 
     // Construtor completo
-    public ComplianceAudit(int id, int journeyId, LocalDateTime auditDate, ComplianceStatus status, String details, LocalDateTime createdAt, LocalDateTime updatedAt) {
+    public ComplianceAudit(int id, int journeyId, LocalDateTime auditDate, ComplianceStatus complianceStatus, String auditorName, String notes, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.journeyId = journeyId;
         this.auditDate = auditDate;
-        this.status = status;
-        this.details = details;
+        this.complianceStatus = complianceStatus;
+        this.auditorName = auditorName;
+        this.notes = notes;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
 
     // Construtor para inserção (sem ID, createdAt, updatedAt)
-    public ComplianceAudit(int journeyId, LocalDateTime auditDate, ComplianceStatus status, String details) {
-        this(0, journeyId, auditDate, status, details, null, null);
+    public ComplianceAudit(int journeyId, LocalDateTime auditDate, ComplianceStatus complianceStatus, String auditorName, String notes) {
+        this(0, journeyId, auditDate, complianceStatus, auditorName, notes, null, null);
     }
 
     // Construtor para atualização (com ID, sem createdAt, updatedAt)
-    public ComplianceAudit(int id, int journeyId, LocalDateTime auditDate, ComplianceStatus status, String details) {
-        this(id, journeyId, auditDate, status, details, null, null);
+    public ComplianceAudit(int id, int journeyId, LocalDateTime auditDate, ComplianceStatus complianceStatus, String auditorName, String notes) {
+        this(id, journeyId, auditDate, complianceStatus, auditorName, notes, null, null);
     }
 
     // Getters e Setters
@@ -58,28 +61,36 @@ public class ComplianceAudit {
         this.journeyId = journeyId;
     }
 
-    public LocalDateTime getAuditDate() { // Getter renomeado
+    public LocalDateTime getAuditDate() {
         return auditDate;
     }
 
-    public void setAuditDate(LocalDateTime auditDate) { // Setter renomeado
+    public void setAuditDate(LocalDateTime auditDate) {
         this.auditDate = auditDate;
     }
 
-    public ComplianceStatus getStatus() { // Getter alterado para ComplianceStatus
-        return status;
+    public ComplianceStatus getComplianceStatus() { // Getter para complianceStatus
+        return complianceStatus;
     }
 
-    public void setStatus(ComplianceStatus status) { // Setter alterado para ComplianceStatus
-        this.status = status;
+    public void setComplianceStatus(ComplianceStatus complianceStatus) { // Setter para complianceStatus
+        this.complianceStatus = complianceStatus;
     }
 
-    public String getDetails() {
-        return details;
+    public String getAuditorName() { // ADICIONADO
+        return auditorName;
     }
 
-    public void setDetails(String details) {
-        this.details = details;
+    public void setAuditorName(String auditorName) { // ADICIONADO
+        this.auditorName = auditorName;
+    }
+
+    public String getNotes() { // ADICIONADO
+        return notes;
+    }
+
+    public void setNotes(String notes) { // ADICIONADO
+        this.notes = notes;
     }
 
     public LocalDateTime getCreatedAt() {
@@ -90,11 +101,11 @@ public class ComplianceAudit {
         this.createdAt = createdAt;
     }
 
-    public LocalDateTime getUpdatedAt() { // Getter adicionado
+    public LocalDateTime getUpdatedAt() {
         return updatedAt;
     }
 
-    public void setUpdatedAt(LocalDateTime updatedAt) { // Setter adicionado
+    public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
     }
 
@@ -104,8 +115,9 @@ public class ComplianceAudit {
                 "id=" + id +
                 ", journeyId=" + journeyId +
                 ", auditDate=" + auditDate +
-                ", status=" + status +
-                ", details='" + details + '\'' +
+                ", complianceStatus=" + complianceStatus +
+                ", auditorName='" + auditorName + '\'' +
+                ", notes='" + notes + '\'' +
                 ", createdAt=" + createdAt +
                 ", updatedAt=" + updatedAt +
                 '}';
@@ -116,11 +128,16 @@ public class ComplianceAudit {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         ComplianceAudit that = (ComplianceAudit) o;
-        return id == that.id && journeyId == that.journeyId && Objects.equals(auditDate, that.auditDate) && status == that.status && Objects.equals(details, that.details);
+        return id == that.id &&
+                journeyId == that.journeyId &&
+                complianceStatus == that.complianceStatus &&
+                Objects.equals(auditDate, that.auditDate) &&
+                Objects.equals(auditorName, that.auditorName) &&
+                Objects.equals(notes, that.notes);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, journeyId, auditDate, status, details);
+        return Objects.hash(id, journeyId, auditDate, complianceStatus, auditorName, notes);
     }
 }

@@ -1,27 +1,28 @@
 package com.compliancesys.dao;
 
-import com.compliancesys.model.Company;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
 
+import com.compliancesys.model.Company;
+
 /**
- * Interface para a camada de acesso a dados (DAO) da entidade Company.
+ * Interface para o Data Access Object (DAO) de Company.
  * Define as operações CRUD e de busca específicas para empresas.
  */
 public interface CompanyDAO {
 
     /**
-     * Cria uma nova empresa no banco de dados.
-     * @param company Objeto Company a ser criado.
-     * @return O ID da empresa criada, ou -1 se a criação falhar.
+     * Insere uma nova empresa no banco de dados.
+     * @param company O objeto Company a ser inserido.
+     * @return O ID gerado para a nova empresa. // CORRIGIDO: Retorna int
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
      */
-    int create(Company company) throws SQLException;
+    int create(Company company) throws SQLException; // CORRIGIDO: Retorna int
 
     /**
      * Busca uma empresa pelo seu ID.
-     * @param id ID da empresa.
+     * @param id O ID da empresa.
      * @return Um Optional contendo a Company se encontrada, ou um Optional vazio.
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
      */
@@ -29,31 +30,31 @@ public interface CompanyDAO {
 
     /**
      * Busca uma empresa pelo seu CNPJ.
-     * @param cnpj CNPJ da empresa.
+     * @param cnpj O CNPJ da empresa.
      * @return Um Optional contendo a Company se encontrada, ou um Optional vazio.
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
      */
     Optional<Company> findByCnpj(String cnpj) throws SQLException;
 
     /**
-     * Retorna uma lista de todas as empresas registradas.
+     * Busca todas as empresas.
      * @return Uma lista de todas as empresas.
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
      */
     List<Company> findAll() throws SQLException;
 
     /**
-     * Atualiza as informações de uma empresa existente.
-     * @param company Objeto Company com os dados atualizados.
+     * Atualiza uma empresa existente no banco de dados.
+     * @param company O objeto Company com os dados atualizados.
      * @return true se a empresa foi atualizada com sucesso, false caso contrário.
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
      */
     boolean update(Company company) throws SQLException;
 
     /**
-     * Remove uma empresa do banco de dados pelo seu ID.
-     * @param id ID da empresa a ser removida.
-     * @return true se a empresa foi removida com sucesso, false caso contrário.
+     * Deleta uma empresa pelo seu ID.
+     * @param id O ID da empresa a ser deletada.
+     * @return true se a empresa foi deletada com sucesso, false caso contrário.
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
      */
     boolean delete(int id) throws SQLException;

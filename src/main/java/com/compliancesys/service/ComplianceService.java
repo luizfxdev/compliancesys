@@ -1,67 +1,37 @@
 package com.compliancesys.service;
 
+import com.compliancesys.exception.BusinessException;
 import com.compliancesys.model.ComplianceAudit;
-import com.compliancesys.model.Driver;
-import com.compliancesys.model.Journey;
-import java.sql.SQLException;
+import com.compliancesys.model.ComplianceReport; // Importar se for usar
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Interface para a camada de serviço de conformidade.
- * Define as operações de negócio para gerenciar auditorias e relatórios de conformidade.
- */
 public interface ComplianceService {
+    // Cria um novo registro de auditoria de conformidade
+    ComplianceAudit createComplianceAudit(ComplianceAudit audit) throws BusinessException;
 
-    /**
-     * Realiza uma auditoria de conformidade para uma jornada específica.
-     * @param journeyId ID da jornada a ser auditada.
-     * @return O ID do registro de auditoria criado.
-     * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
-     * @throws IllegalArgumentException Se a jornada não for encontrada ou for inválida.
-     */
-    int performComplianceAudit(int journeyId) throws SQLException, IllegalArgumentException;
+    // Busca um registro de auditoria por ID
+    Optional<ComplianceAudit> getComplianceAuditById(int id) throws BusinessException;
 
-    /**
-     * Busca um registro de auditoria de conformidade pelo seu ID.
-     * @param auditId ID da auditoria.
-     * @return Um Optional contendo o ComplianceAudit se encontrado, ou um Optional vazio.
-     * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
-     */
-    Optional<ComplianceAudit> getComplianceAuditById(int auditId) throws SQLException;
+    // Busca todos os registros de auditoria
+    List<ComplianceAudit> getAllComplianceAudits() throws BusinessException;
 
-    /**
-     * Retorna uma lista de todos os registros de auditoria de conformidade.
-     * @return Uma lista de todos os registros de auditoria.
-     * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
-     */
-    List<ComplianceAudit> getAllComplianceAudits() throws SQLException;
+    // Busca registros de auditoria por ID da jornada
+    List<ComplianceAudit> getComplianceAuditsByJourneyId(int journeyId) throws BusinessException; // NOVO MÉTODO
 
-    /**
-     * Busca registros de auditoria de conformidade por ID de jornada.
-     * @param journeyId ID da jornada.
-     * @return Uma lista de registros de auditoria para a jornada especificada.
-     * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
-     */
-    List<ComplianceAudit> getComplianceAuditsByJourneyId(int journeyId) throws SQLException;
+    // Atualiza um registro de auditoria de conformidade
+    ComplianceAudit updateComplianceAudit(ComplianceAudit audit) throws BusinessException;
 
-    /**
-     * Gera um relatório de conformidade para um motorista em um período específico.
-     * @param driverId ID do motorista.
-     * @param startDate Data de início do período.
-     * @param endDate Data de fim do período.
-     * @return Uma lista de ComplianceAudit que detalha a conformidade do motorista.
-     * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
-     */
-    List<ComplianceAudit> generateDriverComplianceReport(int driverId, LocalDate startDate, LocalDate endDate) throws SQLException;
+    // Deleta um registro de auditoria de conformidade
+    boolean deleteComplianceAudit(int id) throws BusinessException;
 
-    /**
-     * Gera um relatório de conformidade geral para todas as jornadas em um período.
-     * @param startDate Data de início do período.
-     * @param endDate Data de fim do período.
-     * @return Uma lista de ComplianceAudit que detalha a conformidade geral.
-     * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
-     */
-    List<ComplianceAudit> generateOverallComplianceReport(LocalDate startDate, LocalDate endDate) throws SQLException;
+    // Realiza uma auditoria de conformidade para uma jornada específica
+    ComplianceAudit performComplianceAudit(int journeyId) throws BusinessException;
+
+    // Gera um relatório de conformidade para um motorista em um período
+    ComplianceReport generateDriverComplianceReport(int driverId, LocalDate startDate, LocalDate endDate) throws BusinessException;
+
+    // Gera um relatório de conformidade geral para um período
+    List<ComplianceAudit> generateOverallComplianceReport(LocalDate startDate, LocalDate endDate) throws BusinessException; // Assinatura ajustada para retornar List<ComplianceAudit>
 }

@@ -9,9 +9,11 @@ import java.util.Objects;
  */
 public class Company {
     private int id;
-    private String cnpj;
-    private String legalName;
-    private String tradingName;
+    private String name;
+    private String cnpj; // ADICIONADO
+    private String email; // ADICIONADO
+    private String phone;
+    private String address;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -19,23 +21,25 @@ public class Company {
     }
 
     // Construtor completo
-    public Company(int id, String cnpj, String legalName, String tradingName, LocalDateTime createdAt, LocalDateTime updatedAt) {
+    public Company(int id, String name, String cnpj, String email, String phone, String address, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
+        this.name = name;
         this.cnpj = cnpj;
-        this.legalName = legalName;
-        this.tradingName = tradingName;
+        this.email = email;
+        this.phone = phone;
+        this.address = address;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
 
     // Construtor para inserção (sem ID, createdAt, updatedAt)
-    public Company(String cnpj, String legalName, String tradingName) {
-        this(0, cnpj, legalName, tradingName, null, null);
+    public Company(String name, String cnpj, String email, String phone, String address) {
+        this(0, name, cnpj, email, phone, address, null, null);
     }
 
     // Construtor para atualização (com ID, sem createdAt, updatedAt)
-    public Company(int id, String cnpj, String legalName, String tradingName) {
-        this(id, cnpj, legalName, tradingName, null, null);
+    public Company(int id, String name, String cnpj, String email, String phone, String address) {
+        this(id, name, cnpj, email, phone, address, null, null);
     }
 
     // Getters e Setters
@@ -47,28 +51,44 @@ public class Company {
         this.id = id;
     }
 
-    public String getCnpj() {
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getCnpj() { // ADICIONADO
         return cnpj;
     }
 
-    public void setCnpj(String cnpj) {
+    public void setCnpj(String cnpj) { // ADICIONADO
         this.cnpj = cnpj;
     }
 
-    public String getLegalName() {
-        return legalName;
+    public String getEmail() { // ADICIONADO
+        return email;
     }
 
-    public void setLegalName(String legalName) {
-        this.legalName = legalName;
+    public void setEmail(String email) { // ADICIONADO
+        this.email = email;
     }
 
-    public String getTradingName() {
-        return tradingName;
+    public String getPhone() {
+        return phone;
     }
 
-    public void setTradingName(String tradingName) {
-        this.tradingName = tradingName;
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
     }
 
     public LocalDateTime getCreatedAt() {
@@ -91,9 +111,11 @@ public class Company {
     public String toString() {
         return "Company{" +
                 "id=" + id +
+                ", name='" + name + '\'' +
                 ", cnpj='" + cnpj + '\'' +
-                ", legalName='" + legalName + '\'' +
-                ", tradingName='" + tradingName + '\'' +
+                ", email='" + email + '\'' +
+                ", phone='" + phone + '\'' +
+                ", address='" + address + '\'' +
                 ", createdAt=" + createdAt +
                 ", updatedAt=" + updatedAt +
                 '}';
@@ -104,11 +126,16 @@ public class Company {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Company company = (Company) o;
-        return id == company.id && Objects.equals(cnpj, company.cnpj) && Objects.equals(legalName, company.legalName) && Objects.equals(tradingName, company.tradingName);
+        return id == company.id &&
+                Objects.equals(name, company.name) &&
+                Objects.equals(cnpj, company.cnpj) &&
+                Objects.equals(email, company.email) &&
+                Objects.equals(phone, company.phone) &&
+                Objects.equals(address, company.address);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, cnpj, legalName, tradingName);
+        return Objects.hash(id, name, cnpj, email, phone, address);
     }
 }

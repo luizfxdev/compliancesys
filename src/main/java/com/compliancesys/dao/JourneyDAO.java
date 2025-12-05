@@ -1,69 +1,69 @@
 package com.compliancesys.dao;
 
-import com.compliancesys.model.Journey; // Importa a classe Journey.
-import java.sql.SQLException;           // Importa para lidar com exceções SQL.
-import java.time.LocalDate;             // Importa para usar LocalDate.
-import java.util.List;                  // Importa para usar List.
-import java.util.Optional;              // Importa para usar Optional.
+import java.sql.SQLException;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+
+import com.compliancesys.model.Journey;
 
 /**
- * Interface para operações de acesso a dados da entidade Journey.
- * Define os métodos CRUD e de busca para Journey.
+ * Interface para o Data Access Object (DAO) de Journey.
+ * Define as operações CRUD e de busca específicas para jornadas de trabalho.
  */
 public interface JourneyDAO {
-
     /**
      * Insere uma nova jornada no banco de dados.
-     * @param journey Objeto Journey a ser inserido.
-     * @return O ID da jornada inserida.
+     * @param journey O objeto Journey a ser inserido.
+     * @return O ID gerado para a nova jornada.
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
      */
-    int insert(Journey journey) throws SQLException;
+    int create(Journey journey) throws SQLException;
 
     /**
      * Busca uma jornada pelo seu ID.
-     * @param id ID da jornada.
-     * @return Um Optional contendo a Journey se encontrada, ou um Optional vazio.
+     * @param id O ID da jornada.
+     * @return Um Optional contendo o Journey se encontrado, ou um Optional vazio.
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
      */
     Optional<Journey> findById(int id) throws SQLException;
 
     /**
-     * Busca uma jornada pelo ID do motorista e data da jornada.
-     * @param driverId ID do motorista.
-     * @param journeyDate Data da jornada.
-     * @return Um Optional contendo a Journey se encontrada, ou um Optional vazio.
-     * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
-     */
-    Optional<Journey> findByDriverIdAndDate(int driverId, LocalDate journeyDate) throws SQLException;
-
-    /**
-     * Retorna todas as jornadas registradas.
+     * Busca todas as jornadas.
      * @return Uma lista de todas as jornadas.
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
      */
     List<Journey> findAll() throws SQLException;
 
     /**
-     * Retorna todas as jornadas de um motorista específico.
-     * @param driverId ID do motorista.
-     * @return Uma lista de jornadas para o motorista especificado.
+     * Busca jornadas por ID de motorista.
+     * @param driverId O ID do motorista.
+     * @return Uma lista de jornadas associadas ao motorista.
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
      */
     List<Journey> findByDriverId(int driverId) throws SQLException;
 
     /**
-     * Atualiza os dados de uma jornada existente.
-     * @param journey Objeto Journey com os dados atualizados.
-     * @return true se a jornada foi atualizada, false caso contrário.
+     * Busca uma jornada específica por ID de motorista e data.
+     * @param driverId O ID do motorista.
+     * @param journeyDate A data da jornada.
+     * @return Um Optional contendo o Journey se encontrado, ou um Optional vazio.
+     * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
+     */
+    Optional<Journey> findByDriverIdAndDate(int driverId, LocalDate journeyDate) throws SQLException;
+
+    /**
+     * Atualiza uma jornada existente no banco de dados.
+     * @param journey O objeto Journey com os dados atualizados.
+     * @return true se a jornada foi atualizada com sucesso, false caso contrário.
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
      */
     boolean update(Journey journey) throws SQLException;
 
     /**
      * Deleta uma jornada pelo seu ID.
-     * @param id ID da jornada a ser deletada.
-     * @return true se a jornada foi deletada, false caso contrário.
+     * @param id O ID da jornada a ser deletada.
+     * @return true se a jornada foi deletada com sucesso, false caso contrário.
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
      */
     boolean delete(int id) throws SQLException;

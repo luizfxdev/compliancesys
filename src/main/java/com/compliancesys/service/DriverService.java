@@ -1,64 +1,68 @@
 package com.compliancesys.service;
 
-import com.compliancesys.model.Driver; // Garante que o POJO Driver está sendo importado.
-import java.sql.SQLException;           // Garante que SQLException está sendo importado.
-import java.util.List;                  // Garante que List está sendo importado.
-import java.util.Optional;              // Garante que Optional está sendo importado.
+import java.sql.SQLException;
+import java.util.List;
+import java.util.Optional;
+
+import com.compliancesys.exception.BusinessException;
+import com.compliancesys.model.Driver;
 
 /**
- * Interface para a camada de serviço da entidade Driver.
- * Define as operações de negócio para gerenciar motoristas.
+ * Interface para o serviço de gerenciamento de motoristas.
+ * Define as operações de negócio relacionadas aos motoristas.
  */
 public interface DriverService {
 
     /**
      * Registra um novo motorista no sistema.
-     * Realiza validações de negócio antes de persistir o motorista.
-     * @param driver Objeto Driver a ser registrado.
-     * @return O ID do motorista registrado.
+     * @param driver O objeto Driver a ser registrado.
+     * @return O objeto Driver registrado, incluindo o ID gerado. // CORRIGIDO: Retorna Driver
+     * @throws BusinessException Se houver uma regra de negócio violada.
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
-     * @throws IllegalArgumentException Se os dados do motorista forem inválidos.
      */
-    int registerDriver(Driver driver) throws SQLException, IllegalArgumentException;
+    Driver registerDriver(Driver driver) throws BusinessException, SQLException; // CORRIGIDO: Retorna Driver
 
     /**
      * Busca um motorista pelo seu ID.
-     * @param driverId ID do motorista.
+     * @param driverId O ID do motorista.
      * @return Um Optional contendo o Driver se encontrado, ou um Optional vazio.
+     * @throws BusinessException Se o ID for inválido.
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
      */
-    Optional<Driver> getDriverById(int driverId) throws SQLException;
+    Optional<Driver> getDriverById(int driverId) throws BusinessException, SQLException;
 
     /**
      * Busca um motorista pelo seu CPF.
-     * @param cpf CPF do motorista.
+     * @param cpf O CPF do motorista.
      * @return Um Optional contendo o Driver se encontrado, ou um Optional vazio.
+     * @throws BusinessException Se o CPF for inválido.
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
      */
-    Optional<Driver> getDriverByCpf(String cpf) throws SQLException;
+    Optional<Driver> getDriverByCpf(String cpf) throws BusinessException, SQLException;
 
     /**
-     * Retorna uma lista de todos os motoristas registrados.
+     * Busca todos os motoristas.
      * @return Uma lista de todos os motoristas.
+     * @throws BusinessException Se ocorrer um erro de negócio.
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
      */
-    List<Driver> getAllDrivers() throws SQLException;
+    List<Driver> getAllDrivers() throws BusinessException, SQLException;
 
     /**
-     * Atualiza as informações de um motorista existente.
-     * Realiza validações de negócio antes de atualizar.
-     * @param driver Objeto Driver com os dados atualizados.
-     * @return true se o motorista foi atualizado com sucesso, false caso contrário.
+     * Atualiza os dados de um motorista existente.
+     * @param driver O objeto Driver com os dados atualizados.
+     * @return O objeto Driver atualizado. // CORRIGIDO: Retorna Driver
+     * @throws BusinessException Se houver uma regra de negócio violada ou o motorista não for encontrado.
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
-     * @throws IllegalArgumentException Se os dados do motorista forem inválidos.
      */
-    boolean updateDriver(Driver driver) throws SQLException, IllegalArgumentException;
+    Driver updateDriver(Driver driver) throws BusinessException, SQLException; // CORRIGIDO: Retorna Driver
 
     /**
-     * Remove um motorista do sistema pelo seu ID.
-     * @param driverId ID do motorista a ser removido.
-     * @return true se o motorista foi removido com sucesso, false caso contrário.
+     * Deleta um motorista pelo seu ID.
+     * @param driverId O ID do motorista a ser deletado.
+     * @return true se o motorista foi deletado com sucesso, false caso contrário.
+     * @throws BusinessException Se o ID for inválido ou o motorista não for encontrado.
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
      */
-    boolean deleteDriver(int driverId) throws SQLException;
+    boolean deleteDriver(int driverId) throws BusinessException, SQLException;
 }
