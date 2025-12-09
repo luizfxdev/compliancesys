@@ -23,60 +23,65 @@ java {
     // O projeto requer Java 8 ou superior.
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
+
+    // === ADICIONADO: Configuração de toolchain para Java 8 ===
+    // Isso instrui o Gradle a procurar e usar um JDK 8 para compilação e execução,
+    // mesmo que o Java padrão do sistema seja uma versão mais recente.
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(8)
+    }
+    // =======================================================
+
+    sourceSets {
+        main {
+            java.srcDirs = [project.file('src/main/java')]
+            resources.srcDirs = [project.file('src/main/resources')]
+        }
+        test {
+            java.srcDirs = [project.file('src/test/java')]
+            resources.srcDirs = [project.file('src/test/resources')]
+        }
+    }
 }
 
-// Bloco de dependências do projeto.
+// Configuração das dependências do projeto.
 dependencies {
-    // Dependências para o ambiente de execução (runtime) e compilação.
+    // Dependências de compilação e tempo de execução para o projeto principal.
+    implementation 'javax.servlet:javax.servlet-api:4.0.1' // API Servlet para aplicações web
+    implementation 'com.google.code.gson:gson:2.10.1' // Biblioteca Gson para JSON
+    implementation 'org.postgresql:postgresql:42.7.3' // Driver JDBC para PostgreSQL
 
-    // Servlet API para desenvolvimento web com Tomcat.
-    // 'compileOnly' indica que o container (Tomcat) fornecerá esta dependência em tempo de execução.
-    // Versão 4.0.1 é compatível com Java EE 8 e usa o pacote 'javax.servlet'.
-    // Compatível com Tomcat 9 e anteriores. Se usar Tomcat 10+, precisará migrar para Jakarta EE.
-    compileOnly 'javax.servlet:javax.servlet-api:4.0.1'
-
-    // Dependência para a API de JavaServer Pages (JSP).
-    // Também é 'compileOnly' pois o Tomcat a fornece.
-    compileOnly 'javax.servlet.jsp:javax.servlet.jsp-api:2.3.3'
-
-    // Implementação do JSTL (JSP Standard Tag Library) para JSPs.
-    // É crucial que esta versão seja compatível com 'javax.servlet' e 'javax.servlet.jsp'.
-    // A versão 'jstl:1.2' é a mais comum para Java EE 8 e anteriores.
-    implementation 'javax.servlet:jstl:1.2'
-
-    // Gson para serialização e desserialização de objetos Java para JSON.
-    // Essencial para a comunicação com o Gateway Mobile.
-    implementation 'com.google.code.gson:gson:2.10.1'
-
-    // Driver JDBC para PostgreSQL.
-    // Necessário para a conexão com o banco de dados PostgreSQL.
-    // ATUALIZADO: Versão do driver PostgreSQL para a mais recente estável.
-    implementation 'org.postgresql:postgresql:42.7.3'
-
-    // Dependências para testes unitários.
-
+    // Dependências de teste.
     // JUnit Jupiter API para escrever testes.
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.0'
     // JUnit Jupiter Engine para executar testes.
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.0'
 
-    // AssertJ para asserções mais legíveis e fluentes nos testes.
-    testImplementation 'org.assertj:assertj-core:3.24.2'
+    // === CORRIGIDO: Mockito para compatibilidade com Java 8 ===
+    // Mockito para criar mocks em testes unitários.
+    testImplementation 'org.mockito:mockito-core:3.12.4' // Versão compatível com Java 8
+    testImplementation 'org.mockito:mockito-junit-jupiter:3.12.4' // Versão compatível com Java 8
+    // =========================================================
 
-    // Mockito para criação de mocks em testes unitários.
-    // Essencial para isolar a lógica de serviço das dependências de DAO.
-    testImplementation 'org.mockito:mockito-junit-jupiter:5.8.0'
+    // === ADICIONADO: Dependência para o H2 Database (banco de dados em memória para testes) ===
+    testImplementation 'com.h2database:h2:2.2.224' // Use a versão mais recente compatível
+    // ========================================================================================
 }
 
-// Configuração da tarefa de testes.
+// Configuração da tarefa de teste.
 test {
     // Usa a plataforma JUnit para executar os testes.
     useJUnitPlatform()
     // Garante que os testes falhem se houver erros.
     failFast = true
-    // Exibe os resultados dos testes no console.
     testLogging {
         events "passed", "skipped", "failed"
+    }
+
+    // Configuração explícita para o relatório HTML dos testes.
+    reports {
+        html.required = true // Garante que o relatório HTML seja gerado.
+        html.outputLocation = file("${buildDir}/reports/tests/test") // Define o diretório de saída.
     }
 }
 

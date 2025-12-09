@@ -34,24 +34,24 @@ public class TimeRecordServiceImpl implements TimeRecordService {
         if (timeRecord.getDriverId() <= 0) {
             throw new BusinessException("ID do motorista inválido.");
         }
-        if (timeRecord.getCompanyId() <= 0) { // AGORA EXISTE EM TimeRecord
+        if (timeRecord.getCompanyId() <= 0) {
             throw new BusinessException("ID da empresa inválido.");
         }
-        if (timeRecord.getRecordTime() == null) { // USANDO getRecordTime()
+        if (timeRecord.getRecordTime() == null) {
             throw new BusinessException("Timestamp do registro de ponto é obrigatório.");
         }
         if (timeRecord.getEventType() == null) {
             throw new BusinessException("Tipo de evento do registro de ponto é obrigatório.");
         }
         // Validações adicionais com o validator
-        if (!validator.isValidDateTime(timeRecord.getRecordTime())) { // USANDO isValidDateTime e getRecordTime()
+        if (!validator.isValidDateTime(timeRecord.getRecordTime())) {
             throw new BusinessException("Timestamp do registro de ponto inválido ou no futuro.");
         }
 
         try {
             // Verifica se já existe um registro de ponto para o mesmo motorista, recordTime e tipo de evento
-            Optional<TimeRecord> existingRecord = timeRecordDAO.findByDriverIdAndRecordTimeAndEventType( // MÉTODO CORRIGIDO
-                    timeRecord.getDriverId(), timeRecord.getRecordTime(), timeRecord.getEventType());
+            Optional<TimeRecord> existingRecord = timeRecordDAO.findByDriverIdAndRecordTimeAndEventType(
+                            timeRecord.getDriverId(), timeRecord.getRecordTime(), timeRecord.getEventType().name()); // CORREÇÃO AQUI: .name()
             if (existingRecord.isPresent()) {
                 throw new BusinessException("Já existe um registro de ponto com o mesmo motorista, timestamp e tipo de evento.");
             }
@@ -99,31 +99,31 @@ public class TimeRecordServiceImpl implements TimeRecordService {
         if (timeRecord.getDriverId() <= 0) {
             throw new BusinessException("ID do motorista inválido.");
         }
-        if (timeRecord.getCompanyId() <= 0) { // AGORA EXISTE EM TimeRecord
+        if (timeRecord.getCompanyId() <= 0) {
             throw new BusinessException("ID da empresa inválido.");
         }
-        if (timeRecord.getRecordTime() == null) { // USANDO getRecordTime()
+        if (timeRecord.getRecordTime() == null) {
             throw new BusinessException("Timestamp do registro de ponto é obrigatório.");
         }
         if (timeRecord.getEventType() == null) {
             throw new BusinessException("Tipo de evento do registro de ponto é obrigatório.");
         }
         // Validações adicionais com o validator
-        if (!validator.isValidDateTime(timeRecord.getRecordTime())) { // USANDO isValidDateTime e getRecordTime()
+        if (!validator.isValidDateTime(timeRecord.getRecordTime())) {
             throw new BusinessException("Timestamp do registro de ponto inválido ou no futuro.");
         }
 
         try {
             Optional<TimeRecord> existingRecord = timeRecordDAO.findById(timeRecord.getId());
-            if (existingRecord.isEmpty()) {
+            if (!existingRecord.isPresent()) {
                 throw new BusinessException("Registro de ponto com ID " + timeRecord.getId() + " não encontrado para atualização.");
             }
 
             // Verifica se a atualização resultaria em um registro duplicado (se recordTime e eventType mudarem)
-            if (!existingRecord.get().getRecordTime().equals(timeRecord.getRecordTime()) || // USANDO getRecordTime()
-                !existingRecord.get().getEventType().equals(timeRecord.getEventType())) {
-                Optional<TimeRecord> potentialDuplicate = timeRecordDAO.findByDriverIdAndRecordTimeAndEventType( // MÉTODO CORRIGIDO
-                        timeRecord.getDriverId(), timeRecord.getRecordTime(), timeRecord.getEventType());
+            if (!existingRecord.get().getRecordTime().equals(timeRecord.getRecordTime()) ||
+                    !existingRecord.get().getEventType().equals(timeRecord.getEventType())) {
+                Optional<TimeRecord> potentialDuplicate = timeRecordDAO.findByDriverIdAndRecordTimeAndEventType(
+                                timeRecord.getDriverId(), timeRecord.getRecordTime(), timeRecord.getEventType().name()); // CORREÇÃO AQUI: .name()
                 if (potentialDuplicate.isPresent() && potentialDuplicate.get().getId() != timeRecord.getId()) {
                     throw new BusinessException("Já existe outro registro de ponto com o mesmo motorista, timestamp e tipo de evento.");
                 }
@@ -150,7 +150,7 @@ public class TimeRecordServiceImpl implements TimeRecordService {
         }
         try {
             Optional<TimeRecord> existingRecord = timeRecordDAO.findById(id);
-            if (existingRecord.isEmpty()) {
+            if (!existingRecord.isPresent()) {
                 throw new BusinessException("Registro de ponto com ID " + id + " não encontrado para exclusão.");
             }
             boolean deleted = timeRecordDAO.delete(id);

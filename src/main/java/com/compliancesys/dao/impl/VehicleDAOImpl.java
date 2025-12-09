@@ -1,8 +1,5 @@
 package com.compliancesys.dao.impl;
 
-import com.compliancesys.config.DatabaseConfig;
-import com.compliancesys.dao.VehicleDAO;
-import com.compliancesys.model.Vehicle;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -12,8 +9,11 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import com.compliancesys.config.DatabaseConfig;
+import com.compliancesys.dao.VehicleDAO;
+import com.compliancesys.model.Vehicle;
 
 public class VehicleDAOImpl implements VehicleDAO {
 
@@ -22,7 +22,8 @@ public class VehicleDAOImpl implements VehicleDAO {
     @Override
     public int create(Vehicle vehicle) throws SQLException { // CORRIGIDO: Retorna int
         String sql = "INSERT INTO vehicles (company_id, plate, manufacturer, model, year, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)";
-        try (Connection conn = DatabaseConfig.getConnection();
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+
              PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
             stmt.setInt(1, vehicle.getCompanyId());
@@ -52,7 +53,8 @@ public class VehicleDAOImpl implements VehicleDAO {
     @Override
     public Optional<Vehicle> findById(int id) throws SQLException {
         String sql = "SELECT id, company_id, plate, manufacturer, model, year, created_at, updated_at FROM vehicles WHERE id = ?";
-        try (Connection conn = DatabaseConfig.getConnection();
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, id);
             try (ResultSet rs = stmt.executeQuery()) {
@@ -67,7 +69,8 @@ public class VehicleDAOImpl implements VehicleDAO {
     @Override
     public Optional<Vehicle> findByPlate(String plate) throws SQLException {
         String sql = "SELECT id, company_id, plate, manufacturer, model, year, created_at, updated_at FROM vehicles WHERE plate = ?";
-        try (Connection conn = DatabaseConfig.getConnection();
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, plate);
             try (ResultSet rs = stmt.executeQuery()) {
@@ -83,7 +86,8 @@ public class VehicleDAOImpl implements VehicleDAO {
     public List<Vehicle> findAll() throws SQLException {
         List<Vehicle> vehicles = new ArrayList<>();
         String sql = "SELECT id, company_id, plate, manufacturer, model, year, created_at, updated_at FROM vehicles";
-        try (Connection conn = DatabaseConfig.getConnection();
+       try (Connection conn = DatabaseConfig.getInstance().getConnection();
+
              PreparedStatement stmt = conn.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
@@ -96,7 +100,8 @@ public class VehicleDAOImpl implements VehicleDAO {
     @Override
     public boolean update(Vehicle vehicle) throws SQLException {
         String sql = "UPDATE vehicles SET company_id = ?, plate = ?, manufacturer = ?, model = ?, year = ?, updated_at = ? WHERE id = ?";
-        try (Connection conn = DatabaseConfig.getConnection();
+      try (Connection conn = DatabaseConfig.getInstance().getConnection();
+
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setInt(1, vehicle.getCompanyId());
@@ -114,7 +119,8 @@ public class VehicleDAOImpl implements VehicleDAO {
     @Override
     public boolean delete(int id) throws SQLException {
         String sql = "DELETE FROM vehicles WHERE id = ?";
-        try (Connection conn = DatabaseConfig.getConnection();
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, id);
             return stmt.executeUpdate() > 0;

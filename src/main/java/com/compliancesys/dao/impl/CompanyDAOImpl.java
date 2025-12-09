@@ -22,7 +22,9 @@ public class CompanyDAOImpl implements CompanyDAO {
     @Override
     public int create(Company company) throws SQLException {
         String sql = "INSERT INTO companies (name, cnpj, email, phone, address, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)";
-        try (Connection conn = DatabaseConfig.getConnection();
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+
+
              PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
             stmt.setString(1, company.getName());
@@ -52,7 +54,8 @@ public class CompanyDAOImpl implements CompanyDAO {
     @Override
     public Optional<Company> findById(int id) throws SQLException {
         String sql = "SELECT id, name, cnpj, email, phone, address, created_at, updated_at FROM companies WHERE id = ?";
-        try (Connection conn = DatabaseConfig.getConnection();
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, id);
             try (ResultSet rs = stmt.executeQuery()) {
@@ -67,7 +70,8 @@ public class CompanyDAOImpl implements CompanyDAO {
     @Override
     public Optional<Company> findByCnpj(String cnpj) throws SQLException {
         String sql = "SELECT id, name, cnpj, email, phone, address, created_at, updated_at FROM companies WHERE cnpj = ?";
-        try (Connection conn = DatabaseConfig.getConnection();
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, cnpj);
             try (ResultSet rs = stmt.executeQuery()) {
@@ -83,7 +87,8 @@ public class CompanyDAOImpl implements CompanyDAO {
     public List<Company> findAll() throws SQLException {
         List<Company> companies = new ArrayList<>();
         String sql = "SELECT id, name, cnpj, email, phone, address, created_at, updated_at FROM companies";
-        try (Connection conn = DatabaseConfig.getConnection();
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+
              PreparedStatement stmt = conn.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
@@ -96,7 +101,8 @@ public class CompanyDAOImpl implements CompanyDAO {
     @Override
     public boolean update(Company company) throws SQLException {
         String sql = "UPDATE companies SET name = ?, cnpj = ?, email = ?, phone = ?, address = ?, updated_at = ? WHERE id = ?";
-        try (Connection conn = DatabaseConfig.getConnection();
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setString(1, company.getName());
@@ -114,7 +120,8 @@ public class CompanyDAOImpl implements CompanyDAO {
     @Override
     public boolean delete(int id) throws SQLException {
         String sql = "DELETE FROM companies WHERE id = ?";
-        try (Connection conn = DatabaseConfig.getConnection();
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, id);
             return stmt.executeUpdate() > 0;

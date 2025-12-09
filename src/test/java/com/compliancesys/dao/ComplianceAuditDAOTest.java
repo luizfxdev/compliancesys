@@ -4,7 +4,7 @@ import com.compliancesys.dao.impl.ComplianceAuditDAOImpl;
 import com.compliancesys.dao.impl.DriverDAOImpl; // Para criar um driver e jornada de teste
 import com.compliancesys.dao.impl.JourneyDAOImpl; // Para criar uma jornada de teste
 import com.compliancesys.model.ComplianceAudit;
-import com.compliancesys.model.ComplianceStatus;
+import com.compliancesys.model.enums.ComplianceStatus;
 import com.compliancesys.model.Driver;
 import com.compliancesys.model.Journey;
 import com.compliancesys.util.DatabaseConnection;

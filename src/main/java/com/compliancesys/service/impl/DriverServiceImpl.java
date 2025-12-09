@@ -128,7 +128,7 @@ public class DriverServiceImpl implements DriverService {
 
         try {
             Optional<Driver> existingDriver = driverDAO.findById(driver.getId());
-            if (existingDriver.isEmpty()) {
+            if (!existingDriver.isPresent()) { // CORRIGIDO: Usando !existingDriver.isPresent()
                 throw new BusinessException("Motorista com ID " + driver.getId() + " não encontrado para atualização.");
             }
 
@@ -162,7 +162,7 @@ public class DriverServiceImpl implements DriverService {
         }
         try {
             Optional<Driver> existingDriver = driverDAO.findById(driverId);
-            if (existingDriver.isEmpty()) {
+            if (!existingDriver.isPresent()) { // CORRIGIDO: Usando !existingDriver.isPresent()
                 throw new BusinessException("Motorista com ID " + driverId + " não encontrado para exclusão.");
             }
             boolean deleted = driverDAO.delete(driverId);

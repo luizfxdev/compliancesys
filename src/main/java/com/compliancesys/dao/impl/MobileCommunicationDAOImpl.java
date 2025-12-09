@@ -22,7 +22,8 @@ public class MobileCommunicationDAOImpl implements MobileCommunicationDAO {
     @Override
     public int create(MobileCommunication communication) throws SQLException {
         String sql = "INSERT INTO mobile_communications (driver_id, record_id, timestamp, latitude, longitude, send_timestamp, send_success, error_message, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        try (Connection conn = DatabaseConfig.getConnection();
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+
              PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
             stmt.setInt(1, communication.getDriverId());
@@ -54,7 +55,8 @@ public class MobileCommunicationDAOImpl implements MobileCommunicationDAO {
     @Override
     public Optional<MobileCommunication> findById(int id) throws SQLException {
         String sql = "SELECT id, driver_id, record_id, timestamp, latitude, longitude, send_timestamp, send_success, error_message, created_at, updated_at FROM mobile_communications WHERE id = ?";
-        try (Connection conn = DatabaseConfig.getConnection();
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, id);
             try (ResultSet rs = stmt.executeQuery()) {
@@ -70,7 +72,8 @@ public class MobileCommunicationDAOImpl implements MobileCommunicationDAO {
     public List<MobileCommunication> findAll() throws SQLException {
         List<MobileCommunication> communications = new ArrayList<>();
         String sql = "SELECT id, driver_id, record_id, timestamp, latitude, longitude, send_timestamp, send_success, error_message, created_at, updated_at FROM mobile_communications";
-        try (Connection conn = DatabaseConfig.getConnection();
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+
              PreparedStatement stmt = conn.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
@@ -84,7 +87,8 @@ public class MobileCommunicationDAOImpl implements MobileCommunicationDAO {
     public List<MobileCommunication> findByDriverId(int driverId) throws SQLException {
         List<MobileCommunication> communications = new ArrayList<>();
         String sql = "SELECT id, driver_id, record_id, timestamp, latitude, longitude, send_timestamp, send_success, error_message, created_at, updated_at FROM mobile_communications WHERE driver_id = ?";
-        try (Connection conn = DatabaseConfig.getConnection();
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, driverId);
             try (ResultSet rs = stmt.executeQuery()) {
@@ -100,7 +104,8 @@ public class MobileCommunicationDAOImpl implements MobileCommunicationDAO {
     public List<MobileCommunication> findByRecordId(int recordId) throws SQLException {
         List<MobileCommunication> communications = new ArrayList<>();
         String sql = "SELECT id, driver_id, record_id, timestamp, latitude, longitude, send_timestamp, send_success, error_message, created_at, updated_at FROM mobile_communications WHERE record_id = ?";
-        try (Connection conn = DatabaseConfig.getConnection();
+       try (Connection conn = DatabaseConfig.getInstance().getConnection();
+
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, recordId);
             try (ResultSet rs = stmt.executeQuery()) {
@@ -115,7 +120,8 @@ public class MobileCommunicationDAOImpl implements MobileCommunicationDAO {
     @Override
     public boolean update(MobileCommunication communication) throws SQLException {
         String sql = "UPDATE mobile_communications SET driver_id = ?, record_id = ?, timestamp = ?, latitude = ?, longitude = ?, send_timestamp = ?, send_success = ?, error_message = ?, updated_at = ? WHERE id = ?";
-        try (Connection conn = DatabaseConfig.getConnection();
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setInt(1, communication.getDriverId());
@@ -136,7 +142,8 @@ public class MobileCommunicationDAOImpl implements MobileCommunicationDAO {
     @Override
     public boolean delete(int id) throws SQLException {
         String sql = "DELETE FROM mobile_communications WHERE id = ?";
-        try (Connection conn = DatabaseConfig.getConnection();
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, id);
             return stmt.executeUpdate() > 0;

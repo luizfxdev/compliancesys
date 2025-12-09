@@ -121,10 +121,9 @@ public class VehicleServiceImpl implements VehicleService {
 
         try {
             Optional<Vehicle> existingVehicle = vehicleDAO.findById(vehicle.getId());
-            if (existingVehicle.isEmpty()) {
+            if (!existingVehicle.isPresent()) { // CORRIGIDO: Usando !existingVehicle.isPresent()
                 throw new BusinessException("Veículo com ID " + vehicle.getId() + " não encontrado para atualização.");
             }
-
             if (!existingVehicle.get().getPlate().equals(vehicle.getPlate())) {
                 if (vehicleDAO.findByPlate(vehicle.getPlate()).isPresent()) {
                     throw new BusinessException("Já existe outro veículo cadastrado com a placa informada.");
@@ -154,7 +153,7 @@ public class VehicleServiceImpl implements VehicleService {
         }
         try {
             Optional<Vehicle> existingVehicle = vehicleDAO.findById(vehicleId);
-            if (existingVehicle.isEmpty()) {
+            if (!existingVehicle.isPresent()) { // CORRIGIDO: Usando !existingVehicle.isPresent()
                 throw new BusinessException("Veículo com ID " + vehicleId + " não encontrado para exclusão.");
             }
             boolean deleted = vehicleDAO.delete(vehicleId);

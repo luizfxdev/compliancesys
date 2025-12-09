@@ -7,29 +7,25 @@ import java.util.Optional;
 import com.compliancesys.exception.BusinessException;
 import com.compliancesys.model.Company;
 
-/**
- * Interface para o serviço de gerenciamento de empresas.
- * Define as operações de negócio relacionadas às empresas.
- */
 public interface CompanyService {
 
     /**
      * Registra uma nova empresa no sistema.
      * @param company O objeto Company a ser registrado.
-     * @return O objeto Company registrado, incluindo o ID gerado. // CORRIGIDO: Retorna Company
-     * @throws BusinessException Se houver uma regra de negócio violada.
+     * @return O objeto Company registrado com o ID gerado.
+     * @throws BusinessException Se houver uma regra de negócio violada (ex: CNPJ duplicado, dados inválidos).
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
      */
-    Company registerCompany(Company company) throws BusinessException, SQLException; // CORRIGIDO: Retorna Company
+    Company registerCompany(Company company) throws BusinessException, SQLException;
 
     /**
      * Busca uma empresa pelo seu ID.
-     * @param companyId O ID da empresa.
+     * @param id O ID da empresa.
      * @return Um Optional contendo a Company se encontrada, ou um Optional vazio.
      * @throws BusinessException Se o ID for inválido.
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
      */
-    Optional<Company> getCompanyById(int companyId) throws BusinessException, SQLException;
+    Optional<Company> getCompanyById(int id) throws BusinessException, SQLException;
 
     /**
      * Busca uma empresa pelo seu CNPJ.
@@ -38,7 +34,7 @@ public interface CompanyService {
      * @throws BusinessException Se o CNPJ for inválido.
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
      */
-    Optional<Company> getCompanyByCnpj(String cnpj) throws BusinessException, SQLException;
+    Optional<Company> getCompanyByCnpj(String cnpj) throws BusinessException, SQLException; // ADICIONADO
 
     /**
      * Busca todas as empresas.
@@ -51,11 +47,11 @@ public interface CompanyService {
     /**
      * Atualiza os dados de uma empresa existente.
      * @param company O objeto Company com os dados atualizados.
-     * @return O objeto Company atualizado. // CORRIGIDO: Retorna Company
+     * @return O objeto Company atualizado.
      * @throws BusinessException Se houver uma regra de negócio violada ou a empresa não for encontrada.
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
      */
-    Company updateCompany(Company company) throws BusinessException, SQLException; // CORRIGIDO: Retorna Company
+    Company updateCompany(Company company) throws BusinessException, SQLException;
 
     /**
      * Deleta uma empresa pelo seu ID.

@@ -35,9 +35,12 @@ public class ComplianceServlet extends HttpServlet {
 
     @Override
     public void init() throws ServletException {
+        // Instanciações diretas para fins de exemplo.
         ComplianceAuditDAO complianceAuditDAO = new ComplianceAuditDAOImpl();
         JourneyDAO journeyDAO = new JourneyDAOImpl();
         Validator validator = new ValidatorImpl();
+
+        // CORRIGIDO: Usando o construtor de 3 argumentos que criamos em ComplianceServiceImpl
         this.complianceService = new ComplianceServiceImpl(complianceAuditDAO, journeyDAO, validator);
         this.gsonSerializer = new GsonUtilImpl();
     }

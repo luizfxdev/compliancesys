@@ -1,20 +1,20 @@
 package com.compliancesys.service.impl;
 
-import com.compliancesys.dao.MobileCommunicationDAO;
-import com.compliancesys.dao.TimeRecordDAO; // CORRIGIDO: Para validar a existência do registro de ponto
-import com.compliancesys.dao.impl.MobileCommunicationDAOImpl;
-import com.compliancesys.dao.impl.TimeRecordDAOImpl; // CORRIGIDO: Para validar a existência do registro de ponto
-import com.compliancesys.exception.BusinessException;
-import com.compliancesys.model.MobileCommunication;
-import com.compliancesys.model.TimeRecord; // CORRIGIDO: Para validar a existência do registro de ponto
-import com.compliancesys.service.MobileCommunicationService;
-
 import java.sql.SQLException;
-import java.time.LocalDateTime;
+import java.time.LocalDateTime; // CORRIGIDO: Para validar a existência do registro de ponto
 import java.util.List;
-import java.util.Optional;
+import java.util.Optional; // CORRIGIDO: Para validar a existência do registro de ponto
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import com.compliancesys.dao.MobileCommunicationDAO; // CORRIGIDO: Para validar a existência do registro de ponto
+import com.compliancesys.dao.TimeRecordDAO;
+import com.compliancesys.dao.impl.MobileCommunicationDAOImpl;
+import com.compliancesys.dao.impl.TimeRecordDAOImpl;
+import com.compliancesys.exception.BusinessException;
+import com.compliancesys.model.MobileCommunication;
+import com.compliancesys.model.TimeRecord;
+import com.compliancesys.service.MobileCommunicationService;
 
 /**
  * Implementação da interface MobileCommunicationService.
@@ -64,7 +64,7 @@ public class MobileCommunicationServiceImpl implements MobileCommunicationServic
         try {
             // Verifica se o registro de ponto associado existe
             Optional<TimeRecord> existingTimeRecord = timeRecordDAO.findById(communication.getRecordId()); // CORRIGIDO: TimeRecord
-            if (existingTimeRecord.isEmpty()) {
+            if (!existingTimeRecord.isPresent()) { // CORRIGIDO: Usando !isPresent()
                 throw new BusinessException("Registro de ponto com ID " + communication.getRecordId() + " não encontrado. Não é possível criar a comunicação móvel.");
             }
 
@@ -141,13 +141,13 @@ public class MobileCommunicationServiceImpl implements MobileCommunicationServic
         try {
             // Verifica se a comunicação móvel a ser atualizada existe
             Optional<MobileCommunication> existingCommunication = mobileCommunicationDAO.findById(communication.getId());
-            if (existingCommunication.isEmpty()) {
+            if (!existingCommunication.isPresent()) { // CORRIGIDO: Usando !isPresent()
                 throw new BusinessException("Comunicação móvel com ID " + communication.getId() + " não encontrada para atualização.");
             }
 
             // Verifica se o registro de ponto associado existe
             Optional<TimeRecord> existingTimeRecord = timeRecordDAO.findById(communication.getRecordId()); // CORRIGIDO: TimeRecord
-            if (existingTimeRecord.isEmpty()) {
+            if (!existingTimeRecord.isPresent()) { // CORRIGIDO: Usando !isPresent()
                 throw new BusinessException("Registro de ponto com ID " + communication.getRecordId() + " não encontrado. Não é possível atualizar a comunicação móvel.");
             }
 
@@ -177,7 +177,7 @@ public class MobileCommunicationServiceImpl implements MobileCommunicationServic
         try {
             // Opcional: Verificar se a comunicação móvel existe antes de tentar deletar
             Optional<MobileCommunication> existingCommunication = mobileCommunicationDAO.findById(id);
-            if (existingCommunication.isEmpty()) {
+            if (!existingCommunication.isPresent()) { // CORRIGIDO: Usando !isPresent()
                 throw new BusinessException("Comunicação móvel com ID " + id + " não encontrada para exclusão.");
             }
 

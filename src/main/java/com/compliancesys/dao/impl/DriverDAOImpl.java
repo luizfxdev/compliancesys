@@ -23,7 +23,8 @@ public class DriverDAOImpl implements DriverDAO {
     @Override
     public int create(Driver driver) throws SQLException {
         String sql = "INSERT INTO drivers (company_id, name, cpf, license_number, birth_date, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)";
-        try (Connection conn = DatabaseConfig.getConnection();
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+
              PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
             stmt.setInt(1, driver.getCompanyId());
@@ -53,7 +54,8 @@ public class DriverDAOImpl implements DriverDAO {
     @Override
     public Optional<Driver> findById(int id) throws SQLException {
         String sql = "SELECT id, company_id, name, cpf, license_number, birth_date, created_at, updated_at FROM drivers WHERE id = ?";
-        try (Connection conn = DatabaseConfig.getConnection();
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, id);
             try (ResultSet rs = stmt.executeQuery()) {
@@ -68,7 +70,8 @@ public class DriverDAOImpl implements DriverDAO {
     @Override
     public Optional<Driver> findByCpf(String cpf) throws SQLException {
         String sql = "SELECT id, company_id, name, cpf, license_number, birth_date, created_at, updated_at FROM drivers WHERE cpf = ?";
-        try (Connection conn = DatabaseConfig.getConnection();
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, cpf);
             try (ResultSet rs = stmt.executeQuery()) {
@@ -83,7 +86,8 @@ public class DriverDAOImpl implements DriverDAO {
     @Override
     public Optional<Driver> findByLicenseNumber(String licenseNumber) throws SQLException {
         String sql = "SELECT id, company_id, name, cpf, license_number, birth_date, created_at, updated_at FROM drivers WHERE license_number = ?";
-        try (Connection conn = DatabaseConfig.getConnection();
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, licenseNumber);
             try (ResultSet rs = stmt.executeQuery()) {
@@ -99,7 +103,8 @@ public class DriverDAOImpl implements DriverDAO {
     public List<Driver> findAll() throws SQLException {
         List<Driver> drivers = new ArrayList<>();
         String sql = "SELECT id, company_id, name, cpf, license_number, birth_date, created_at, updated_at FROM drivers";
-        try (Connection conn = DatabaseConfig.getConnection();
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+
              PreparedStatement stmt = conn.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
@@ -112,7 +117,8 @@ public class DriverDAOImpl implements DriverDAO {
     @Override
     public boolean update(Driver driver) throws SQLException {
         String sql = "UPDATE drivers SET company_id = ?, name = ?, cpf = ?, license_number = ?, birth_date = ?, updated_at = ? WHERE id = ?";
-        try (Connection conn = DatabaseConfig.getConnection();
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setInt(1, driver.getCompanyId());
@@ -130,7 +136,8 @@ public class DriverDAOImpl implements DriverDAO {
     @Override
     public boolean delete(int id) throws SQLException {
         String sql = "DELETE FROM drivers WHERE id = ?";
-        try (Connection conn = DatabaseConfig.getConnection();
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, id);
             return stmt.executeUpdate() > 0;

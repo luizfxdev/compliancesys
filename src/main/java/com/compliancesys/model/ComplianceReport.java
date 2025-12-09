@@ -5,28 +5,57 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Representa um relatório de conformidade para um motorista em um período específico.
+ * Representa um relatório de conformidade.
+ * Contém informações agregadas sobre auditorias de conformidade.
  */
 public class ComplianceReport {
+    private String reportName;
+    private LocalDate generatedDate;
     private int driverId;
+    private String driverName;
     private LocalDate startDate;
     private LocalDate endDate;
     private int totalAudits;
-    private int compliantCount;
-    private int nonCompliantCount;
-    private List<ComplianceAudit> audits;
+    private int compliantAudits;
+    private int nonCompliantAudits;
+    private double complianceRate;
+    private List<ComplianceAudit> audits; // Detalhes das auditorias incluídas no relatório
 
     public ComplianceReport() {
     }
 
-    public ComplianceReport(int driverId, LocalDate startDate, LocalDate endDate, int totalAudits, int compliantCount, int nonCompliantCount, List<ComplianceAudit> audits) {
+    // Construtor completo (opcional, mas útil)
+    public ComplianceReport(String reportName, LocalDate generatedDate, int driverId, String driverName,
+                            LocalDate startDate, LocalDate endDate, int totalAudits, int compliantAudits,
+                            int nonCompliantAudits, double complianceRate, List<ComplianceAudit> audits) {
+        this.reportName = reportName;
+        this.generatedDate = generatedDate;
         this.driverId = driverId;
+        this.driverName = driverName;
         this.startDate = startDate;
         this.endDate = endDate;
         this.totalAudits = totalAudits;
-        this.compliantCount = compliantCount;
-        this.nonCompliantCount = nonCompliantCount;
+        this.compliantAudits = compliantAudits;
+        this.nonCompliantAudits = nonCompliantAudits;
+        this.complianceRate = complianceRate;
         this.audits = audits;
+    }
+
+    // Getters e Setters
+    public String getReportName() {
+        return reportName;
+    }
+
+    public void setReportName(String reportName) {
+        this.reportName = reportName;
+    }
+
+    public LocalDate getGeneratedDate() {
+        return generatedDate;
+    }
+
+    public void setGeneratedDate(LocalDate generatedDate) {
+        this.generatedDate = generatedDate;
     }
 
     public int getDriverId() {
@@ -35,6 +64,14 @@ public class ComplianceReport {
 
     public void setDriverId(int driverId) {
         this.driverId = driverId;
+    }
+
+    public String getDriverName() {
+        return driverName;
+    }
+
+    public void setDriverName(String driverName) {
+        this.driverName = driverName;
     }
 
     public LocalDate getStartDate() {
@@ -61,20 +98,28 @@ public class ComplianceReport {
         this.totalAudits = totalAudits;
     }
 
-    public int getCompliantCount() {
-        return compliantCount;
+    public int getCompliantAudits() {
+        return compliantAudits;
     }
 
-    public void setCompliantCount(int compliantCount) {
-        this.compliantCount = compliantCount;
+    public void setCompliantAudits(int compliantAudits) {
+        this.compliantAudits = compliantAudits;
     }
 
-    public int getNonCompliantCount() {
-        return nonCompliantCount;
+    public int getNonCompliantAudits() {
+        return nonCompliantAudits;
     }
 
-    public void setNonCompliantCount(int nonCompliantCount) {
-        this.nonCompliantCount = nonCompliantCount;
+    public void setNonCompliantAudits(int nonCompliantAudits) {
+        this.nonCompliantAudits = nonCompliantAudits;
+    }
+
+    public double getComplianceRate() {
+        return complianceRate;
+    }
+
+    public void setComplianceRate(double complianceRate) {
+        this.complianceRate = complianceRate;
     }
 
     public List<ComplianceAudit> getAudits() {
@@ -85,23 +130,20 @@ public class ComplianceReport {
         this.audits = audits;
     }
 
-    public double getComplianceRate() {
-        if (totalAudits == 0) {
-            return 0.0;
-        }
-        return (double) compliantCount / totalAudits * 100.0;
-    }
-
     @Override
     public String toString() {
         return "ComplianceReport{" +
-                "driverId=" + driverId +
+                "reportName='" + reportName + '\'' +
+                ", generatedDate=" + generatedDate +
+                ", driverId=" + driverId +
+                ", driverName='" + driverName + '\'' +
                 ", startDate=" + startDate +
                 ", endDate=" + endDate +
                 ", totalAudits=" + totalAudits +
-                ", compliantCount=" + compliantCount +
-                ", nonCompliantCount=" + nonCompliantCount +
-                ", complianceRate=" + String.format("%.2f%%", getComplianceRate()) +
+                ", compliantAudits=" + compliantAudits +
+                ", nonCompliantAudits=" + nonCompliantAudits +
+                ", complianceRate=" + complianceRate +
+                ", audits=" + audits +
                 '}';
     }
 
@@ -112,14 +154,19 @@ public class ComplianceReport {
         ComplianceReport that = (ComplianceReport) o;
         return driverId == that.driverId &&
                 totalAudits == that.totalAudits &&
-                compliantCount == that.compliantCount &&
-                nonCompliantCount == that.nonCompliantCount &&
+                compliantAudits == that.compliantAudits &&
+                nonCompliantAudits == that.nonCompliantAudits &&
+                Double.compare(that.complianceRate, complianceRate) == 0 &&
+                Objects.equals(reportName, that.reportName) &&
+                Objects.equals(generatedDate, that.generatedDate) &&
+                Objects.equals(driverName, that.driverName) &&
                 Objects.equals(startDate, that.startDate) &&
-                Objects.equals(endDate, that.endDate);
+                Objects.equals(endDate, that.endDate) &&
+                Objects.equals(audits, that.audits);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(driverId, startDate, endDate, totalAudits, compliantCount, nonCompliantCount);
+        return Objects.hash(reportName, generatedDate, driverId, driverName, startDate, endDate, totalAudits, compliantAudits, nonCompliantAudits, complianceRate, audits);
     }
 }
