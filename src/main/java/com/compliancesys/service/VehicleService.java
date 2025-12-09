@@ -16,11 +16,11 @@ public interface VehicleService {
     /**
      * Registra um novo veículo no sistema.
      * @param vehicle O objeto Vehicle a ser registrado.
-     * @return O objeto Vehicle registrado, incluindo o ID gerado. // CORRIGIDO: Retorna Vehicle
+     * @return O objeto Vehicle registrado, incluindo o ID gerado.
      * @throws BusinessException Se houver uma regra de negócio violada.
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
      */
-    Vehicle registerVehicle(Vehicle vehicle) throws BusinessException, SQLException; // CORRIGIDO: Retorna Vehicle
+    Vehicle registerVehicle(Vehicle vehicle) throws BusinessException, SQLException;
 
     /**
      * Busca um veículo pelo seu ID.
@@ -51,11 +51,11 @@ public interface VehicleService {
     /**
      * Atualiza os dados de um veículo existente.
      * @param vehicle O objeto Vehicle com os dados atualizados.
-     * @return O objeto Vehicle atualizado. // CORRIGIDO: Retorna Vehicle
+     * @return true se o veículo foi atualizado com sucesso, false caso contrário.
      * @throws BusinessException Se houver uma regra de negócio violada ou o veículo não for encontrado.
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
      */
-    Vehicle updateVehicle(Vehicle vehicle) throws BusinessException, SQLException; // CORRIGIDO: Retorna Vehicle
+    boolean updateVehicle(Vehicle vehicle) throws BusinessException, SQLException; // CORRIGIDO: Retorna boolean
 
     /**
      * Deleta um veículo pelo seu ID.

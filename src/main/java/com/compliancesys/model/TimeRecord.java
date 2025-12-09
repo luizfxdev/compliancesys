@@ -1,32 +1,34 @@
 package com.compliancesys.model;
 
-import java.time.LocalDateTime; // Importa o enum EventType
+import java.time.LocalDateTime;
 import java.util.Objects;
 
-import com.compliancesys.model.enums.EventType; // Adicionado para equals e hashCode
+import com.compliancesys.model.enums.EventType;
 
 /**
  * Representa um registro de ponto de um motorista.
  * Corresponde à tabela 'time_records' no banco de dados.
  */
 public class TimeRecord {
-    private int id; // Renomeado de recordId para id para consistência
+    private int id;
     private int driverId;
-    private int vehicleId; // RE-ADICIONADO para alinhar com a lógica do JourneyServiceImpl
-    private LocalDateTime recordTime; // Renomeado de timestamp para recordTime para clareza
-    private EventType eventType; // Alterado para o enum EventType
-    private String location; // Adicionado para detalhes de localização
+    private int companyId; // ADICIONADO: Campo companyId
+    private int vehicleId;
+    private LocalDateTime recordTime;
+    private EventType eventType;
+    private String location;
     private LocalDateTime createdAt;
-    private LocalDateTime updatedAt; // Adicionado para consistência com o schema e DAOs
+    private LocalDateTime updatedAt;
 
     public TimeRecord() {
     }
 
     // Construtor completo
-    public TimeRecord(int id, int driverId, int vehicleId, LocalDateTime recordTime, EventType eventType, String location, LocalDateTime createdAt, LocalDateTime updatedAt) {
+    public TimeRecord(int id, int driverId, int companyId, int vehicleId, LocalDateTime recordTime, EventType eventType, String location, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.driverId = driverId;
-        this.vehicleId = vehicleId; // Inicializa vehicleId
+        this.companyId = companyId; // Inicializa companyId
+        this.vehicleId = vehicleId;
         this.recordTime = recordTime;
         this.eventType = eventType;
         this.location = location;
@@ -35,21 +37,21 @@ public class TimeRecord {
     }
 
     // Construtor para inserção (sem ID, createdAt, updatedAt)
-    public TimeRecord(int driverId, int vehicleId, LocalDateTime recordTime, EventType eventType, String location) {
-        this(0, driverId, vehicleId, recordTime, eventType, location, null, null);
+    public TimeRecord(int driverId, int companyId, int vehicleId, LocalDateTime recordTime, EventType eventType, String location) {
+        this(0, driverId, companyId, vehicleId, recordTime, eventType, location, null, null);
     }
 
     // Construtor para atualização (com ID, sem createdAt, updatedAt)
-    public TimeRecord(int id, int driverId, int vehicleId, LocalDateTime recordTime, EventType eventType, String location) {
-        this(id, driverId, vehicleId, recordTime, eventType, location, null, null);
+    public TimeRecord(int id, int driverId, int companyId, int vehicleId, LocalDateTime recordTime, EventType eventType, String location) {
+        this(id, driverId, companyId, vehicleId, recordTime, eventType, location, null, null);
     }
 
     // Getters e Setters
-    public int getId() { // Getter renomeado
+    public int getId() {
         return id;
     }
 
-    public void setId(int id) { // Setter renomeado
+    public void setId(int id) {
         this.id = id;
     }
 
@@ -61,35 +63,45 @@ public class TimeRecord {
         this.driverId = driverId;
     }
 
-    public int getVehicleId() { // Getter RE-ADICIONADO
+    // ADICIONADO: Getter para companyId
+    public int getCompanyId() {
+        return companyId;
+    }
+
+    // ADICIONADO: Setter para companyId
+    public void setCompanyId(int companyId) {
+        this.companyId = companyId;
+    }
+
+    public int getVehicleId() {
         return vehicleId;
     }
 
-    public void setVehicleId(int vehicleId) { // Setter RE-ADICIONADO
+    public void setVehicleId(int vehicleId) {
         this.vehicleId = vehicleId;
     }
 
-    public LocalDateTime getRecordTime() { // Getter renomeado
+    public LocalDateTime getRecordTime() {
         return recordTime;
     }
 
-    public void setRecordTime(LocalDateTime recordTime) { // Setter renomeado
+    public void setRecordTime(LocalDateTime recordTime) {
         this.recordTime = recordTime;
     }
 
-    public EventType getEventType() { // Getter alterado para EventType
+    public EventType getEventType() {
         return eventType;
     }
 
-    public void setEventType(EventType eventType) { // Setter alterado para EventType
+    public void setEventType(EventType eventType) {
         this.eventType = eventType;
     }
 
-    public String getLocation() { // Getter adicionado
+    public String getLocation() {
         return location;
     }
 
-    public void setLocation(String location) { // Setter adicionado
+    public void setLocation(String location) {
         this.location = location;
     }
 
@@ -101,11 +113,11 @@ public class TimeRecord {
         this.createdAt = createdAt;
     }
 
-    public LocalDateTime getUpdatedAt() { // Getter adicionado
+    public LocalDateTime getUpdatedAt() {
         return updatedAt;
     }
 
-    public void setUpdatedAt(LocalDateTime updatedAt) { // Setter adicionado
+    public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
     }
 
@@ -114,7 +126,8 @@ public class TimeRecord {
         return "TimeRecord{" +
                 "id=" + id +
                 ", driverId=" + driverId +
-                ", vehicleId=" + vehicleId + // Incluído no toString
+                ", companyId=" + companyId + // Incluído no toString
+                ", vehicleId=" + vehicleId +
                 ", recordTime=" + recordTime +
                 ", eventType=" + eventType +
                 ", location='" + location + '\'' +
@@ -130,7 +143,8 @@ public class TimeRecord {
         TimeRecord that = (TimeRecord) o;
         return id == that.id &&
                 driverId == that.driverId &&
-                vehicleId == that.vehicleId && // Incluído no equals
+                companyId == that.companyId && // Incluído no equals
+                vehicleId == that.vehicleId &&
                 eventType == that.eventType &&
                 Objects.equals(recordTime, that.recordTime) &&
                 Objects.equals(location, that.location);
@@ -138,6 +152,6 @@ public class TimeRecord {
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, driverId, vehicleId, recordTime, eventType, location); // Incluído no hashCode
+        return Objects.hash(id, driverId, companyId, vehicleId, recordTime, eventType, location);
     }
 }

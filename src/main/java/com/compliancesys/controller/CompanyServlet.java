@@ -1,26 +1,29 @@
 package com.compliancesys.controller;
 
-import com.compliancesys.model.Company;
-import com.compliancesys.service.CompanyService;
-import com.compliancesys.service.impl.CompanyServiceImpl; // Assumindo uma implementação
-import com.compliancesys.util.GsonUtil;
-import com.compliancesys.util.impl.GsonUtilImpl; // Assumindo uma implementação
-import javax.servlet.ServletException;
-import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Servlet para gerenciar operações CRUD de empresas (Company).
- * Responde a requisições HTTP para /companies.
- */
-@WebServlet("/companies/*") // Adicionado /* para permitir pathInfo
+import javax.servlet.ServletException;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import com.compliancesys.dao.CompanyDAO;
+import com.compliancesys.dao.impl.CompanyDAOImpl;
+import com.compliancesys.exception.BusinessException;
+import com.compliancesys.model.Company;
+import com.compliancesys.service.CompanyService;
+import com.compliancesys.service.impl.CompanyServiceImpl;
+import com.compliancesys.util.GsonUtil;
+import com.compliancesys.util.Validator; // Import adicionado para SQLException
+import com.compliancesys.util.impl.GsonUtilImpl;
+import com.compliancesys.util.impl.ValidatorImpl;
+
+@WebServlet("/companies/*")
 public class CompanyServlet extends HttpServlet {
 
     private CompanyService companyService;
@@ -28,9 +31,10 @@ public class CompanyServlet extends HttpServlet {
 
     @Override
     public void init() throws ServletException {
-        // Instanciando diretamente para o exemplo. Em um projeto real, use injeção de dependência.
-        this.companyService = new CompanyServiceImpl(); // Você precisará criar CompanyServiceImpl
-        this.gsonSerializer = new GsonUtilImpl(); // Você precisará criar GsonUtilImpl
+        CompanyDAO companyDAO = new CompanyDAOImpl();
+        Validator validator = new ValidatorImpl();
+        this.companyService = new CompanyServiceImpl(companyDAO, validator);
+        this.gsonSerializer = new GsonUtilImpl();
     }
 
     @Override
@@ -39,16 +43,14 @@ public class CompanyServlet extends HttpServlet {
         response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
 
-        String pathInfo = request.getPathInfo(); // /companies/{id}
+        String pathInfo = request.getPathInfo();
 
         try {
             if (pathInfo == null || pathInfo.equals("/")) {
-                // GET /companies - Retorna todas as empresas
                 List<Company> companies = companyService.getAllCompanies();
                 out.print(gsonSerializer.serialize(companies));
             } else {
-                // GET /companies/{id} - Retorna uma empresa específica
-                int companyId = Integer.parseInt(pathInfo.substring(1)); // Remove a barra inicial
+                int companyId = Integer.parseInt(pathInfo.substring(1));
                 Optional<Company> company = companyService.getCompanyById(companyId);
                 if (company.isPresent()) {
                     out.print(gsonSerializer.serialize(company.get()));
@@ -60,9 +62,12 @@ public class CompanyServlet extends HttpServlet {
         } catch (NumberFormatException e) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             out.print(gsonSerializer.serialize(new ErrorResponse("ID inválido no caminho da URL.")));
-        } catch (SQLException e) {
+        } catch (BusinessException e) {
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Erro de banco de dados: " + e.getMessage())));
+            out.print(gsonSerializer.serialize(new ErrorResponse("Erro: " + e.getMessage())));
+        } catch (SQLException e) { // <--- NOVO CATCH PARA SQLException
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.print(gsonSerializer.serialize(new ErrorResponse("Erro de banco de dados ao buscar empresa: " + e.getMessage())));
         } catch (Exception e) {
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
             out.print(gsonSerializer.serialize(new ErrorResponse("Erro inesperado: " + e.getMessage())));
@@ -78,19 +83,18 @@ public class CompanyServlet extends HttpServlet {
 
         try {
             Company company = gsonSerializer.deserialize(request.getReader().readLine(), Company.class);
-            int newCompanyId = companyService.registerCompany(company);
-            company.setId(newCompanyId); // Define o ID gerado no objeto
+            Company registeredCompany = companyService.registerCompany(company);
             response.setStatus(HttpServletResponse.SC_CREATED);
-            out.print(gsonSerializer.serialize(company));
-        } catch (IllegalArgumentException e) {
+            out.print(gsonSerializer.serialize(registeredCompany));
+        } catch (BusinessException e) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             out.print(gsonSerializer.serialize(new ErrorResponse(e.getMessage())));
-        } catch (SQLException e) {
+        } catch (SQLException e) { // <--- NOVO CATCH PARA SQLException
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Erro ao registrar empresa: " + e.getMessage())));
+            out.print(gsonSerializer.serialize(new ErrorResponse("Erro de banco de dados ao registrar empresa: " + e.getMessage())));
         } catch (Exception e) {
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Dados da empresa inválidos: " + e.getMessage())));
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.print(gsonSerializer.serialize(new ErrorResponse("Erro inesperado ao registrar empresa: " + e.getMessage())));
         }
         out.flush();
     }
@@ -112,24 +116,20 @@ public class CompanyServlet extends HttpServlet {
         try {
             int companyId = Integer.parseInt(pathInfo.substring(1));
             Company company = gsonSerializer.deserialize(request.getReader().readLine(), Company.class);
-            company.setId(companyId); // Garante que o ID do path seja usado
+            company.setId(companyId);
 
-            if (companyService.updateCompany(company)) {
-                response.setStatus(HttpServletResponse.SC_OK);
-                out.print(gsonSerializer.serialize(company));
-            } else {
-                response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                out.print(gsonSerializer.serialize(new ErrorResponse("Empresa não encontrada para atualização.")));
-            }
+            Company updatedCompany = companyService.updateCompany(company);
+            response.setStatus(HttpServletResponse.SC_OK);
+            out.print(gsonSerializer.serialize(updatedCompany));
         } catch (NumberFormatException e) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             out.print(gsonSerializer.serialize(new ErrorResponse("ID da empresa inválido.")));
-        } catch (IllegalArgumentException e) {
+        } catch (BusinessException e) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             out.print(gsonSerializer.serialize(new ErrorResponse(e.getMessage())));
-        } catch (SQLException e) {
+        } catch (SQLException e) { // <--- NOVO CATCH PARA SQLException
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Erro ao atualizar empresa: " + e.getMessage())));
+            out.print(gsonSerializer.serialize(new ErrorResponse("Erro de banco de dados ao atualizar empresa: " + e.getMessage())));
         } catch (Exception e) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             out.print(gsonSerializer.serialize(new ErrorResponse("Dados da empresa inválidos: " + e.getMessage())));
@@ -154,7 +154,7 @@ public class CompanyServlet extends HttpServlet {
         try {
             int companyId = Integer.parseInt(pathInfo.substring(1));
             if (companyService.deleteCompany(companyId)) {
-                response.setStatus(HttpServletResponse.SC_NO_CONTENT); // 204 No Content para exclusão bem-sucedida
+                response.setStatus(HttpServletResponse.SC_NO_CONTENT);
             } else {
                 response.setStatus(HttpServletResponse.SC_NOT_FOUND);
                 out.print(gsonSerializer.serialize(new ErrorResponse("Empresa não encontrada para exclusão.")));
@@ -162,17 +162,18 @@ public class CompanyServlet extends HttpServlet {
         } catch (NumberFormatException e) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             out.print(gsonSerializer.serialize(new ErrorResponse("ID da empresa inválido.")));
-        } catch (SQLException e) {
+        } catch (BusinessException e) {
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
             out.print(gsonSerializer.serialize(new ErrorResponse("Erro ao deletar empresa: " + e.getMessage())));
+        } catch (SQLException e) { // <--- NOVO CATCH PARA SQLException
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.print(gsonSerializer.serialize(new ErrorResponse("Erro de banco de dados ao deletar empresa: " + e.getMessage())));
         }
         out.flush();
     }
 
-    // Classes auxiliares para padronizar respostas de erro/sucesso
     private static class ErrorResponse {
         private String message;
         public ErrorResponse(String message) { this.message = message; }
     }
-    // Não é necessário SuccessResponse para este servlet, mas pode ser adicionado se houver necessidade de mensagens de sucesso explícitas.
 }

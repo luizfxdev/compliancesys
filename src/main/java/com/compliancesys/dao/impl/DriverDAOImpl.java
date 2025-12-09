@@ -1,8 +1,5 @@
 package com.compliancesys.dao.impl;
 
-import com.compliancesys.config.DatabaseConfig;
-import com.compliancesys.dao.DriverDAO;
-import com.compliancesys.model.Driver;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -13,8 +10,11 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import com.compliancesys.config.DatabaseConfig;
+import com.compliancesys.dao.DriverDAO;
+import com.compliancesys.model.Driver;
 
 public class DriverDAOImpl implements DriverDAO {
 
@@ -30,7 +30,7 @@ public class DriverDAOImpl implements DriverDAO {
             stmt.setString(2, driver.getName());
             stmt.setString(3, driver.getCpf());
             stmt.setString(4, driver.getLicenseNumber());
-            stmt.setObject(5, driver.getBirthDate()); // CORRIGIDO: getBirthDate()
+            stmt.setObject(5, driver.getBirthDate());
             stmt.setObject(6, driver.getCreatedAt());
             stmt.setObject(7, driver.getUpdatedAt());
 
@@ -81,6 +81,21 @@ public class DriverDAOImpl implements DriverDAO {
     }
 
     @Override
+    public Optional<Driver> findByLicenseNumber(String licenseNumber) throws SQLException {
+        String sql = "SELECT id, company_id, name, cpf, license_number, birth_date, created_at, updated_at FROM drivers WHERE license_number = ?";
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, licenseNumber);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return Optional.of(mapResultSetToDriver(rs));
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    @Override
     public List<Driver> findAll() throws SQLException {
         List<Driver> drivers = new ArrayList<>();
         String sql = "SELECT id, company_id, name, cpf, license_number, birth_date, created_at, updated_at FROM drivers";
@@ -104,7 +119,7 @@ public class DriverDAOImpl implements DriverDAO {
             stmt.setString(2, driver.getName());
             stmt.setString(3, driver.getCpf());
             stmt.setString(4, driver.getLicenseNumber());
-            stmt.setObject(5, driver.getBirthDate()); // CORRIGIDO: getBirthDate()
+            stmt.setObject(5, driver.getBirthDate());
             stmt.setObject(6, driver.getUpdatedAt());
             stmt.setInt(7, driver.getId());
 
@@ -129,7 +144,7 @@ public class DriverDAOImpl implements DriverDAO {
                 rs.getString("name"),
                 rs.getString("cpf"),
                 rs.getString("license_number"),
-                rs.getObject("birth_date", LocalDate.class), // CORRIGIDO: birth_date
+                rs.getObject("birth_date", LocalDate.class),
                 rs.getObject("created_at", LocalDateTime.class),
                 rs.getObject("updated_at", LocalDateTime.class)
         );

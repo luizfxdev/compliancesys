@@ -4,11 +4,11 @@ import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.logging.Level; // Importa o Validator
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.compliancesys.dao.VehicleDAO;
-import com.compliancesys.exception.BusinessException;
+import com.compliancesys.exception.BusinessException; // Import adicionado
 import com.compliancesys.model.Vehicle;
 import com.compliancesys.service.VehicleService;
 import com.compliancesys.util.Validator;
@@ -17,7 +17,7 @@ public class VehicleServiceImpl implements VehicleService {
 
     private static final Logger LOGGER = Logger.getLogger(VehicleServiceImpl.class.getName());
     private final VehicleDAO vehicleDAO;
-    private final Validator validator; // Injeta o Validator
+    private final Validator validator;
 
     public VehicleServiceImpl(VehicleDAO vehicleDAO, Validator validator) {
         this.vehicleDAO = vehicleDAO;
@@ -32,7 +32,7 @@ public class VehicleServiceImpl implements VehicleService {
         if (vehicle.getCompanyId() <= 0) {
             throw new BusinessException("ID da empresa inválido.");
         }
-        if (!validator.isValidPlate(vehicle.getPlate())) { // CORRIGIDO: isValidPlate()
+        if (!validator.isValidPlate(vehicle.getPlate())) {
             throw new BusinessException("Placa do veículo inválida.");
         }
         if (vehicle.getManufacturer() == null || vehicle.getManufacturer().trim().isEmpty()) {
@@ -41,12 +41,11 @@ public class VehicleServiceImpl implements VehicleService {
         if (vehicle.getModel() == null || vehicle.getModel().trim().isEmpty()) {
             throw new BusinessException("Modelo do veículo é obrigatório.");
         }
-        if (vehicle.getYear() <= 1900 || vehicle.getYear() > LocalDateTime.now().getYear() + 1) { // Ano razoável
+        if (vehicle.getYear() <= 1900 || vehicle.getYear() > LocalDateTime.now().getYear() + 1) {
             throw new BusinessException("Ano do veículo inválido.");
         }
 
         try {
-            // Verifica se já existe um veículo com a mesma placa
             if (vehicleDAO.findByPlate(vehicle.getPlate()).isPresent()) {
                 throw new BusinessException("Já existe um veículo cadastrado com esta placa.");
             }
@@ -100,14 +99,14 @@ public class VehicleServiceImpl implements VehicleService {
     }
 
     @Override
-    public Vehicle updateVehicle(Vehicle vehicle) throws BusinessException, SQLException {
+    public boolean updateVehicle(Vehicle vehicle) throws BusinessException, SQLException { // Retorna boolean
         if (vehicle == null || vehicle.getId() <= 0) {
             throw new BusinessException("Veículo ou ID inválido para atualização.");
         }
         if (vehicle.getCompanyId() <= 0) {
             throw new BusinessException("ID da empresa inválido.");
         }
-        if (!validator.isValidPlate(vehicle.getPlate())) { // CORRIGIDO: isValidPlate()
+        if (!validator.isValidPlate(vehicle.getPlate())) {
             throw new BusinessException("Placa do veículo inválida.");
         }
         if (vehicle.getManufacturer() == null || vehicle.getManufacturer().trim().isEmpty()) {
@@ -126,7 +125,6 @@ public class VehicleServiceImpl implements VehicleService {
                 throw new BusinessException("Veículo com ID " + vehicle.getId() + " não encontrado para atualização.");
             }
 
-            // Verifica se a placa foi alterada e se a nova placa já existe para outro veículo
             if (!existingVehicle.get().getPlate().equals(vehicle.getPlate())) {
                 if (vehicleDAO.findByPlate(vehicle.getPlate()).isPresent()) {
                     throw new BusinessException("Já existe outro veículo cadastrado com a placa informada.");
@@ -134,15 +132,15 @@ public class VehicleServiceImpl implements VehicleService {
             }
 
             vehicle.setUpdatedAt(LocalDateTime.now());
-            vehicle.setCreatedAt(existingVehicle.get().getCreatedAt()); // Mantém a data de criação original
+            vehicle.setCreatedAt(existingVehicle.get().getCreatedAt());
 
             boolean updated = vehicleDAO.update(vehicle);
             if (updated) {
                 LOGGER.log(Level.INFO, "Veículo atualizado com sucesso: ID {0}", vehicle.getId());
-                return vehicle;
             } else {
-                throw new BusinessException("Falha ao atualizar veículo. Nenhuma linha afetada.");
+                LOGGER.log(Level.WARNING, "Falha ao atualizar veículo. Nenhuma linha afetada.");
             }
+            return updated; // Retorna boolean
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Erro de SQL ao atualizar veículo: " + e.getMessage(), e);
             throw new BusinessException("Erro interno ao atualizar veículo. Tente novamente mais tarde.", e);

@@ -1,9 +1,10 @@
 package com.compliancesys.dao;
 
-import com.compliancesys.model.MobileCommunication;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
+
+import com.compliancesys.model.MobileCommunication;
 
 /**
  * Interface para a camada de acesso a dados (DAO) da entidade MobileCommunication.
@@ -34,6 +35,15 @@ public interface MobileCommunicationDAO {
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
      */
     List<MobileCommunication> findAll() throws SQLException;
+
+    /**
+     * Busca registros de comunicação móvel associados a um ID de motorista.
+     * Este método foi adicionado para resolver o erro de compilação em MobileCommunicationDAOImpl.
+     * @param driverId ID do motorista.
+     * @return Uma lista de registros de comunicação móvel para o motorista especificado.
+     * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
+     */
+    List<MobileCommunication> findByDriverId(int driverId) throws SQLException; // <--- LINHA ADICIONADA
 
     /**
      * Busca registros de comunicação móvel associados a um ID de registro de ponto.

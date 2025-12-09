@@ -1,257 +1,165 @@
 package com.compliancesys.service.impl;
 
-import com.compliancesys.dao.ComplianceAuditDAO;
-import com.compliancesys.dao.JourneyDAO;
+import com.compliancesys.dao.CompanyDAO;
 import com.compliancesys.exception.BusinessException;
-import com.compliancesys.model.ComplianceAudit;
-import com.compliancesys.model.ComplianceReport;
-import com.compliancesys.model.Journey;
-import com.compliancesys.model.enums.ComplianceStatus;
-import com.compliancesys.service.ComplianceService;
+import com.compliancesys.model.Company;
+import com.compliancesys.service.CompanyService;
 import com.compliancesys.util.Validator;
 
 import java.sql.SQLException;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class ComplianceServiceImpl implements ComplianceService {
+public class CompanyServiceImpl implements CompanyService {
 
-    private static final Logger LOGGER = Logger.getLogger(ComplianceServiceImpl.class.getName());
-    private final ComplianceAuditDAO complianceAuditDAO;
-    private final JourneyDAO journeyDAO;
+    private static final Logger LOGGER = Logger.getLogger(CompanyServiceImpl.class.getName());
+    private final CompanyDAO companyDAO;
     private final Validator validator;
 
-    public ComplianceServiceImpl(ComplianceAuditDAO complianceAuditDAO, JourneyDAO journeyDAO, Validator validator) {
-        this.complianceAuditDAO = complianceAuditDAO;
-        this.journeyDAO = journeyDAO;
+    public CompanyServiceImpl(CompanyDAO companyDAO, Validator validator) {
+        this.companyDAO = companyDAO;
         this.validator = validator;
     }
 
     @Override
-    public ComplianceAudit createComplianceAudit(ComplianceAudit audit) throws BusinessException {
-        if (audit == null) {
-            throw new BusinessException("Auditoria de conformidade não pode ser nula.");
+    public Company registerCompany(Company company) throws BusinessException {
+        if (company == null) {
+            throw new BusinessException("Empresa não pode ser nula.");
         }
-        if (audit.getJourneyId() <= 0) {
-            throw new BusinessException("ID da jornada inválido para auditoria.");
+        if (!validator.isValidName(company.getName())) {
+            throw new BusinessException("Nome da empresa inválido.");
         }
-        if (audit.getAuditDate() == null) {
-            throw new BusinessException("Data da auditoria não pode ser nula.");
+        if (!validator.isValidCnpj(company.getCnpj())) {
+            throw new BusinessException("CNPJ inválido.");
         }
-        if (audit.getComplianceStatus() == null) {
-            throw new BusinessException("Status de conformidade não pode ser nulo.");
-        }
-        if (!validator.isValidName(audit.getAuditorName())) {
-            throw new BusinessException("Nome do auditor inválido.");
-        }
-        if (audit.getNotes() != null && audit.getNotes().length() > 500) {
-            throw new BusinessException("Notas da auditoria excedem o limite de 500 caracteres.");
+        if (!validator.isValidAddress(company.getAddress())) {
+            throw new BusinessException("Endereço inválido.");
         }
 
         try {
-            audit.setCreatedAt(LocalDateTime.now());
-            audit.setUpdatedAt(LocalDateTime.now());
-            int id = complianceAuditDAO.create(audit);
-            audit.setId(id);
-            LOGGER.log(Level.INFO, "Auditoria de conformidade criada com sucesso: ID {0}", id);
-            return audit;
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro de SQL ao criar auditoria de conformidade: " + e.getMessage(), e);
-            throw new BusinessException("Erro interno ao criar auditoria de conformidade. Tente novamente mais tarde.", e);
-        }
-    }
-
-    @Override
-    public Optional<ComplianceAudit> getComplianceAuditById(int id) throws BusinessException {
-        if (id <= 0) {
-            throw new BusinessException("ID da auditoria inválido.");
-        }
-        try {
-            return complianceAuditDAO.findById(id);
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro de SQL ao buscar auditoria de conformidade por ID: " + e.getMessage(), e);
-            throw new BusinessException("Erro interno ao buscar auditoria de conformidade. Tente novamente mais tarde.", e);
-        }
-    }
-
-    @Override
-    public List<ComplianceAudit> getAllComplianceAudits() throws BusinessException {
-        try {
-            return complianceAuditDAO.findAll();
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro de SQL ao buscar todas as auditorias de conformidade: " + e.getMessage(), e);
-            throw new BusinessException("Erro interno ao buscar auditorias de conformidade. Tente novamente mais tarde.", e);
-        }
-    }
-
-    @Override
-    public List<ComplianceAudit> getComplianceAuditsByJourneyId(int journeyId) throws BusinessException {
-        if (journeyId <= 0) {
-            throw new BusinessException("ID da jornada inválido.");
-        }
-        try {
-            return complianceAuditDAO.findByJourneyId(journeyId);
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro de SQL ao buscar auditorias de conformidade por ID da jornada: " + e.getMessage(), e);
-            throw new BusinessException("Erro interno ao buscar auditorias de conformidade. Tente novamente mais tarde.", e);
-        }
-    }
-
-    @Override
-    public ComplianceAudit updateComplianceAudit(ComplianceAudit audit) throws BusinessException {
-        if (audit == null || audit.getId() <= 0) {
-            throw new BusinessException("Auditoria de conformidade ou ID inválido para atualização.");
-        }
-        if (audit.getJourneyId() <= 0) {
-            throw new BusinessException("ID da jornada inválido para auditoria.");
-        }
-        if (audit.getAuditDate() == null) {
-            throw new BusinessException("Data da auditoria não pode ser nula.");
-        }
-        if (audit.getComplianceStatus() == null) {
-            throw new BusinessException("Status de conformidade não pode ser nulo.");
-        }
-        if (!validator.isValidName(audit.getAuditorName())) {
-            throw new BusinessException("Nome do auditor inválido.");
-        }
-        if (audit.getNotes() != null && audit.getNotes().length() > 500) {
-            throw new BusinessException("Notas da auditoria excedem o limite de 500 caracteres.");
-        }
-
-        try {
-            Optional<ComplianceAudit> existingAudit = complianceAuditDAO.findById(audit.getId());
-            if (existingAudit.isEmpty()) {
-                throw new BusinessException("Auditoria de conformidade com ID " + audit.getId() + " não encontrada.");
+            Optional<Company> existingCompany = companyDAO.findByCnpj(company.getCnpj());
+            if (existingCompany.isPresent()) {
+                throw new BusinessException("Empresa com CNPJ " + company.getCnpj() + " já cadastrada.");
             }
 
-            audit.setUpdatedAt(LocalDateTime.now());
-            // Mantém a data de criação original
-            audit.setCreatedAt(existingAudit.get().getCreatedAt());
+            company.setCreatedAt(LocalDateTime.now());
+            company.setUpdatedAt(LocalDateTime.now());
+            int id = companyDAO.create(company);
+            company.setId(id);
+            LOGGER.log(Level.INFO, "Empresa registrada com sucesso: ID {0}", id);
+            return company;
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Erro ao registrar empresa: " + e.getMessage(), e);
+            throw new BusinessException("Erro interno ao registrar empresa.", e);
+        }
+    }
 
-            boolean updated = complianceAuditDAO.update(audit);
+    @Override
+    public Optional<Company> getCompanyById(int id) throws BusinessException {
+        if (id <= 0) {
+            throw new BusinessException("ID da empresa inválido.");
+        }
+        try {
+            return companyDAO.findById(id);
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Erro ao buscar empresa por ID: " + e.getMessage(), e);
+            throw new BusinessException("Erro interno ao buscar empresa.", e);
+        }
+    }
+
+    @Override
+    public List<Company> getAllCompanies() throws BusinessException {
+        try {
+            return companyDAO.findAll();
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Erro ao buscar todas as empresas: " + e.getMessage(), e);
+            throw new BusinessException("Erro interno ao buscar empresas.", e);
+        }
+    }
+
+    @Override
+    public Company updateCompany(Company company) throws BusinessException {
+        if (company == null || company.getId() <= 0) {
+            throw new BusinessException("Empresa ou ID inválido para atualização.");
+        }
+        if (!validator.isValidName(company.getName())) {
+            throw new BusinessException("Nome da empresa inválido.");
+        }
+        if (!validator.isValidCnpj(company.getCnpj())) {
+            throw new BusinessException("CNPJ inválido.");
+        }
+        if (!validator.isValidAddress(company.getAddress())) {
+            throw new BusinessException("Endereço inválido.");
+        }
+
+        try {
+            Optional<Company> existingCompany = companyDAO.findById(company.getId());
+            if (existingCompany.isEmpty()) {
+                throw new BusinessException("Empresa com ID " + company.getId() + " não encontrada.");
+            }
+
+            // O CNPJ não deve ser alterado para uma empresa existente, ou se for, deve ser validado para não duplicar
+            // Se o CNPJ for alterado, verificar se o novo CNPJ já existe para outra empresa
+            if (!existingCompany.get().getCnpj().equals(company.getCnpj())) {
+                Optional<Company> companyWithNewCnpj = companyDAO.findByCnpj(company.getCnpj());
+                if (companyWithNewCnpj.isPresent() && companyWithNewCnpj.get().getId() != company.getId()) {
+                    throw new BusinessException("Já existe outra empresa com o CNPJ " + company.getCnpj() + ".");
+                }
+            }
+
+            company.setUpdatedAt(LocalDateTime.now());
+            // Mantém o createdAt original
+            company.setCreatedAt(existingCompany.get().getCreatedAt());
+
+            boolean updated = companyDAO.update(company);
             if (updated) {
-                LOGGER.log(Level.INFO, "Auditoria de conformidade atualizada com sucesso: ID {0}", audit.getId());
-                return audit;
+                LOGGER.log(Level.INFO, "Empresa atualizada com sucesso: ID {0}", company.getId());
+                return company;
             } else {
-                throw new BusinessException("Falha ao atualizar auditoria de conformidade. Nenhuma linha afetada.");
+                throw new BusinessException("Falha ao atualizar empresa.");
             }
         } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro de SQL ao atualizar auditoria de conformidade: " + e.getMessage(), e);
-            throw new BusinessException("Erro interno ao atualizar auditoria de conformidade. Tente novamente mais tarde.", e);
+            LOGGER.log(Level.SEVERE, "Erro ao atualizar empresa: " + e.getMessage(), e);
+            throw new BusinessException("Erro interno ao atualizar empresa.", e);
         }
     }
 
     @Override
-    public boolean deleteComplianceAudit(int id) throws BusinessException {
+    public boolean deleteCompany(int id) throws BusinessException {
         if (id <= 0) {
-            throw new BusinessException("O ID da auditoria de conformidade deve ser um valor positivo para exclusão.");
+            throw new BusinessException("ID da empresa inválido para exclusão.");
         }
         try {
-            Optional<ComplianceAudit> existingAudit = complianceAuditDAO.findById(id);
-            if (existingAudit.isEmpty()) {
-                throw new BusinessException("Auditoria de conformidade com ID " + id + " não encontrada para exclusão.");
+            Optional<Company> existingCompany = companyDAO.findById(id);
+            if (existingCompany.isEmpty()) {
+                throw new BusinessException("Empresa com ID " + id + " não encontrada.");
             }
 
-            boolean deleted = complianceAuditDAO.delete(id);
+            boolean deleted = companyDAO.delete(id);
             if (deleted) {
-                LOGGER.log(Level.INFO, "Auditoria de conformidade com ID {0} deletada com sucesso.", id);
-            } else {
-                LOGGER.log(Level.WARNING, "Falha ao deletar auditoria de conformidade com ID {0}.", id);
+                LOGGER.log(Level.INFO, "Empresa deletada com sucesso: ID {0}", id);
             }
             return deleted;
         } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro de SQL ao deletar auditoria de conformidade: " + e.getMessage(), e);
-            throw new BusinessException("Erro interno ao deletar auditoria de conformidade. Tente novamente mais tarde.", e);
+            LOGGER.log(Level.SEVERE, "Erro ao deletar empresa: " + e.getMessage(), e);
+            throw new BusinessException("Erro interno ao deletar empresa.", e);
         }
     }
 
+    // MÉTODO ADICIONADO PARA RESOLVER O ERRO DE COMPILAÇÃO
     @Override
-    public ComplianceAudit performComplianceAudit(int journeyId) throws BusinessException {
-        if (journeyId <= 0) {
-            throw new BusinessException("ID da jornada inválido para realizar auditoria.");
+    public Optional<Company> getCompanyByCnpj(String cnpj) throws BusinessException {
+        if (!validator.isValidCnpj(cnpj)) {
+            throw new BusinessException("CNPJ inválido.");
         }
         try {
-            Optional<Journey> optionalJourney = journeyDAO.findById(journeyId);
-            if (optionalJourney.isEmpty()) {
-                throw new BusinessException("Jornada com ID " + journeyId + " não encontrada para auditoria.");
-            }
-            Journey journey = optionalJourney.get(); // Desempacota o Optional
-
-            // Lógica de auditoria (simplificada para exemplo)
-            // Aqui você implementaria as regras da Lei do Caminhoneiro
-            // Por exemplo, verificar totalDrivingTime, totalRestTime, etc.
-            ComplianceStatus status = journey.getComplianceStatus() != null ? journey.getComplianceStatus() : ComplianceStatus.PENDING;
-
-            // Cria um novo registro de auditoria
-            ComplianceAudit newAudit = new ComplianceAudit();
-            newAudit.setJourneyId(journeyId);
-            newAudit.setAuditDate(LocalDateTime.now());
-            newAudit.setComplianceStatus(status);
-            newAudit.setAuditorName("Sistema Automático"); // Ou um nome de usuário logado
-            newAudit.setNotes("Auditoria automática da jornada " + journeyId + ". Status: " + status.name());
-
-            return createComplianceAudit(newAudit);
-
+            return companyDAO.findByCnpj(cnpj);
         } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro de SQL ao realizar auditoria de conformidade para jornada {0}: {1}", new Object[]{journeyId, e.getMessage()});
-            throw new BusinessException("Erro interno ao realizar auditoria de conformidade. Tente novamente mais tarde.", e);
-        }
-    }
-
-    @Override
-    public ComplianceReport generateDriverComplianceReport(int driverId, LocalDate startDate, LocalDate endDate) throws BusinessException {
-        if (driverId <= 0) {
-            throw new BusinessException("ID do motorista inválido.");
-        }
-        if (startDate == null || endDate == null || startDate.isAfter(endDate)) {
-            throw new BusinessException("Período de datas inválido para o relatório.");
-        }
-
-        try {
-            List<ComplianceAudit> audits = complianceAuditDAO.findByDriverIdAndDate(driverId, startDate, endDate);
-            // Aqui você processaria a lista de auditorias para gerar um relatório mais detalhado
-            // Por enquanto, apenas retorna um relatório básico
-            int totalAudits = audits.size();
-            long compliantCount = audits.stream().filter(a -> a.getComplianceStatus() == ComplianceStatus.COMPLIANT).count();
-            long nonCompliantCount = audits.stream().filter(a -> a.getComplianceStatus() == ComplianceStatus.NON_COMPLIANT).count();
-
-            return new ComplianceReport(driverId, startDate, endDate, totalAudits, (int) compliantCount, (int) nonCompliantCount, audits);
-
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro de SQL ao gerar relatório de conformidade para motorista {0}: {1}", new Object[]{driverId, e.getMessage()});
-            throw new BusinessException("Erro interno ao gerar relatório de conformidade. Tente novamente mais tarde.", e);
-        }
-    }
-
-    @Override
-    public List<ComplianceAudit> generateOverallComplianceReport(LocalDate startDate, LocalDate endDate) throws BusinessException {
-        if (startDate == null || endDate == null || startDate.isAfter(endDate)) {
-            throw new BusinessException("Período de datas inválido para o relatório geral.");
-        }
-        try {
-            // Para um relatório geral, podemos buscar todas as auditorias e filtrar por data
-            // Ou, se houver um método DAO mais otimizado, usá-lo.
-            // Por simplicidade, vamos buscar todas e filtrar aqui, ou usar findByDriverIdAndDate com um driverId fictício se o DAO suportar.
-            // No entanto, o DAO foi ajustado para findByDriverIdAndDate, então para um "overall" talvez seja melhor um novo método no DAO
-            // ou buscar todos e filtrar. Por enquanto, vamos retornar todas as auditorias dentro do período.
-            // Uma implementação mais robusta poderia agregar dados de múltiplas jornadas/motoristas.
-
-            // Para este método, vamos retornar todas as auditorias dentro do período,
-            // assumindo que o DAO tem um método para isso ou que findAll() é filtrado posteriormente.
-            // Como não temos um findByDateRange no DAO, vamos usar findAll e filtrar.
-            // Idealmente, o DAO teria um método findByDateRange para eficiência.
-            List<ComplianceAudit> allAudits = complianceAuditDAO.findAll();
-            return allAudits.stream()
-                    .filter(audit -> !audit.getAuditDate().toLocalDate().isBefore(startDate) && !audit.getAuditDate().toLocalDate().isAfter(endDate))
-                    .collect(java.util.stream.Collectors.toList());
-
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro de SQL ao gerar relatório de conformidade geral: " + e.getMessage(), e);
-            throw new BusinessException("Erro interno ao gerar relatório de conformidade geral. Tente novamente mais tarde.", e);
+            LOGGER.log(Level.SEVERE, "Erro ao buscar empresa por CNPJ: " + e.getMessage(), e);
+            throw new BusinessException("Erro interno ao buscar empresa por CNPJ.", e);
         }
     }
 }

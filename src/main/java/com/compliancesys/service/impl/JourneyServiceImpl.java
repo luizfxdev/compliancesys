@@ -16,7 +16,6 @@ import com.compliancesys.exception.BusinessException;
 import com.compliancesys.model.Journey;
 import com.compliancesys.model.TimeRecord;
 import com.compliancesys.model.enums.ComplianceStatus;
-import com.compliancesys.model.enums.EventType;
 import com.compliancesys.service.JourneyService;
 import com.compliancesys.util.TimeUtil;
 import com.compliancesys.util.Validator;
@@ -24,14 +23,18 @@ import com.compliancesys.util.Validator;
 public class JourneyServiceImpl implements JourneyService {
 
     private static final Logger LOGGER = Logger.getLogger(JourneyServiceImpl.class.getName());
+
     private final JourneyDAO journeyDAO;
     private final TimeRecordDAO timeRecordDAO;
     private final Validator validator;
-    private final TimeUtil timeUtil;
+    private final TimeUtil timeUtil; // opcional, pode ser null se não fornecido
 
-    private static final Duration MAX_DRIVING_TIME_DAILY = Duration.ofHours(10);
-    private static final Duration MIN_REST_TIME_DAILY = Duration.ofHours(11);
+    // Construtor antigo (compatibilidade)
+    public JourneyServiceImpl(JourneyDAO journeyDAO, TimeRecordDAO timeRecordDAO, Validator validator) {
+        this(journeyDAO, timeRecordDAO, validator, null);
+    }
 
+    // Construtor novo (aceita TimeUtil)
     public JourneyServiceImpl(JourneyDAO journeyDAO, TimeRecordDAO timeRecordDAO, Validator validator, TimeUtil timeUtil) {
         this.journeyDAO = journeyDAO;
         this.timeRecordDAO = timeRecordDAO;
@@ -47,20 +50,44 @@ public class JourneyServiceImpl implements JourneyService {
         if (journey.getDriverId() <= 0) {
             throw new BusinessException("ID do motorista inválido.");
         }
-        if (journey.getJourneyDate() == null) {
-            throw new BusinessException("Data da jornada não pode ser nula.");
+        if (journey.getVehicleId() <= 0) {
+            throw new BusinessException("ID do veículo inválido.");
         }
-        if (!validator.isValidLocation(journey.getStartLocation())) {
+        if (journey.getJourneyDate() == null) {
+            throw new BusinessException("Data da jornada é obrigatória.");
+        }
+        if (journey.getStartTime() == null) {
+            throw new BusinessException("Hora de início da jornada é obrigatória.");
+        }
+        if (journey.getEndTime() == null) {
+            throw new BusinessException("Hora de fim da jornada é obrigatória.");
+        }
+        if (journey.getStartTime().isAfter(journey.getEndTime())) {
+            throw new BusinessException("Hora de início não pode ser depois da hora de fim.");
+        }
+
+        // Validações adicionais com o validator
+        if (!validator.isPastOrPresentDate(journey.getJourneyDate())) {
+            throw new BusinessException("Data da jornada inválida ou no futuro.");
+        }
+        if (!validator.isValidTime(journey.getStartTime().toLocalTime())) {
+            throw new BusinessException("Hora de início da jornada inválida.");
+        }
+        if (!validator.isValidTime(journey.getEndTime().toLocalTime())) {
+            throw new BusinessException("Hora de fim da jornada inválida.");
+        }
+        if (journey.getStartLocation() != null && !journey.getStartLocation().isEmpty() && !validator.isValidLocation(journey.getStartLocation())) {
             throw new BusinessException("Local de início da jornada inválido.");
         }
-        if (!validator.isValidLocation(journey.getEndLocation())) {
+        if (journey.getEndLocation() != null && !journey.getEndLocation().isEmpty() && !validator.isValidLocation(journey.getEndLocation())) {
             throw new BusinessException("Local de fim da jornada inválido.");
         }
 
         try {
+            // Verifica se já existe uma jornada para o mesmo motorista e data
             Optional<Journey> existingJourney = journeyDAO.findByDriverIdAndDate(journey.getDriverId(), journey.getJourneyDate());
             if (existingJourney.isPresent()) {
-                throw new BusinessException("Já existe uma jornada registrada para o motorista " + journey.getDriverId() + " na data " + journey.getJourneyDate() + ".");
+                throw new BusinessException("Já existe uma jornada para o motorista " + journey.getDriverId() + " na data " + journey.getJourneyDate() + ".");
             }
 
             journey.setCreatedAt(LocalDateTime.now());
@@ -100,37 +127,64 @@ public class JourneyServiceImpl implements JourneyService {
 
     @Override
     public Journey updateJourney(Journey journey) throws BusinessException {
-        if (journey == null || journey.getId() <= 0) {
-            throw new BusinessException("Jornada ou ID inválido para atualização.");
+        if (journey == null) {
+            throw new BusinessException("Jornada não pode ser nula.");
+        }
+        if (journey.getId() <= 0) {
+            throw new BusinessException("ID da jornada inválido para atualização.");
         }
         if (journey.getDriverId() <= 0) {
             throw new BusinessException("ID do motorista inválido.");
         }
-        if (journey.getJourneyDate() == null) {
-            throw new BusinessException("Data da jornada não pode ser nula.");
+        if (journey.getVehicleId() <= 0) {
+            throw new BusinessException("ID do veículo inválido.");
         }
-        if (!validator.isValidLocation(journey.getStartLocation())) {
+        if (journey.getJourneyDate() == null) {
+            throw new BusinessException("Data da jornada é obrigatória.");
+        }
+        if (journey.getStartTime() == null) {
+            throw new BusinessException("Hora de início da jornada é obrigatória.");
+        }
+        if (journey.getEndTime() == null) {
+            throw new BusinessException("Hora de fim da jornada é obrigatória.");
+        }
+        if (journey.getStartTime().isAfter(journey.getEndTime())) {
+            throw new BusinessException("Hora de início não pode ser depois da hora de fim.");
+        }
+
+        // Validações adicionais com o validator
+        if (!validator.isPastOrPresentDate(journey.getJourneyDate())) {
+            throw new BusinessException("Data da jornada inválida ou no futuro.");
+        }
+        if (!validator.isValidTime(journey.getStartTime().toLocalTime())) {
+            throw new BusinessException("Hora de início da jornada inválida.");
+        }
+        if (!validator.isValidTime(journey.getEndTime().toLocalTime())) {
+            throw new BusinessException("Hora de fim da jornada inválida.");
+        }
+        if (journey.getStartLocation() != null && !journey.getStartLocation().isEmpty() && !validator.isValidLocation(journey.getStartLocation())) {
             throw new BusinessException("Local de início da jornada inválido.");
         }
-        if (!validator.isValidLocation(journey.getEndLocation())) {
+        if (journey.getEndLocation() != null && !journey.getEndLocation().isEmpty() && !validator.isValidLocation(journey.getEndLocation())) {
             throw new BusinessException("Local de fim da jornada inválido.");
         }
 
         try {
             Optional<Journey> existingJourney = journeyDAO.findById(journey.getId());
             if (existingJourney.isEmpty()) {
-                throw new BusinessException("Jornada com ID " + journey.getId() + " não encontrada.");
+                throw new BusinessException("Jornada com ID " + journey.getId() + " não encontrada para atualização.");
             }
 
+            journey.setCreatedAt(existingJourney.get().getCreatedAt()); // Mantém o createdAt original
             journey.setUpdatedAt(LocalDateTime.now());
-            journey.setCreatedAt(existingJourney.get().getCreatedAt());
 
             boolean updated = journeyDAO.update(journey);
             if (updated) {
                 LOGGER.log(Level.INFO, "Jornada atualizada com sucesso: ID {0}", journey.getId());
-                return journey;
+                return journey; // Retorna a jornada atualizada
             } else {
-                throw new BusinessException("Falha ao atualizar jornada. Nenhuma linha afetada.");
+                LOGGER.log(Level.WARNING, "Falha ao atualizar jornada. Nenhuma linha afetada.");
+                throw new BusinessException("Falha ao atualizar jornada. Nenhuma alteração foi aplicada.");
             }
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Erro de SQL ao atualizar jornada: " + e.getMessage(), e);
@@ -141,14 +195,13 @@ public class JourneyServiceImpl implements JourneyService {
     @Override
     public boolean deleteJourney(int id) throws BusinessException {
         if (id <= 0) {
-            throw new BusinessException("O ID da jornada deve ser um valor positivo para exclusão.");
+            throw new BusinessException("ID da jornada inválido para exclusão.");
         }
         try {
             Optional<Journey> existingJourney = journeyDAO.findById(id);
             if (existingJourney.isEmpty()) {
                 throw new BusinessException("Jornada com ID " + id + " não encontrada para exclusão.");
             }
-
             boolean deleted = journeyDAO.delete(id);
             if (deleted) {
                 LOGGER.log(Level.INFO, "Jornada com ID {0} deletada com sucesso.", id);
@@ -168,7 +221,7 @@ public class JourneyServiceImpl implements JourneyService {
             throw new BusinessException("ID do motorista inválido.");
         }
         if (journeyDate == null) {
-            throw new BusinessException("Data da jornada não pode ser nula.");
+            throw new BusinessException("Data da jornada é obrigatória.");
         }
         try {
             return journeyDAO.findByDriverIdAndDate(driverId, journeyDate);
@@ -197,85 +250,117 @@ public class JourneyServiceImpl implements JourneyService {
             throw new BusinessException("ID do motorista inválido.");
         }
         if (timeRecords == null || timeRecords.isEmpty()) {
-            throw new BusinessException("Nenhum registro de ponto fornecido para calcular a jornada.");
+            throw new BusinessException("Lista de registros de ponto não pode ser nula ou vazia.");
         }
 
+        // Ordenar os registros de ponto por recordTime
         timeRecords.sort(Comparator.comparing(TimeRecord::getRecordTime));
 
+        // Extrair a data da jornada (todos os registros devem ser do mesmo dia)
         LocalDate journeyDate = timeRecords.get(0).getRecordTime().toLocalDate();
+        LocalDateTime startTime = timeRecords.get(0).getRecordTime();
+        LocalDateTime endTime = timeRecords.get(timeRecords.size() - 1).getRecordTime();
 
         Duration totalDrivingTime = Duration.ZERO;
         Duration totalRestTime = Duration.ZERO;
-        LocalDateTime lastEventTime = null;
-        EventType lastEventType = null;
+        Duration totalBreakTime = Duration.ZERO; // Usando totalBreakTime conforme Journey.java
 
-        for (TimeRecord record : timeRecords) {
-            if (lastEventTime != null) {
-                Duration durationBetweenEvents = Duration.between(lastEventTime, record.getRecordTime());
+        for (int i = 0; i < timeRecords.size(); i++) {
+            TimeRecord currentRecord = timeRecords.get(i);
 
-                if (lastEventType == EventType.START_DRIVING || lastEventType == EventType.RESUME_DRIVING) {
-                    totalDrivingTime = totalDrivingTime.plus(durationBetweenEvents);
-                } else if (lastEventType == EventType.START_REST || lastEventType == EventType.END_DRIVING) {
-                    totalRestTime = totalRestTime.plus(durationBetweenEvents);
+            // Validação de data: todos os registros devem ser do mesmo dia
+            if (!currentRecord.getRecordTime().toLocalDate().equals(journeyDate)) {
+                throw new BusinessException("Todos os registros de ponto devem ser do mesmo dia para calcular uma jornada.");
+            }
+
+            if (i > 0) {
+                TimeRecord previousRecord = timeRecords.get(i - 1);
+                Duration duration = Duration.between(previousRecord.getRecordTime(), currentRecord.getRecordTime());
+
+                // Refatorado de if-else if para switch
+                switch (previousRecord.getEventType()) {
+                    case DRIVING:
+                        totalDrivingTime = totalDrivingTime.plus(duration);
+                        break;
+                    case REST:
+                        totalRestTime = totalRestTime.plus(duration);
+                        break;
+                    case IDLE:
+                        // Considerar IDLE como parte do tempo de trabalho ou descanso dependendo da regra
+                        // Por enquanto, vamos adicionar ao totalBreakTime como um tempo "não produtivo"
+                        totalBreakTime = totalBreakTime.plus(duration);
+                        break;
+                    case OFF_DUTY:
+                        // OFF_DUTY geralmente não conta para tempo de trabalho/descanso dentro da jornada
+                        // Mas a duração entre OFF_DUTY e o próximo evento pode ser considerada
+                        // para fins de cálculo de tempo de descanso entre jornadas, etc.
+                        // Para esta jornada, não adicionamos a nenhum total específico de trabalho/descanso.
+                        break;
+                    // Adicionado um default para tratar EventTypes não esperados ou novos
+                    default:
+                        LOGGER.log(Level.WARNING, "EventType '{0}' não tratado no cálculo da jornada. Duração de {1} não foi contabilizada.",
+                                new Object[]{previousRecord.getEventType(), duration});
+                        break;
                 }
             }
-            lastEventTime = record.getRecordTime();
-            lastEventType = record.getEventType();
         }
 
-        ComplianceStatus complianceStatus = ComplianceStatus.COMPLIANT;
-        boolean dailyLimitExceeded = false;
+        // Criar ou atualizar a jornada
+        Journey calculatedJourney = new Journey();
+        calculatedJourney.setDriverId(driverId);
+        calculatedJourney.setJourneyDate(journeyDate);
+        calculatedJourney.setStartTime(startTime);
+        calculatedJourney.setEndTime(endTime);
+        // Assumindo que todos os registros são do mesmo veículo. Se não for o caso,
+        // essa lógica precisaria ser mais sofisticada para determinar o vehicleId da jornada.
+        calculatedJourney.setVehicleId(timeRecords.get(0).getVehicleId());
+        calculatedJourney.setTotalDrivingTime(totalDrivingTime);
+        calculatedJourney.setTotalRestTime(totalRestTime);
+        calculatedJourney.setTotalBreakTime(totalBreakTime);
 
-        if (timeUtil.isAboveMinDuration(totalDrivingTime, MAX_DRIVING_TIME_DAILY)) {
-            complianceStatus = ComplianceStatus.NON_COMPLIANT;
-            dailyLimitExceeded = true;
-        }
-        if (!timeUtil.isAboveMinDuration(totalRestTime, MIN_REST_TIME_DAILY)) {
-            complianceStatus = ComplianceStatus.NON_COMPLIANT;
-        }
+        // Definindo o status inicial como UNKNOWN (agora existe no enum)
+        calculatedJourney.setStatus(ComplianceStatus.UNKNOWN);
+        calculatedJourney.setDailyLimitExceeded(false);
 
-        Optional<Journey> existingJourneyOptional;
+        // TODO: Adicionar lógica de auditoria de conformidade aqui
+        // Ex: Verificar limites de tempo de direção, descanso, etc.
+        // if (timeUtil != null) {
+        //      if (timeUtil.isDrivingLimitExceeded(totalDrivingTime)) {
+        //          calculatedJourney.setDailyLimitExceeded(true);
+        //          calculatedJourney.setStatus(ComplianceStatus.NON_COMPLIANT);
+        //      } else {
+        //          calculatedJourney.setStatus(ComplianceStatus.COMPLIANT);
+        //      }
+        // } else {
+        //      LOGGER.log(Level.WARNING, "TimeUtil não fornecido. Não foi possível realizar auditoria de conformidade completa.");
+        // }
+        // Exemplo:
+        // if (!validator.isWithinMaxDuration(totalDrivingTime, Duration.ofHours(10))) {
+        //      throw new BusinessException("Tempo total de direção excede o limite permitido.");
+        // }
+
         try {
-            existingJourneyOptional = journeyDAO.findByDriverIdAndDate(driverId, journeyDate);
+            // Tenta encontrar uma jornada existente para o motorista e data
+            Optional<Journey> existingJourney = journeyDAO.findByDriverIdAndDate(driverId, journeyDate);
+            if (existingJourney.isPresent()) {
+                // Se existir, atualiza a jornada existente
+                calculatedJourney.setId(existingJourney.get().getId());
+                calculatedJourney.setCreatedAt(existingJourney.get().getCreatedAt()); // Mantém o original
+                calculatedJourney.setUpdatedAt(LocalDateTime.now());
+                journeyDAO.update(calculatedJourney);
+                LOGGER.log(Level.INFO, "Jornada existente atualizada com sucesso após auditoria: ID {0}", calculatedJourney.getId());
+            } else {
+                // Se não existir, cria uma nova jornada
+                calculatedJourney.setCreatedAt(LocalDateTime.now());
+                calculatedJourney.setUpdatedAt(LocalDateTime.now());
+                int newId = journeyDAO.create(calculatedJourney);
+                calculatedJourney.setId(newId);
+                LOGGER.log(Level.INFO, "Nova jornada criada com sucesso após auditoria: ID {0}", newId);
+            }
+            return calculatedJourney;
         } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro de SQL ao buscar jornada existente para cálculo: " + e.getMessage(), e);
-            throw new BusinessException("Erro interno ao calcular jornada. Tente novamente mais tarde.", e);
+            LOGGER.log(Level.SEVERE, "Erro de SQL ao salvar jornada auditada: " + e.getMessage(), e);
+            throw new BusinessException("Erro interno ao salvar jornada auditada.", e);
         }
-
-        Journey journey;
-        if (existingJourneyOptional.isPresent()) {
-            journey = existingJourneyOptional.get();
-            journey.setTotalDrivingTime(totalDrivingTime);
-            journey.setTotalRestTime(totalRestTime);
-            journey.setStatus(complianceStatus);
-            journey.setDailyLimitExceeded(dailyLimitExceeded);
-            journey.setStartLocation(timeRecords.get(0).getLocation());
-            journey.setEndLocation(timeRecords.get(timeRecords.size() - 1).getLocation());
-            journey.setStartTime(timeRecords.get(0).getRecordTime());
-            journey.setEndTime(timeRecords.get(timeRecords.size() - 1).getRecordTime());
-            journey.setVehicleId(timeRecords.get(0).getVehicleId());
-            updateJourney(journey);
-            LOGGER.log(Level.INFO, "Jornada existente atualizada após cálculo: ID {0}", journey.getId());
-        } else {
-            journey = new Journey(
-                    0,
-                    driverId,
-                    timeRecords.get(0).getVehicleId(),
-                    journeyDate,
-                    timeRecords.get(0).getRecordTime(),
-                    timeRecords.get(timeRecords.size() - 1).getRecordTime(),
-                    timeRecords.get(0).getLocation(),
-                    timeRecords.get(timeRecords.size() - 1).getLocation(),
-                    totalDrivingTime,
-                    totalRestTime,
-                    Duration.ZERO,
-                    complianceStatus,
-                    dailyLimitExceeded
-            );
-            journey = createJourney(journey);
-            LOGGER.log(Level.INFO, "Nova jornada criada após cálculo: ID {0}", journey.getId());
-        }
-
-        return journey;
     }
 }

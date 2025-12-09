@@ -8,15 +8,14 @@ import com.compliancesys.exception.BusinessException;
 import com.compliancesys.model.TimeRecord;
 
 public interface TimeRecordService {
-    TimeRecord createTimeRecord(TimeRecord timeRecord) throws BusinessException;
+    // Renomeado de createTimeRecord para registerTimeRecord
+    TimeRecord registerTimeRecord(TimeRecord timeRecord) throws BusinessException;
     Optional<TimeRecord> getTimeRecordById(int id) throws BusinessException;
     List<TimeRecord> getAllTimeRecords() throws BusinessException;
-    TimeRecord updateTimeRecord(TimeRecord timeRecord) throws BusinessException;
+    // Alterado o tipo de retorno de TimeRecord para boolean
+    boolean updateTimeRecord(TimeRecord timeRecord) throws BusinessException;
     boolean deleteTimeRecord(int id) throws BusinessException;
 
-    // NOVO MÉTODO: Busca registros de ponto por ID do motorista
     List<TimeRecord> getTimeRecordsByDriverId(int driverId) throws BusinessException;
-
-    // Busca registros de ponto de um motorista em uma data específica
     List<TimeRecord> getTimeRecordsByDriverIdAndDate(int driverId, LocalDate date) throws BusinessException;
 }
