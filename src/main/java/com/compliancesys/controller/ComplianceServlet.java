@@ -7,11 +7,12 @@ import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Optional;
 
-import javax.servlet.ServletException;
-import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+// MUDANÇA AQUI: De javax para jakarta
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 import com.compliancesys.dao.ComplianceAuditDAO;
 import com.compliancesys.dao.JourneyDAO;
@@ -38,7 +39,7 @@ public class ComplianceServlet extends HttpServlet {
         // Instanciações diretas para fins de exemplo.
         ComplianceAuditDAO complianceAuditDAO = new ComplianceAuditDAOImpl();
         JourneyDAO journeyDAO = new JourneyDAOImpl();
-        Validator validator = new ValidatorImpl();
+        Validator validator = new ValidatorImpl(); // ValidatorImpl é uma implementação concreta
 
         // CORRIGIDO: Usando o construtor de 3 argumentos que criamos em ComplianceServiceImpl
         this.complianceService = new ComplianceServiceImpl(complianceAuditDAO, journeyDAO, validator);
@@ -164,6 +165,5 @@ public class ComplianceServlet extends HttpServlet {
     private static class AuditRequest {
         private int journeyId;
         public int getJourneyId() { return journeyId; }
-        public void setJourneyId(int journeyId) { this.journeyId = journeyId; }
     }
 }

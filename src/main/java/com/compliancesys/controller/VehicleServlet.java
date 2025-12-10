@@ -1,18 +1,5 @@
 package com.compliancesys.controller;
 
-import java.io.BufferedReader;
-import java.io.IOException; // Import adicionado
-import java.io.PrintWriter;
-import java.sql.SQLException;
-import java.util.List;
-import java.util.Optional;
-
-import javax.servlet.ServletException;
-import javax.servlet.annotation.WebServlet; // Import adicionado
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest; // Import adicionado
-import javax.servlet.http.HttpServletResponse;
-
 import com.compliancesys.dao.VehicleDAO;
 import com.compliancesys.dao.impl.VehicleDAOImpl;
 import com.compliancesys.exception.BusinessException;
@@ -23,20 +10,35 @@ import com.compliancesys.util.GsonUtil;
 import com.compliancesys.util.Validator;
 import com.compliancesys.util.impl.GsonUtilImpl;
 import com.compliancesys.util.impl.ValidatorImpl;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.sql.SQLException;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 @WebServlet("/vehicles/*")
 public class VehicleServlet extends HttpServlet {
 
+    private static final Logger LOGGER = Logger.getLogger(VehicleServlet.class.getName());
     private VehicleService vehicleService;
-    private GsonUtil gsonSerializer;
+    private GsonUtil gson;
 
     @Override
     public void init() throws ServletException {
-        // Instanciando as dependências e passando para o construtor do serviço
         VehicleDAO vehicleDAO = new VehicleDAOImpl();
         Validator validator = new ValidatorImpl();
         this.vehicleService = new VehicleServiceImpl(vehicleDAO, validator);
-        this.gsonSerializer = new GsonUtilImpl();
+        this.gson = new GsonUtilImpl();
     }
 
     @Override
@@ -46,42 +48,47 @@ public class VehicleServlet extends HttpServlet {
         PrintWriter out = response.getWriter();
 
         String pathInfo = request.getPathInfo();
-
         try {
             if (pathInfo == null || pathInfo.equals("/")) {
                 List<Vehicle> vehicles = vehicleService.getAllVehicles();
-                out.print(gsonSerializer.serialize(vehicles));
+                out.print(gson.serialize(vehicles));
             } else if (pathInfo.startsWith("/plate/")) {
-                String plate = pathInfo.substring("/plate/".length());
-                Optional<Vehicle> vehicle = vehicleService.getVehicleByPlate(plate);
+                // GET /vehicles/plate/{licensePlate}
+                String licensePlate = pathInfo.substring("/plate/".length());
+                // CORRIGIDO: Usando getVehicleByPlate
+                Optional<Vehicle> vehicle = vehicleService.getVehicleByPlate(licensePlate);
                 if (vehicle.isPresent()) {
-                    out.print(gsonSerializer.serialize(vehicle.get()));
+                    out.print(gson.serialize(vehicle.get()));
                 } else {
                     response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                    out.print(gsonSerializer.serialize(new ErrorResponse("Veículo com placa " + plate + " não encontrado.")));
+                    out.print(gson.serialize(new ErrorResponse("Veículo não encontrado com placa: " + licensePlate)));
                 }
             } else {
-                int vehicleId = Integer.parseInt(pathInfo.substring(1));
-                Optional<Vehicle> vehicle = vehicleService.getVehicleById(vehicleId);
+                int id = Integer.parseInt(pathInfo.substring(1));
+                Optional<Vehicle> vehicle = vehicleService.getVehicleById(id);
                 if (vehicle.isPresent()) {
-                    out.print(gsonSerializer.serialize(vehicle.get()));
+                    out.print(gson.serialize(vehicle.get()));
                 } else {
                     response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                    out.print(gsonSerializer.serialize(new ErrorResponse("Veículo não encontrado.")));
+                    out.print(gson.serialize(new ErrorResponse("Veículo não encontrado com o ID: " + id)));
                 }
             }
         } catch (NumberFormatException e) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse("ID inválido no caminho da URL.")));
+            out.print(gson.serialize(new ErrorResponse("ID ou formato de URL inválido.")));
+            LOGGER.log(Level.WARNING, "Erro de formato de número no GET de veículo: " + e.getMessage(), e);
+        } catch (BusinessException e) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            out.print(gson.serialize(new ErrorResponse(e.getMessage())));
+            LOGGER.log(Level.WARNING, "Erro de negócio no GET de veículo: " + e.getMessage(), e);
         } catch (SQLException e) {
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Erro de banco de dados: " + e.getMessage())));
-        } catch (BusinessException e) { // Adicionado BusinessException
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Erro de negócio: " + e.getMessage())));
+            out.print(gson.serialize(new ErrorResponse("Erro de banco de dados: " + e.getMessage())));
+            LOGGER.log(Level.SEVERE, "Erro de SQL no GET de veículo: " + e.getMessage(), e);
         } catch (Exception e) {
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Erro inesperado ao processar requisição GET: " + e.getMessage())));
+            out.print(gson.serialize(new ErrorResponse("Erro inesperado no GET de veículo: " + e.getMessage())));
+            LOGGER.log(Level.SEVERE, "Erro inesperado no GET de veículo: " + e.getMessage(), e);
         } finally {
             out.flush();
         }
@@ -94,30 +101,24 @@ public class VehicleServlet extends HttpServlet {
         PrintWriter out = response.getWriter();
 
         try {
-            StringBuilder sb = new StringBuilder();
-            BufferedReader reader = request.getReader();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                sb.append(line);
-            }
-            Vehicle vehicle = gsonSerializer.deserialize(sb.toString(), Vehicle.class);
-
-            // A chamada agora retorna um Vehicle
-            Vehicle registeredVehicle = vehicleService.registerVehicle(vehicle);
+            String jsonBody = request.getReader().lines().collect(Collectors.joining());
+            Vehicle newVehicle = gson.deserialize(jsonBody, Vehicle.class);
+            // CORRIGIDO: Usando registerVehicle
+            Vehicle createdVehicle = vehicleService.registerVehicle(newVehicle);
             response.setStatus(HttpServletResponse.SC_CREATED);
-            out.print(gsonSerializer.serialize(registeredVehicle));
-        } catch (IllegalArgumentException e) {
+            out.print(gson.serialize(createdVehicle));
+        } catch (BusinessException e) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse(e.getMessage())));
+            out.print(gson.serialize(new ErrorResponse(e.getMessage())));
+            LOGGER.log(Level.WARNING, "Erro de negócio ao criar veículo: " + e.getMessage(), e);
         } catch (SQLException e) {
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Erro ao registrar veículo: " + e.getMessage())));
-        } catch (BusinessException e) { // Adicionado BusinessException
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Erro de negócio: " + e.getMessage())));
+            out.print(gson.serialize(new ErrorResponse("Erro de banco de dados: " + e.getMessage())));
+            LOGGER.log(Level.SEVERE, "Erro de SQL ao criar veículo: " + e.getMessage(), e);
         } catch (Exception e) {
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Erro inesperado ao criar veículo: " + e.getMessage())));
+            out.print(gson.serialize(new ErrorResponse("Erro inesperado ao criar veículo: " + e.getMessage())));
+            LOGGER.log(Level.SEVERE, "Erro inesperado ao criar veículo: " + e.getMessage(), e);
         } finally {
             out.flush();
         }
@@ -132,46 +133,42 @@ public class VehicleServlet extends HttpServlet {
         String pathInfo = request.getPathInfo();
         if (pathInfo == null || pathInfo.equals("/")) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse("ID do veículo é obrigatório para atualização.")));
+            out.print(gson.serialize(new ErrorResponse("ID do veículo é obrigatório para atualização.")));
             out.flush();
             return;
         }
 
         try {
-            int vehicleId = Integer.parseInt(pathInfo.substring(1));
+            int id = Integer.parseInt(pathInfo.substring(1));
+            String jsonBody = request.getReader().lines().collect(Collectors.joining());
+            Vehicle updatedVehicle = gson.deserialize(jsonBody, Vehicle.class);
+            updatedVehicle.setId(id);
 
-            StringBuilder sb = new StringBuilder();
-            BufferedReader reader = request.getReader();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                sb.append(line);
-            }
-            Vehicle vehicle = gsonSerializer.deserialize(sb.toString(), Vehicle.class);
-            vehicle.setId(vehicleId);
-
-            // A chamada agora espera um boolean
-            if (vehicleService.updateVehicle(vehicle)) {
+            // CORRIGIDO: updateVehicle retorna boolean
+            boolean updated = vehicleService.updateVehicle(updatedVehicle);
+            if (updated) {
                 response.setStatus(HttpServletResponse.SC_OK);
-                out.print(gsonSerializer.serialize(vehicle));
+                out.print(gson.serialize(updatedVehicle));
             } else {
                 response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                out.print(gsonSerializer.serialize(new ErrorResponse("Veículo não encontrado para atualização.")));
+                out.print(gson.serialize(new ErrorResponse("Veículo não encontrado para atualização.")));
             }
         } catch (NumberFormatException e) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse("ID do veículo inválido.")));
-        } catch (IllegalArgumentException e) {
+            out.print(gson.serialize(new ErrorResponse("ID do veículo inválido.")));
+            LOGGER.log(Level.WARNING, "Erro de formato de número ao atualizar veículo: " + e.getMessage(), e);
+        } catch (BusinessException e) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse(e.getMessage())));
+            out.print(gson.serialize(new ErrorResponse(e.getMessage())));
+            LOGGER.log(Level.WARNING, "Erro de negócio ao atualizar veículo: " + e.getMessage(), e);
         } catch (SQLException e) {
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Erro ao atualizar veículo: " + e.getMessage())));
-        } catch (BusinessException e) { // Adicionado BusinessException
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Erro de negócio: " + e.getMessage())));
+            out.print(gson.serialize(new ErrorResponse("Erro de banco de dados: " + e.getMessage())));
+            LOGGER.log(Level.SEVERE, "Erro de SQL ao atualizar veículo: " + e.getMessage(), e);
         } catch (Exception e) {
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Erro inesperado ao atualizar veículo: " + e.getMessage())));
+            out.print(gson.serialize(new ErrorResponse("Erro inesperado ao atualizar veículo: " + e.getMessage())));
+            LOGGER.log(Level.SEVERE, "Erro inesperado ao atualizar veículo: " + e.getMessage(), e);
         } finally {
             out.flush();
         }
@@ -186,31 +183,36 @@ public class VehicleServlet extends HttpServlet {
         String pathInfo = request.getPathInfo();
         if (pathInfo == null || pathInfo.equals("/")) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse("ID do veículo é obrigatório para exclusão.")));
+            out.print(gson.serialize(new ErrorResponse("ID do veículo é obrigatório para exclusão.")));
             out.flush();
             return;
         }
 
         try {
-            int vehicleId = Integer.parseInt(pathInfo.substring(1));
-            if (vehicleService.deleteVehicle(vehicleId)) {
+            int id = Integer.parseInt(pathInfo.substring(1));
+            boolean deleted = vehicleService.deleteVehicle(id);
+            if (deleted) {
                 response.setStatus(HttpServletResponse.SC_NO_CONTENT);
             } else {
                 response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                out.print(gsonSerializer.serialize(new ErrorResponse("Veículo não encontrado para exclusão.")));
+                out.print(gson.serialize(new ErrorResponse("Veículo não encontrado para exclusão.")));
             }
         } catch (NumberFormatException e) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse("ID do veículo inválido.")));
+            out.print(gson.serialize(new ErrorResponse("ID do veículo inválido.")));
+            LOGGER.log(Level.WARNING, "Erro de formato de número ao deletar veículo: " + e.getMessage(), e);
+        } catch (BusinessException e) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            out.print(gson.serialize(new ErrorResponse(e.getMessage())));
+            LOGGER.log(Level.WARNING, "Erro de negócio ao deletar veículo: " + e.getMessage(), e);
         } catch (SQLException e) {
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Erro ao deletar veículo: " + e.getMessage())));
-        } catch (BusinessException e) { // Adicionado BusinessException
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Erro de negócio: " + e.getMessage())));
+            out.print(gson.serialize(new ErrorResponse("Erro de banco de dados: " + e.getMessage())));
+            LOGGER.log(Level.SEVERE, "Erro de SQL ao deletar veículo: " + e.getMessage(), e);
         } catch (Exception e) {
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Erro inesperado ao deletar veículo: " + e.getMessage())));
+            out.print(gson.serialize(new ErrorResponse("Erro inesperado ao deletar veículo: " + e.getMessage())));
+            LOGGER.log(Level.SEVERE, "Erro inesperado ao deletar veículo: " + e.getMessage(), e);
         } finally {
             out.flush();
         }
@@ -218,6 +220,19 @@ public class VehicleServlet extends HttpServlet {
 
     private static class ErrorResponse {
         private String message;
-        public ErrorResponse(String message) { this.message = message; }
+        private LocalDateTime timestamp;
+
+        public ErrorResponse(String message) {
+            this.message = message;
+            this.timestamp = LocalDateTime.now();
+        }
+
+        public String getMessage() {
+            return message;
+        }
+
+        public LocalDateTime getTimestamp() {
+            return timestamp;
+        }
     }
 }

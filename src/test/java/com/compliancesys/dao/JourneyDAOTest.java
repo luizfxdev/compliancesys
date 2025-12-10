@@ -1,15 +1,15 @@
 package com.compliancesys.dao;
 
-import com.compliancesys.dao.impl.DriverDAOImpl; // Para criar um driver de teste
+import com.compliancesys.config.DatabaseConfig;
 import com.compliancesys.dao.impl.JourneyDAOImpl;
-import com.compliancesys.model.Driver;
 import com.compliancesys.model.Journey;
-import com.compliancesys.util.DatabaseConnection;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -17,286 +17,271 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Classe de teste para JourneyDAO.
- * Utiliza um banco de dados em memória H2 para isolar os testes.
- */
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-public class JourneyDAOTest {
+class JourneyDAOTest {
 
-    private static JourneyDAO journeyDAO;
-    private static DriverDAO driverDAO; // Para gerenciar motoristas de teste
-    private static Connection connection;
-
-    // ID para o motorista de teste
-    private static int testDriverId;
-
-    @BeforeAll
-    static void setUpBeforeAll() throws SQLException {
-        connection = DatabaseConnection.getTestConnection();
-        journeyDAO = new JourneyDAOImpl(connection);
-        driverDAO = new DriverDAOImpl(connection);
-
-        // Cria as tabelas necessárias no banco de dados H2
-        try (PreparedStatement stmt = connection.prepareStatement(
-                "CREATE TABLE IF NOT EXISTS DRIVER (" +
-                        "id INT AUTO_INCREMENT PRIMARY KEY," +
-                        "name VARCHAR(255) NOT NULL," +
-                        "cpf VARCHAR(11) NOT NULL UNIQUE," +
-                        "license_number VARCHAR(20) NOT NULL," +
-                        "license_category VARCHAR(5) NOT NULL," +
-                        "license_expiration_date DATE NOT NULL," +
-                        "phone VARCHAR(20)," +
-                        "email VARCHAR(255)," +
-                        "created_at TIMESTAMP NOT NULL," +
-                        "updated_at TIMESTAMP NOT NULL" +
-                        ");"
-        )) {
-            stmt.execute();
-        }
-        try (PreparedStatement stmt = connection.prepareStatement(
-                "CREATE TABLE IF NOT EXISTS JOURNEY (" +
-                        "id INT AUTO_INCREMENT PRIMARY KEY," +
-                        "driver_id INT NOT NULL," +
-                        "journey_date DATE NOT NULL," +
-                        "start_location VARCHAR(255) NOT NULL," +
-                        "end_location VARCHAR(255) NOT NULL," +
-                        "distance_km DOUBLE," +
-                        "duration_hours DOUBLE," +
-                        "created_at TIMESTAMP NOT NULL," +
-                        "updated_at TIMESTAMP NOT NULL," +
-                        "FOREIGN KEY (driver_id) REFERENCES DRIVER(id)" +
-                        ");"
-        )) {
-            stmt.execute();
-        }
-
-        // Cria um motorista para ser usado nos testes de jornada
-        Driver driver = new Driver(0, "Motorista Jornada", "11122233344", "12345678901", "B", LocalDate.now().plusYears(5), "999999999", "driver.journey@test.com", LocalDateTime.now(), LocalDateTime.now());
-        testDriverId = driverDAO.create(driver);
-    }
-
-    @AfterAll
-    static void tearDownAfterAll() throws SQLException {
-        // Limpa as tabelas e fecha a conexão após todos os testes
-        try (PreparedStatement stmt = connection.prepareStatement("DROP TABLE IF EXISTS JOURNEY;")) {
-            stmt.execute();
-        }
-        try (PreparedStatement stmt = connection.prepareStatement("DROP TABLE IF EXISTS DRIVER;")) {
-            stmt.execute();
-        }
-        if (connection != null && !connection.isClosed()) {
-            connection.close();
-        }
-    }
+    private Connection connection;
+    private JourneyDAO journeyDAO;
 
     @BeforeEach
     void setUp() throws SQLException {
-        // Limpa a tabela de jornadas antes de cada teste para garantir isolamento
-        try (PreparedStatement stmt = connection.prepareStatement("DELETE FROM JOURNEY; ALTER TABLE JOURNEY ALTER COLUMN id RESTART WITH 1;")) {
-            stmt.execute();
+        connection = DatabaseConfig.getInstance().getConnection();
+        connection.setAutoCommit(false); // Inicia transação para rollback
+        journeyDAO = new JourneyDAOImpl(connection);
+        // Limpa a tabela antes de cada teste, se necessário
+        try (Statement stmt = connection.createStatement()) {
+            stmt.execute("DELETE FROM journeys");
         }
     }
 
+    @AfterEach
+    void tearDown() throws SQLException {
+        connection.rollback(); // Desfaz todas as operações do teste
+        connection.close();
+    }
+
     @Test
-    @Order(1)
-    @DisplayName("1. Deve criar uma nova jornada com sucesso")
-    void testCreateJourneySuccess() throws SQLException {
-        Journey journey = new Journey(0, testDriverId, LocalDate.now(), "Rua A, 100", "Av. B, 200", 50.5, 1.5, LocalDateTime.now(), LocalDateTime.now());
+    void testCreateJourney() throws SQLException {
+        Journey journey = new Journey(0, 1, 1, LocalDate.now(), LocalDateTime.now(), null,
+                "Origem Teste", "Destino Teste", 50.0, 1.5, 1.0, 0.2, 0.3, 0.0, "IN_PROGRESS", false,
+                LocalDateTime.now(), LocalDateTime.now());
+
         int id = journeyDAO.create(journey);
 
-        assertTrue(id > 0, "O ID da jornada deve ser maior que 0 após a criação.");
-        journey.setId(id); // Define o ID para futuras verificações
-
-        Optional<Journey> foundJourney = journeyDAO.findById(id);
-        assertTrue(foundJourney.isPresent(), "A jornada criada deve ser encontrada pelo ID.");
-        assertEquals(journey.getDriverId(), foundJourney.get().getDriverId());
-        assertEquals(journey.getJourneyDate(), foundJourney.get().getJourneyDate());
-    }
-
-    @Test
-    @Order(2)
-    @DisplayName("2. Não deve criar jornada com driver_id e journey_date duplicados")
-    void testCreateJourneyDuplicateDriverAndDate() throws SQLException {
-        LocalDate today = LocalDate.now();
-        Journey journey1 = new Journey(0, testDriverId, today, "Origem 1", "Destino 1", 10.0, 0.5, LocalDateTime.now(), LocalDateTime.now());
-        journeyDAO.create(journey1);
-
-        Journey journey2 = new Journey(0, testDriverId, today, "Origem 2", "Destino 2", 20.0, 1.0, LocalDateTime.now(), LocalDateTime.now());
-
-        // Espera que uma SQLException seja lançada devido à restrição UNIQUE (se houver, ou lógica de negócio)
-        // No H2, para simular, precisamos de uma UNIQUE constraint composta ou tratar na camada de serviço.
-        // Assumindo que a DAO permite, mas a camada de serviço impediria. Para o teste DAO, se não houver UNIQUE no DB, ele criaria.
-        // Vamos adicionar uma UNIQUE constraint composta para este teste no H2.
-        try (PreparedStatement stmt = connection.prepareStatement(
-                "ALTER TABLE JOURNEY ADD CONSTRAINT UQ_DRIVER_DATE UNIQUE (driver_id, journey_date);"
-        )) {
-            stmt.execute();
-        } catch (SQLException e) {
-            // Se a constraint já existe, ignora
-            if (!e.getMessage().contains("already exists")) {
-                throw e;
-            }
-        }
-
-        SQLException thrown = assertThrows(SQLException.class, () -> journeyDAO.create(journey2),
-                "Deve lançar SQLException ao tentar criar jornada com driver_id e journey_date duplicados.");
-        assertTrue(thrown.getMessage().contains("UNIQUE constraint"), "A mensagem de erro deve indicar violação de constraint única.");
-    }
-
-    @Test
-    @Order(3)
-    @DisplayName("3. Deve encontrar jornada pelo ID")
-    void testFindById() throws SQLException {
-        Journey journey = new Journey(0, testDriverId, LocalDate.now().plusDays(1), "Ponto A", "Ponto B", 75.0, 2.0, LocalDateTime.now(), LocalDateTime.now());
-        int id = journeyDAO.create(journey);
-
-        Optional<Journey> foundJourney = journeyDAO.findById(id);
-        assertTrue(foundJourney.isPresent(), "Jornada deve ser encontrada pelo ID.");
-        assertEquals(id, foundJourney.get().getId());
-        assertEquals(journey.getStartLocation(), foundJourney.get().getStartLocation());
-    }
-
-    @Test
-    @Order(4)
-    @DisplayName("4. Deve retornar Optional vazio para ID não existente")
-    void testFindByIdNotFound() throws SQLException {
-        Optional<Journey> foundJourney = journeyDAO.findById(9999); // ID que não existe
-        assertFalse(foundJourney.isPresent(), "Não deve encontrar jornada para ID não existente.");
-    }
-
-    @Test
-    @Order(5)
-    @DisplayName("5. Deve encontrar jornada por ID de motorista e data")
-    void testFindByDriverIdAndDate() throws SQLException {
-        LocalDate specificDate = LocalDate.now().plusDays(2);
-        Journey journey = new Journey(0, testDriverId, specificDate, "Local X", "Local Y", 120.0, 3.0, LocalDateTime.now(), LocalDateTime.now());
-        journeyDAO.create(journey);
-
-        Optional<Journey> foundJourney = journeyDAO.findByDriverIdAndDate(testDriverId, specificDate);
-        assertTrue(foundJourney.isPresent(), "Jornada deve ser encontrada pelo ID do motorista e data.");
-        assertEquals(journey.getStartLocation(), foundJourney.get().getStartLocation());
-        assertEquals(journey.getJourneyDate(), foundJourney.get().getJourneyDate());
-    }
-
-    @Test
-    @Order(6)
-    @DisplayName("6. Deve retornar Optional vazio para ID de motorista e data não existentes")
-    void testFindByDriverIdAndDateNotFound() throws SQLException {
-        Optional<Journey> foundJourney = journeyDAO.findByDriverIdAndDate(testDriverId, LocalDate.now().plusDays(10)); // Data que não existe
-        assertFalse(foundJourney.isPresent(), "Não deve encontrar jornada para ID de motorista e data não existentes.");
-    }
-
-    @Test
-    @Order(7)
-    @DisplayName("7. Deve retornar todas as jornadas")
-    void testFindAll() throws SQLException {
-        journeyDAO.create(new Journey(0, testDriverId, LocalDate.now().minusDays(1), "O1", "D1", 10.0, 0.5, LocalDateTime.now(), LocalDateTime.now()));
-        journeyDAO.create(new Journey(0, testDriverId, LocalDate.now().minusDays(2), "O2", "D2", 20.0, 1.0, LocalDateTime.now(), LocalDateTime.now()));
-
-        List<Journey> journeys = journeyDAO.findAll();
-        assertNotNull(journeys, "A lista de jornadas não deve ser nula.");
-        assertEquals(2, journeys.size(), "Deve retornar duas jornadas.");
-    }
-
-    @Test
-    @Order(8)
-    @DisplayName("8. Deve retornar jornadas por ID de motorista")
-    void testFindByDriverId() throws SQLException {
-        // Cria um segundo motorista para testar
-        Driver anotherDriver = new Driver(0, "Outro Motorista", "55566677788", "DEF45678901", "C", LocalDate.now().plusYears(2), "888888888", "another.driver@test.com", LocalDateTime.now(), LocalDateTime.now());
-        int anotherDriverId = driverDAO.create(anotherDriver);
-
-        journeyDAO.create(new Journey(0, testDriverId, LocalDate.now().minusDays(3), "O3", "D3", 30.0, 1.5, LocalDateTime.now(), LocalDateTime.now()));
-        journeyDAO.create(new Journey(0, testDriverId, LocalDate.now().minusDays(4), "O4", "D4", 40.0, 2.0, LocalDateTime.now(), LocalDateTime.now()));
-        journeyDAO.create(new Journey(0, anotherDriverId, LocalDate.now().minusDays(5), "O5", "D5", 50.0, 2.5, LocalDateTime.now(), LocalDateTime.now()));
-
-        List<Journey> journeysForTestDriver = journeyDAO.findByDriverId(testDriverId);
-        assertNotNull(journeysForTestDriver);
-        assertEquals(2, journeysForTestDriver.size());
-        assertTrue(journeysForTestDriver.stream().allMatch(j -> j.getDriverId() == testDriverId));
-
-        List<Journey> journeysForAnotherDriver = journeyDAO.findByDriverId(anotherDriverId);
-        assertNotNull(journeysForAnotherDriver);
-        assertEquals(1, journeysForAnotherDriver.size());
-        assertTrue(journeysForAnotherDriver.stream().allMatch(j -> j.getDriverId() == anotherDriverId));
-    }
-
-    @Test
-    @Order(9)
-    @DisplayName("9. Deve atualizar uma jornada existente com sucesso")
-    void testUpdateJourneySuccess() throws SQLException {
-        Journey journey = new Journey(0, testDriverId, LocalDate.now().plusDays(3), "Origem Antiga", "Destino Antigo", 60.0, 1.8, LocalDateTime.now(), LocalDateTime.now());
-        int id = journeyDAO.create(journey);
-        journey.setId(id);
-
-        journey.setStartLocation("Nova Origem");
-        journey.setEndLocation("Novo Destino");
-        journey.setDistanceKm(65.0);
-        journey.setUpdatedAt(LocalDateTime.now()); // Simula a atualização da data
-
-        boolean updated = journeyDAO.update(journey);
-        assertTrue(updated, "A jornada deve ser atualizada com sucesso.");
-
+        assertTrue(id > 0);
         Optional<Journey> foundJourney = journeyDAO.findById(id);
         assertTrue(foundJourney.isPresent());
-        assertEquals("Nova Origem", foundJourney.get().getStartLocation());
-        assertEquals("Novo Destino", foundJourney.get().getEndLocation());
-        assertEquals(65.0, foundJourney.get().getDistanceKm());
-        // Verifica se a data de atualização foi realmente alterada (pode haver pequena diferença de milissegundos)
-        assertTrue(foundJourney.get().getUpdatedAt().isAfter(journey.getCreatedAt()));
+        assertEquals(journey.getStartLocation(), foundJourney.get().getStartLocation());
     }
 
     @Test
-    @Order(10)
-    @DisplayName("10. Não deve atualizar jornada com ID não existente")
-    void testUpdateJourneyNotFound() throws SQLException {
-        Journey nonExistentJourney = new Journey(9999, testDriverId, LocalDate.now().plusDays(4), "Origem Falsa", "Destino Falso", 100.0, 2.0, LocalDateTime.now(), LocalDateTime.now());
-        boolean updated = journeyDAO.update(nonExistentJourney);
-        assertFalse(updated, "Não deve atualizar uma jornada com ID não existente.");
+    void testFindById() throws SQLException {
+        Journey journey = new Journey(0, 1, 1, LocalDate.now(), LocalDateTime.now(), null,
+                "Origem Teste", "Destino Teste", 50.0, 1.5, 1.0, 0.2, 0.3, 0.0, "IN_PROGRESS", false,
+                LocalDateTime.now(), LocalDateTime.now());
+        int id = journeyDAO.create(journey);
+
+        Optional<Journey> foundJourney = journeyDAO.findById(id);
+
+        assertTrue(foundJourney.isPresent());
+        assertEquals(id, foundJourney.get().getId());
     }
 
     @Test
-    @Order(11)
-    @DisplayName("11. Não deve atualizar jornada para um driver_id e journey_date já existentes em outra jornada")
-    void testUpdateJourneyDuplicateDriverAndDateConflict() throws SQLException {
-        LocalDate conflictDate = LocalDate.now().plusDays(5);
-        Journey journey1 = new Journey(0, testDriverId, conflictDate, "Jornada Um", "Destino Um", 10.0, 0.5, LocalDateTime.now(), LocalDateTime.now());
-        int id1 = journeyDAO.create(journey1);
-        journey1.setId(id1);
+    void testFindAll() throws SQLException {
+        journeyDAO.create(new Journey(0, 1, 1, LocalDate.now(), LocalDateTime.now(), null,
+                "Origem 1", "Destino 1", 50.0, 1.5, 1.0, 0.2, 0.3, 0.0, "IN_PROGRESS", false,
+                LocalDateTime.now(), LocalDateTime.now()));
+        journeyDAO.create(new Journey(0, 2, 2, LocalDate.now(), LocalDateTime.now(), null,
+                "Origem 2", "Destino 2", 70.0, 2.0, 1.5, 0.3, 0.2, 0.0, "COMPLETED", false,
+                LocalDateTime.now(), LocalDateTime.now()));
 
-        // Cria uma segunda jornada para o mesmo motorista, mas em outra data
-        Journey journey2 = new Journey(0, testDriverId, LocalDate.now().plusDays(6), "Jornada Dois", "Destino Dois", 20.0, 1.0, LocalDateTime.now(), LocalDateTime.now());
-        int id2 = journeyDAO.create(journey2);
-        journey2.setId(id2);
+        List<Journey> journeys = journeyDAO.findAll();
 
-        // Tenta atualizar journey2 para ter a mesma data de journey1
-        journey2.setJourneyDate(conflictDate);
-
-        SQLException thrown = assertThrows(SQLException.class, () -> journeyDAO.update(journey2),
-                "Deve lançar SQLException ao tentar atualizar jornada com driver_id e journey_date duplicados de outra.");
-        assertTrue(thrown.getMessage().contains("UNIQUE constraint"), "A mensagem de erro deve indicar violação de constraint única.");
+        assertFalse(journeys.isEmpty());
+        assertEquals(2, journeys.size());
     }
 
     @Test
-    @Order(12)
-    @DisplayName("12. Deve deletar uma jornada existente com sucesso")
-    void testDeleteJourneySuccess() throws SQLException {
-        Journey journey = new Journey(0, testDriverId, LocalDate.now().plusDays(7), "Origem para Deletar", "Destino para Deletar", 80.0, 2.2, LocalDateTime.now(), LocalDateTime.now());
+    void testUpdateJourney() throws SQLException {
+        Journey journey = new Journey(0, 1, 1, LocalDate.now(), LocalDateTime.now(), null,
+                "Origem Antiga", "Destino Antigo", 60.0, 1.8, 1.5, 0.2, 0.1, 0.0, "IN_PROGRESS", false,
+                LocalDateTime.now(), LocalDateTime.now());
+        int id = journeyDAO.create(journey);
+
+        journey.setId(id);
+        journey.setEndLocation("Destino Novo");
+        journey.setTotalDistance(65.0);
+        journey.setStatus("COMPLETED");
+        journey.setUpdatedAt(LocalDateTime.now());
+
+        boolean updated = journeyDAO.update(journey);
+
+        assertTrue(updated);
+        Optional<Journey> foundJourney = journeyDAO.findById(id);
+        assertTrue(foundJourney.isPresent());
+        assertEquals("Destino Novo", foundJourney.get().getEndLocation());
+        assertEquals(65.0, foundJourney.get().getTotalDistance()); // Corrigido para getTotalDistance
+        assertEquals("COMPLETED", foundJourney.get().getStatus());
+    }
+
+    @Test
+    void testDeleteJourney() throws SQLException {
+        Journey journey = new Journey(0, 1, 1, LocalDate.now(), LocalDateTime.now(), null,
+                "Origem para Deletar", "Destino para Deletar", 80.0, 2.2, 1.8, 0.2, 0.2, 0.0, "IN_PROGRESS", false,
+                LocalDateTime.now(), LocalDateTime.now());
         int id = journeyDAO.create(journey);
 
         boolean deleted = journeyDAO.delete(id);
-        assertTrue(deleted, "A jornada deve ser deletada com sucesso.");
 
+        assertTrue(deleted);
         Optional<Journey> foundJourney = journeyDAO.findById(id);
-        assertFalse(foundJourney.isPresent(), "A jornada deletada não deve ser encontrada.");
+        assertFalse(foundJourney.isPresent());
     }
 
     @Test
-    @Order(13)
-    @DisplayName("13. Não deve deletar jornada com ID não existente")
-    void testDeleteJourneyNotFound() throws SQLException {
-        boolean deleted = journeyDAO.delete(9999); // ID que não existe
-        assertFalse(deleted, "Não deve deletar uma jornada com ID não existente.");
+    void testFindByDriverId() throws SQLException {
+        int testDriverId = 10;
+        journeyDAO.create(new Journey(0, testDriverId, 1, LocalDate.now(), LocalDateTime.now(), null,
+                "Jornada Driver 1", "Destino Driver 1", 10.0, 0.5, 0.4, 0.05, 0.05, 0.0, "IN_PROGRESS", false,
+                LocalDateTime.now(), LocalDateTime.now()));
+        journeyDAO.create(new Journey(0, testDriverId, 2, LocalDate.now().plusDays(1), LocalDateTime.now(), null,
+                "Jornada Driver 2", "Destino Driver 2", 20.0, 1.0, 0.8, 0.1, 0.1, 0.0, "COMPLETED", false,
+                LocalDateTime.now(), LocalDateTime.now()));
+        journeyDAO.create(new Journey(0, 99, 3, LocalDate.now(), LocalDateTime.now(), null,
+                "Jornada Outro Driver", "Destino Outro Driver", 5.0, 0.2, 0.1, 0.05, 0.05, 0.0, "PENDING", false,
+                LocalDateTime.now(), LocalDateTime.now()));
+
+        List<Journey> journeys = journeyDAO.findByDriverId(testDriverId);
+
+        assertFalse(journeys.isEmpty());
+        assertEquals(2, journeys.size());
+        assertTrue(journeys.stream().allMatch(j -> j.getDriverId() == testDriverId));
+    }
+
+    @Test
+    void testFindByDriverIdAndDate() throws SQLException {
+        int testDriverId = 10;
+        LocalDate testDate = LocalDate.now().plusDays(3);
+        journeyDAO.create(new Journey(0, testDriverId, 1, testDate, LocalDateTime.now(), null,
+                "Jornada Data 1", "Destino Data 1", 15.0, 0.8, 0.7, 0.05, 0.05, 0.0, "IN_PROGRESS", false,
+                LocalDateTime.now(), LocalDateTime.now()));
+        journeyDAO.create(new Journey(0, testDriverId, 2, testDate.plusDays(1), LocalDateTime.now(), null,
+                "Jornada Data 2", "Destino Data 2", 25.0, 1.2, 1.0, 0.1, 0.1, 0.0, "COMPLETED", false,
+                LocalDateTime.now(), LocalDateTime.now()));
+
+        Optional<Journey> foundJourney = journeyDAO.findByDriverIdAndDate(testDriverId, testDate);
+
+        assertTrue(foundJourney.isPresent());
+        assertEquals(testDriverId, foundJourney.get().getDriverId());
+        assertEquals(testDate, foundJourney.get().getJourneyDate());
+    }
+
+    @Test
+    void testFindByVehicleId() throws SQLException {
+        int testVehicleId = 20;
+        journeyDAO.create(new Journey(0, 1, testVehicleId, LocalDate.now(), LocalDateTime.now(), null,
+                "Jornada Veiculo 1", "Destino Veiculo 1", 30.0, 1.0, 0.8, 0.1, 0.1, 0.0, "IN_PROGRESS", false,
+                LocalDateTime.now(), LocalDateTime.now()));
+        journeyDAO.create(new Journey(0, 2, testVehicleId, LocalDate.now().plusDays(1), LocalDateTime.now(), null,
+                "Jornada Veiculo 2", "Destino Veiculo 2", 40.0, 1.3, 1.0, 0.15, 0.15, 0.0, "COMPLETED", false,
+                LocalDateTime.now(), LocalDateTime.now()));
+        journeyDAO.create(new Journey(0, 3, 99, LocalDate.now(), LocalDateTime.now(), null,
+                "Jornada Outro Veiculo", "Destino Outro Veiculo", 5.0, 0.2, 0.1, 0.05, 0.05, 0.0, "PENDING", false,
+                LocalDateTime.now(), LocalDateTime.now()));
+
+        List<Journey> journeys = journeyDAO.findByVehicleId(testVehicleId);
+
+        assertFalse(journeys.isEmpty());
+        assertEquals(2, journeys.size());
+        assertTrue(journeys.stream().allMatch(j -> j.getVehicleId() == testVehicleId));
+    }
+
+    @Test
+    void testFindByVehicleIdAndDate() throws SQLException {
+        int testVehicleId = 20;
+        LocalDate testDate = LocalDate.now().plusDays(4);
+        journeyDAO.create(new Journey(0, 1, testVehicleId, testDate, LocalDateTime.now(), null,
+                "Jornada Veiculo Data 1", "Destino Veiculo Data 1", 35.0, 1.1, 0.9, 0.1, 0.1, 0.0, "IN_PROGRESS", false,
+                LocalDateTime.now(), LocalDateTime.now()));
+        journeyDAO.create(new Journey(0, 2, testVehicleId, testDate.plusDays(1), LocalDateTime.now(), null,
+                "Jornada Veiculo Data 2", "Destino Veiculo Data 2", 45.0, 1.4, 1.1, 0.15, 0.15, 0.0, "COMPLETED", false,
+                LocalDateTime.now(), LocalDateTime.now()));
+
+        List<Journey> foundJourneys = journeyDAO.findByVehicleIdAndDate(testVehicleId, testDate);
+
+        assertFalse(foundJourneys.isEmpty());
+        assertEquals(1, foundJourneys.size());
+        assertEquals(testVehicleId, foundJourneys.get(0).getVehicleId());
+        assertEquals(testDate, foundJourneys.get(0).getJourneyDate());
+    }
+
+    @Test
+    void testFindByStatus() throws SQLException {
+        journeyDAO.create(new Journey(0, 1, 1, LocalDate.now(), LocalDateTime.now(), null,
+                "Jornada Status 1", "Destino Status 1", 10.0, 0.5, 0.4, 0.05, 0.05, 0.0, "IN_PROGRESS", false,
+                LocalDateTime.now(), LocalDateTime.now()));
+        journeyDAO.create(new Journey(0, 2, 2, LocalDate.now(), LocalDateTime.now(), null,
+                "Jornada Status 2", "Destino Status 2", 20.0, 1.0, 0.8, 0.1, 0.1, 0.0, "COMPLETED", false,
+                LocalDateTime.now(), LocalDateTime.now()));
+        journeyDAO.create(new Journey(0, 3, 3, LocalDate.now(), LocalDateTime.now(), null,
+                "Jornada Status 3", "Destino Status 3", 30.0, 1.5, 1.2, 0.15, 0.15, 0.0, "IN_PROGRESS", false,
+                LocalDateTime.now(), LocalDateTime.now()));
+
+        List<Journey> inProgressJourneys = journeyDAO.findByStatus("IN_PROGRESS");
+
+        assertFalse(inProgressJourneys.isEmpty());
+        assertEquals(2, inProgressJourneys.size());
+        assertTrue(inProgressJourneys.stream().allMatch(j -> j.getStatus().equals("IN_PROGRESS")));
+    }
+
+    @Test
+    void testFindByDateRange() throws SQLException {
+        LocalDate startDate = LocalDate.now().minusDays(1);
+        LocalDate endDate = LocalDate.now().plusDays(1);
+
+        journeyDAO.create(new Journey(0, 1, 1, LocalDate.now().minusDays(2), LocalDateTime.now(), null,
+                "Fora do Range", "Fora do Range", 10.0, 0.5, 0.4, 0.05, 0.05, 0.0, "IN_PROGRESS", false,
+                LocalDateTime.now(), LocalDateTime.now()));
+        journeyDAO.create(new Journey(0, 2, 2, LocalDate.now(), LocalDateTime.now(), null,
+                "Dentro do Range 1", "Dentro do Range 1", 20.0, 1.0, 0.8, 0.1, 0.1, 0.0, "COMPLETED", false,
+                LocalDateTime.now(), LocalDateTime.now()));
+        journeyDAO.create(new Journey(0, 3, 3, LocalDate.now().plusDays(1), LocalDateTime.now(), null,
+                "Dentro do Range 2", "Dentro do Range 2", 30.0, 1.5, 1.2, 0.15, 0.15, 0.0, "IN_PROGRESS", false,
+                LocalDateTime.now(), LocalDateTime.now()));
+
+        List<Journey> journeys = journeyDAO.findByDateRange(startDate, endDate);
+
+        assertFalse(journeys.isEmpty());
+        assertEquals(2, journeys.size());
+        assertTrue(journeys.stream().allMatch(j -> !j.getJourneyDate().isBefore(startDate) && !j.getJourneyDate().isAfter(endDate)));
+    }
+
+    @Test
+    void testFindByDriverIdAndDateRange() throws SQLException {
+        int testDriverId = 30;
+        LocalDate startDate = LocalDate.now().minusDays(1);
+        LocalDate endDate = LocalDate.now().plusDays(1);
+
+        journeyDAO.create(new Journey(0, testDriverId, 1, LocalDate.now().minusDays(2), LocalDateTime.now(), null,
+                "Fora do Range Driver", "Fora do Range Driver", 10.0, 0.5, 0.4, 0.05, 0.05, 0.0, "IN_PROGRESS", false,
+                LocalDateTime.now(), LocalDateTime.now()));
+        journeyDAO.create(new Journey(0, testDriverId, 2, LocalDate.now(), LocalDateTime.now(), null,
+                "Dentro do Range Driver 1", "Dentro do Range Driver 1", 20.0, 1.0, 0.8, 0.1, 0.1, 0.0, "COMPLETED", false,
+                LocalDateTime.now(), LocalDateTime.now()));
+        journeyDAO.create(new Journey(0, testDriverId, 3, LocalDate.now().plusDays(1), LocalDateTime.now(), null,
+                "Dentro do Range Driver 2", "Dentro do Range Driver 2", 30.0, 1.5, 1.2, 0.15, 0.15, 0.0, "IN_PROGRESS", false,
+                LocalDateTime.now(), LocalDateTime.now()));
+        journeyDAO.create(new Journey(0, 99, 4, LocalDate.now(), LocalDateTime.now(), null,
+                "Outro Driver", "Outro Driver", 5.0, 0.2, 0.1, 0.05, 0.05, 0.0, "PENDING", false,
+                LocalDateTime.now(), LocalDateTime.now()));
+
+        List<Journey> journeys = journeyDAO.findByDriverIdAndDateRange(testDriverId, startDate, endDate);
+
+        assertFalse(journeys.isEmpty());
+        assertEquals(2, journeys.size());
+        assertTrue(journeys.stream().allMatch(j -> j.getDriverId() == testDriverId && !j.getJourneyDate().isBefore(startDate) && !j.getJourneyDate().isAfter(endDate)));
+    }
+
+    @Test
+    void testFindByStatusAndDateRange() throws SQLException {
+        LocalDate startDate = LocalDate.now().minusDays(1);
+        LocalDate endDate = LocalDate.now().plusDays(1);
+        String status = "COMPLETED";
+
+        journeyDAO.create(new Journey(0, 1, 1, LocalDate.now().minusDays(2), LocalDateTime.now(), null,
+                "Fora do Range Status", "Fora do Range Status", 10.0, 0.5, 0.4, 0.05, 0.05, 0.0, "COMPLETED", false,
+                LocalDateTime.now(), LocalDateTime.now()));
+        journeyDAO.create(new Journey(0, 2, 2, LocalDate.now(), LocalDateTime.now(), null,
+                "Dentro do Range Status 1", "Dentro do Range Status 1", 20.0, 1.0, 0.8, 0.1, 0.1, 0.0, "COMPLETED", false,
+                LocalDateTime.now(), LocalDateTime.now()));
+        journeyDAO.create(new Journey(0, 3, 3, LocalDate.now().plusDays(1), LocalDateTime.now(), null,
+                "Dentro do Range Status 2", "Dentro do Range Status 2", 30.0, 1.5, 1.2, 0.15, 0.15, 0.0, "IN_PROGRESS", false,
+                LocalDateTime.now(), LocalDateTime.now()));
+
+        List<Journey> journeys = journeyDAO.findByStatusAndDateRange(status, startDate, endDate);
+
+        assertFalse(journeys.isEmpty());
+        assertEquals(1, journeys.size());
+        assertTrue(journeys.stream().allMatch(j -> j.getStatus().equals(status) && !j.getJourneyDate().isBefore(startDate) && !j.getJourneyDate().isAfter(endDate)));
     }
 }

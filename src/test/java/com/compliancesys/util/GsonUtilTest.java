@@ -1,172 +1,206 @@
 package com.compliancesys.util;
 
 import com.compliancesys.model.Company;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.compliancesys.model.Driver;
+import com.compliancesys.model.MobileCommunication;
+import com.compliancesys.util.impl.GsonUtilImpl;
+import com.google.gson.JsonParseException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.BufferedReader;
+import java.io.StringReader;
+import java.time.Duration;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+
 import static org.junit.jupiter.api.Assertions.*;
 
-public class GsonUtilTest {
-
-    // Implementação concreta simples da interface GsonUtil para fins de teste
-    private static class GsonUtilImpl implements GsonUtil {
-        private final Gson gson;
-
-        public GsonUtilImpl() {
-            this.gson = new GsonBuilder().setPrettyPrinting().create();
-        }
-
-        @Override
-        public <T> String serialize(T object) {
-            return gson.toJson(object);
-        }
-
-        @Override
-        public <T> T deserialize(String json, Class<T> type) {
-            return gson.fromJson(json, type);
-        }
-    }
+class GsonUtilTest {
 
     private GsonUtil gsonUtil;
 
     @BeforeEach
     void setUp() {
-        // Inicializa a implementação concreta do GsonUtil antes de cada teste
         gsonUtil = new GsonUtilImpl();
     }
 
     @Test
-    void testSerializeObjectToJson() {
-        Company company = new Company(1, "Empresa Teste", "12.345.678/0001-90", "Rua A, 123", "Cidade X", "SP", "12345-678", "empresa@teste.com");
-        String json = gsonUtil.serialize(company);
+    void testSerializeAndDeserializeCompany() {
+        Company originalCompany = new Company(
+                1,
+                "Empresa Teste",
+                "12345678000190",
+                "contato@empresa.com",
+                "11987654321",
+                "Rua Teste, 123",
+                LocalDateTime.of(2023, 1, 1, 10, 0, 0),
+                LocalDateTime.of(2023, 1, 1, 10, 0, 0)
+        );
 
+        String json = gsonUtil.serialize(originalCompany);
         assertNotNull(json);
-        assertTrue(json.contains("\"id\": 1"));
-        assertTrue(json.contains("\"name\": \"Empresa Teste\""));
-        assertTrue(json.contains("\"cnpj\": \"12.345.678/0001-90\""));
-        assertTrue(json.contains("\"address\": \"Rua A, 123\""));
-        assertTrue(json.contains("\"city\": \"Cidade X\""));
-        assertTrue(json.contains("\"state\": \"SP\""));
-        assertTrue(json.contains("\"zipCode\": \"12345-678\""));
-        assertTrue(json.contains("\"email\": \"empresa@teste.com\""));
+        assertTrue(json.contains("\"name\":\"Empresa Teste\""));
+        assertTrue(json.contains("\"cnpj\":\"12345678000190\""));
+
+        Company deserializedCompany = gsonUtil.deserialize(json, Company.class);
+        assertNotNull(deserializedCompany);
+        assertEquals(originalCompany.getId(), deserializedCompany.getId());
+        assertEquals(originalCompany.getName(), deserializedCompany.getName());
+        assertEquals(originalCompany.getCnpj(), deserializedCompany.getCnpj());
+        assertEquals(originalCompany.getEmail(), deserializedCompany.getEmail());
+        assertEquals(originalCompany.getPhone(), deserializedCompany.getPhone());
+        assertEquals(originalCompany.getAddress(), deserializedCompany.getAddress());
+        // Comparar LocalDateTime ignorando nanossegundos, pois Gson pode truncar
+        assertEquals(originalCompany.getCreatedAt().withNano(0), deserializedCompany.getCreatedAt().withNano(0));
+        assertEquals(originalCompany.getUpdatedAt().withNano(0), deserializedCompany.getUpdatedAt().withNano(0));
     }
 
     @Test
-    void testDeserializeJsonToObject() {
-        String json = "{\"id\": 2, \"name\": \"Outra Empresa\", \"cnpj\": \"98.765.432/0001-10\", \"address\": \"Av. B, 456\", \"city\": \"Cidade Y\", \"state\": \"RJ\", \"zipCode\": \"98765-432\", \"email\": \"outra@empresa.com\"}";
-        Company company = gsonUtil.deserialize(json, Company.class);
+    void testSerializeAndDeserializeDriver() {
+        Driver originalDriver = new Driver(
+                1, // id
+                1, // companyId
+                "João Silva",
+                "11122233344",
+                "ABC12345678",
+                "D",
+                LocalDate.of(2028, 12, 31), // licenseExpiration
+                LocalDate.of(1990, 5, 15), // birthDate
+                "11987654321",
+                "joao@example.com",
+                LocalDateTime.of(2023, 1, 1, 10, 0, 0),
+                LocalDateTime.of(2023, 1, 1, 10, 0, 0)
+        );
 
-        assertNotNull(company);
-        assertEquals(2, company.getId());
-        assertEquals("Outra Empresa", company.getName());
-        assertEquals("98.765.432/0001-10", company.getCnpj());
-        assertEquals("Av. B, 456", company.getAddress());
-        assertEquals("Cidade Y", company.getCity());
-        assertEquals("RJ", company.getState());
-        assertEquals("98765-432", company.getZipCode());
-        assertEquals("outra@empresa.com", company.getEmail());
+        String json = gsonUtil.serialize(originalDriver);
+        assertNotNull(json);
+        assertTrue(json.contains("\"name\":\"João Silva\""));
+        assertTrue(json.contains("\"cpf\":\"11122233344\""));
+
+        Driver deserializedDriver = gsonUtil.deserialize(json, Driver.class);
+        assertNotNull(deserializedDriver);
+        assertEquals(originalDriver.getId(), deserializedDriver.getId());
+        assertEquals(originalDriver.getName(), deserializedDriver.getName());
+        assertEquals(originalDriver.getCpf(), deserializedDriver.getCpf());
+        assertEquals(originalDriver.getLicenseNumber(), deserializedDriver.getLicenseNumber());
+        assertEquals(originalDriver.getLicenseCategory(), deserializedDriver.getLicenseCategory());
+        assertEquals(originalDriver.getLicenseExpiration(), deserializedDriver.getLicenseExpiration()); // Usar getLicenseExpiration()
+        assertEquals(originalDriver.getBirthDate(), deserializedDriver.getBirthDate());
+        assertEquals(originalDriver.getPhone(), deserializedDriver.getPhone());
+        assertEquals(originalDriver.getEmail(), deserializedDriver.getEmail());
+        assertEquals(originalDriver.getCreatedAt().withNano(0), deserializedDriver.getCreatedAt().withNano(0));
+        assertEquals(originalDriver.getUpdatedAt().withNano(0), deserializedDriver.getUpdatedAt().withNano(0));
     }
 
     @Test
-    void testSerializeNullObject() {
-        String json = gsonUtil.serialize(null);
-        assertEquals("null", json);
+    void testSerializeAndDeserializeMobileCommunication() {
+        MobileCommunication originalComm = new MobileCommunication(
+                1, // id
+                1, // driverId
+                101, // recordId
+                LocalDateTime.of(2023, 10, 26, 14, 30, 0), // timestamp
+                -23.5505, // latitude
+                -46.6333, // longitude
+                LocalDateTime.of(2023, 10, 26, 14, 30, 15), // sendTimestamp
+                true, // sendSuccess
+                null, // errorMessage
+                LocalDateTime.of(2023, 10, 26, 14, 30, 0),
+                LocalDateTime.of(2023, 10, 26, 14, 30, 0)
+        );
+
+        String json = gsonUtil.serialize(originalComm);
+        assertNotNull(json);
+        assertTrue(json.contains("\"driverId\":1"));
+        assertTrue(json.contains("\"latitude\":-23.5505"));
+
+        MobileCommunication deserializedComm = gsonUtil.deserialize(json, MobileCommunication.class);
+        assertNotNull(deserializedComm);
+        assertEquals(originalComm.getId(), deserializedComm.getId());
+        assertEquals(originalComm.getDriverId(), deserializedComm.getDriverId());
+        assertEquals(originalComm.getRecordId(), deserializedComm.getRecordId());
+        assertEquals(originalComm.getTimestamp().withNano(0), deserializedComm.getTimestamp().withNano(0));
+        assertEquals(originalComm.getLatitude(), deserializedComm.getLatitude());
+        assertEquals(originalComm.getLongitude(), deserializedComm.getLongitude());
+        assertEquals(originalComm.getSendTimestamp().withNano(0), deserializedComm.getSendTimestamp().withNano(0));
+        assertEquals(originalComm.isSendSuccess(), deserializedComm.isSendSuccess());
+        assertEquals(originalComm.getErrorMessage(), deserializedComm.getErrorMessage());
+        assertEquals(originalComm.getCreatedAt().withNano(0), deserializedComm.getCreatedAt().withNano(0));
+        assertEquals(originalComm.getUpdatedAt().withNano(0), deserializedComm.getUpdatedAt().withNano(0));
     }
 
     @Test
-    void testDeserializeNullJson() {
-        Company company = gsonUtil.deserialize(null, Company.class);
-        assertNull(company);
+    void testSerializeAndDeserializeLocalDateTime() {
+        LocalDateTime originalDateTime = LocalDateTime.of(2023, 1, 2, 15, 30, 45, 123456789);
+        String json = gsonUtil.serialize(originalDateTime);
+        assertNotNull(json);
+        assertTrue(json.contains("2023-01-02T15:30:45.123456789"));
+
+        LocalDateTime deserializedDateTime = gsonUtil.deserialize(json, LocalDateTime.class);
+        assertNotNull(deserializedDateTime);
+        assertEquals(originalDateTime, deserializedDateTime);
     }
 
     @Test
-    void testDeserializeEmptyJson() {
-        Company company = gsonUtil.deserialize("{}", Company.class);
-        assertNotNull(company);
-        // Dependendo do construtor padrão do Company, os campos podem ser nulos ou valores padrão
-        assertEquals(0, company.getId()); // Assumindo 0 para int padrão
-        assertNull(company.getName());
-        // ... e assim por diante para outros campos
+    void testSerializeAndDeserializeLocalDate() {
+        LocalDate originalDate = LocalDate.of(2023, 1, 2);
+        String json = gsonUtil.serialize(originalDate);
+        assertNotNull(json);
+        assertTrue(json.contains("2023-01-02"));
+
+        LocalDate deserializedDate = gsonUtil.deserialize(json, LocalDate.class);
+        assertNotNull(deserializedDate);
+        assertEquals(originalDate, deserializedDate);
+    }
+
+    @Test
+    void testSerializeAndDeserializeDuration() {
+        Duration originalDuration = Duration.ofHours(1).plusMinutes(30).plusSeconds(15);
+        String json = gsonUtil.serialize(originalDuration);
+        assertNotNull(json);
+        assertTrue(json.contains("PT1H30M15S"));
+
+        Duration deserializedDuration = gsonUtil.deserialize(json, Duration.class);
+        assertNotNull(deserializedDuration);
+        assertEquals(originalDuration, deserializedDuration);
     }
 
     @Test
     void testDeserializeInvalidJson() {
-        String invalidJson = "{ \"id\": 1, \"name\": \"Empresa Teste\", \"cnpj\": \"invalid-cnpj\" "; // JSON malformado
-        // Gson geralmente lança JsonSyntaxException para JSON malformado.
-        // Aqui, estamos testando a interface, então esperamos que a implementação subjacente (Gson) lide com isso.
-        // Para um teste mais robusto, poderíamos esperar uma exceção específica do Gson.
-        assertThrows(com.google.gson.JsonSyntaxException.class, () -> {
+        String invalidJson = "{ \"id\": \"abc\" }";
+        assertThrows(JsonParseException.class, () -> {
             gsonUtil.deserialize(invalidJson, Company.class);
         });
     }
 
     @Test
-    void testSerializeAndDeserializeRoundtrip() {
-        Company originalCompany = new Company(3, "Empresa Original", "33.333.333/0001-33", "Rua C, 789", "Cidade Z", "PR", "33333-333", "original@empresa.com");
-        String json = gsonUtil.serialize(originalCompany);
-        Company deserializedCompany = gsonUtil.deserialize(json, Company.class);
+    void testDeserializeNullString() {
+        Company deserializedCompany = gsonUtil.deserialize((String) null, Company.class);
+        assertNull(deserializedCompany);
+    }
 
+    @Test
+    void testDeserializeEmptyString() {
+        Company deserializedCompany = gsonUtil.deserialize("", Company.class);
+        assertNull(deserializedCompany);
+    }
+
+    @Test
+    void testDeserializeWithBufferedReader() throws Exception {
+        String json = "{\"id\":1,\"name\":\"Empresa Buffer\",\"cnpj\":\"11222333000144\",\"email\":\"buffer@test.com\",\"phone\":\"11900000000\",\"address\":\"Rua Buffer, 456\",\"createdAt\":\"2023-01-01T10:00:00\",\"updatedAt\":\"2023-01-01T10:00:00\"}";
+        BufferedReader reader = new BufferedReader(new StringReader(json));
+
+        Company deserializedCompany = gsonUtil.deserialize(reader, Company.class);
         assertNotNull(deserializedCompany);
-        assertEquals(originalCompany.getId(), deserializedCompany.getId());
-        assertEquals(originalCompany.getName(), deserializedCompany.getName());
-        assertEquals(originalCompany.getCnpj(), deserializedCompany.getCnpj());
-        assertEquals(originalCompany.getAddress(), deserializedCompany.getAddress());
-        assertEquals(originalCompany.getCity(), deserializedCompany.getCity());
-        assertEquals(originalCompany.getState(), deserializedCompany.getState());
-        assertEquals(originalCompany.getZipCode(), deserializedCompany.getZipCode());
-        assertEquals(originalCompany.getEmail(), deserializedCompany.getEmail());
-    }
-
-    // Exemplo de um POJO simples para testar serialização/desserialização
-    private static class SimplePojo {
-        private String name;
-        private int value;
-
-        public SimplePojo(String name, int value) {
-            this.name = name;
-            this.value = value;
-        }
-
-        // Getters e Setters (ou Lombok)
-        public String getName() { return name; }
-        public void setName(String name) { this.name = name; }
-        public int getValue() { return value; }
-        public void setValue(int value) { this.value = value; }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            SimplePojo that = (SimplePojo) o;
-            return value == that.value &&
-                   java.util.Objects.equals(name, that.name);
-        }
-
-        @Override
-        public int hashCode() {
-            return java.util.Objects.hash(name, value);
-        }
+        assertEquals(1, deserializedCompany.getId());
+        assertEquals("Empresa Buffer", deserializedCompany.getName());
     }
 
     @Test
-    void testSerializeSimplePojo() {
-        SimplePojo pojo = new SimplePojo("Test Pojo", 123);
-        String json = gsonUtil.serialize(pojo);
-
-        assertNotNull(json);
-        assertTrue(json.contains("\"name\": \"Test Pojo\""));
-        assertTrue(json.contains("\"value\": 123"));
-    }
-
-    @Test
-    void testDeserializeSimplePojo() {
-        String json = "{\"name\":\"Another Pojo\",\"value\":456}";
-        SimplePojo pojo = gsonUtil.deserialize(json, SimplePojo.class);
-
-        assertNotNull(pojo);
-        assertEquals("Another Pojo", pojo.getName());
-        assertEquals(456, pojo.getValue());
+    void testDeserializeWithBufferedReaderNull() {
+        assertThrows(NullPointerException.class, () -> { // BufferedReader nulo pode lançar NPE ou IllegalArgumentException dependendo da implementação
+            gsonUtil.deserialize((BufferedReader) null, Company.class);
+        });
     }
 }

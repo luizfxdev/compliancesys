@@ -1,17 +1,23 @@
 package com.compliancesys.dao.impl;
 
-import com.compliancesys.dao.TimeRecordDAO;
-import com.compliancesys.model.TimeRecord;
-import com.compliancesys.model.enums.EventType;
-import com.compliancesys.util.DatabaseConnection;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.Date;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import com.compliancesys.config.DatabaseConfig;
+import com.compliancesys.dao.TimeRecordDAO;
+import com.compliancesys.model.TimeRecord;
+import com.compliancesys.model.enums.EventType;
 
 public class TimeRecordDAOImpl implements TimeRecordDAO {
 
@@ -20,7 +26,7 @@ public class TimeRecordDAOImpl implements TimeRecordDAO {
     @Override
     public int create(TimeRecord timeRecord) throws SQLException {
         String sql = "INSERT INTO time_records (driver_id, company_id, vehicle_id, record_time, event_type, location, notes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        try (Connection conn = DatabaseConnection.getConnection();
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             stmt.setInt(1, timeRecord.getDriverId());
             stmt.setInt(2, timeRecord.getCompanyId());
@@ -50,7 +56,7 @@ public class TimeRecordDAOImpl implements TimeRecordDAO {
     @Override
     public Optional<TimeRecord> findById(int id) throws SQLException {
         String sql = "SELECT * FROM time_records WHERE id = ?";
-        try (Connection conn = DatabaseConnection.getConnection();
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, id);
             try (ResultSet rs = stmt.executeQuery()) {
@@ -66,7 +72,7 @@ public class TimeRecordDAOImpl implements TimeRecordDAO {
     public List<TimeRecord> findAll() throws SQLException {
         List<TimeRecord> timeRecords = new ArrayList<>();
         String sql = "SELECT * FROM time_records";
-        try (Connection conn = DatabaseConnection.getConnection();
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
             while (rs.next()) {
@@ -79,7 +85,7 @@ public class TimeRecordDAOImpl implements TimeRecordDAO {
     @Override
     public boolean update(TimeRecord timeRecord) throws SQLException {
         String sql = "UPDATE time_records SET driver_id = ?, company_id = ?, vehicle_id = ?, record_time = ?, event_type = ?, location = ?, notes = ?, updated_at = ? WHERE id = ?";
-        try (Connection conn = DatabaseConnection.getConnection();
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, timeRecord.getDriverId());
             stmt.setInt(2, timeRecord.getCompanyId());
@@ -97,7 +103,7 @@ public class TimeRecordDAOImpl implements TimeRecordDAO {
     @Override
     public boolean delete(int id) throws SQLException {
         String sql = "DELETE FROM time_records WHERE id = ?";
-        try (Connection conn = DatabaseConnection.getConnection();
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, id);
             return stmt.executeUpdate() > 0;
@@ -108,7 +114,7 @@ public class TimeRecordDAOImpl implements TimeRecordDAO {
     public List<TimeRecord> findByDriverId(int driverId) throws SQLException {
         List<TimeRecord> timeRecords = new ArrayList<>();
         String sql = "SELECT * FROM time_records WHERE driver_id = ? ORDER BY record_time ASC";
-        try (Connection conn = DatabaseConnection.getConnection();
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, driverId);
             try (ResultSet rs = stmt.executeQuery()) {
@@ -124,7 +130,7 @@ public class TimeRecordDAOImpl implements TimeRecordDAO {
     public List<TimeRecord> findByDriverIdAndDate(int driverId, LocalDate date) throws SQLException {
         List<TimeRecord> timeRecords = new ArrayList<>();
         String sql = "SELECT * FROM time_records WHERE driver_id = ? AND DATE(record_time) = ? ORDER BY record_time ASC";
-        try (Connection conn = DatabaseConnection.getConnection();
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, driverId);
             stmt.setDate(2, Date.valueOf(date));
@@ -140,7 +146,7 @@ public class TimeRecordDAOImpl implements TimeRecordDAO {
     @Override
     public Optional<TimeRecord> findByDriverIdAndRecordTimeAndEventType(int driverId, LocalDateTime recordTime, String eventType) throws SQLException {
         String sql = "SELECT * FROM time_records WHERE driver_id = ? AND record_time = ? AND event_type = ?";
-        try (Connection conn = DatabaseConnection.getConnection();
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, driverId);
             stmt.setTimestamp(2, Timestamp.valueOf(recordTime));
@@ -161,7 +167,7 @@ public class TimeRecordDAOImpl implements TimeRecordDAO {
         // Esta query é uma suposição de como você associa TimeRecords a Journeys.
         // Se a sua tabela time_records tiver uma coluna journey_id, a query seria mais simples:
         // String sql = "SELECT * FROM time_records WHERE journey_id = ? ORDER BY record_time ASC";
-        try (Connection conn = DatabaseConnection.getConnection();
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, journeyId);
             try (ResultSet rs = stmt.executeQuery()) {

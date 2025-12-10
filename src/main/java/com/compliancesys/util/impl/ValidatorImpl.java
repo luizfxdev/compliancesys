@@ -4,7 +4,7 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.regex.Pattern; // Import adicionado
+import java.util.regex.Pattern;
 
 import com.compliancesys.util.Validator;
 
@@ -19,14 +19,14 @@ public class ValidatorImpl implements Validator {
     // Regex para nomes: apenas letras, espaços, acentos e apóstrofos
     private static final String NAME_REGEX = "^[\\p{L} .'-]+$"; // \\p{L} para qualquer letra Unicode
     // Regex para localização/endereço: permite letras, números, espaços e alguns caracteres especiais comuns
-    private static final String LOCATION_ADDRESS_REGEX = "^[\\p{L}0-9 .,\\-/#&()_+|$\\{\\};':\"\\\\|<>/?]*$";
-
+    private static final String LOCATION_ADDRESS_REGEX = "^[\\p{L}0-9 .,\\-/#&()_+|$;':\"\\\\|<>/?]*$"; // Ajustado para incluir mais caracteres comuns em endereços
     // Regex para e-mail: padrão mais comum e robusto
     private static final String EMAIL_REGEX = "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,6}$";
-
     // Regex para número de telefone (Brasil): aceita formatos comuns com ou sem parênteses, espaços e hífen
     // Exemplos: (XX) XXXXX-XXXX, XX XXXXX-XXXX, XXXXX-XXXX, XXXXXXXXXXX, XXXXXXXXX
-    private static final String PHONE_NUMBER_REGEX = "^(\\(\\d{2}\\)\\s?|\\d{2}\\s?)?\\d{4,5}-?\\d{4}$";
+   private static final String PHONE_NUMBER_REGEX = "^\\d{8}$";
+
+
 
 
     private static final Pattern CPF_PATTERN = Pattern.compile(CPF_REGEX);
@@ -37,6 +37,20 @@ public class ValidatorImpl implements Validator {
     private static final Pattern EMAIL_PATTERN = Pattern.compile(EMAIL_REGEX);
     private static final Pattern PHONE_NUMBER_PATTERN = Pattern.compile(PHONE_NUMBER_REGEX);
 
+    @Override
+    public boolean isValidId(int id) {
+        return id > 0;
+    }
+
+    @Override
+    public boolean isValidDriverId(int driverId) {
+        return driverId > 0;
+    }
+
+    @Override
+    public boolean isValidCompanyId(int companyId) {
+        return companyId > 0;
+    }
 
     @Override
     public boolean isValidName(String name) {
@@ -93,7 +107,8 @@ public class ValidatorImpl implements Validator {
 
     @Override
     public boolean isValidAddress(String address) {
-        return address != null && !address.trim().isEmpty() && address.length() >= 5;
+        return address != null && !address.trim().isEmpty() && address.length() >= 5
+                && LOCATION_ADDRESS_PATTERN.matcher(address).matches(); // Adicionado validação de regex para consistência
     }
 
     @Override

@@ -21,8 +21,8 @@ repositories {
 java {
     // Define a versão do Java a ser usada para compilação e execução.
     // O projeto requer Java 8 ou superior.
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    // REMOVIDO: sourceCompatibility = JavaVersion.VERSION_1_8
+    // REMOVIDO: targetCompatibility = JavaVersion.VERSION_1_8
 
     // === ADICIONADO: Configuração de toolchain para Java 8 ===
     // Isso instrui o Gradle a procurar e usar um JDK 8 para compilação e execução,
@@ -34,53 +34,81 @@ java {
 
     sourceSets {
         main {
-            java.srcDirs = [project.file('src/main/java')]
-            resources.srcDirs = [project.file('src/main/resources')]
+            java {
+                srcDirs = ['src/main/java']
+            }
+            resources {
+                srcDirs = ['src/main/resources']
+            }
         }
         test {
-            java.srcDirs = [project.file('src/test/java')]
-            resources.srcDirs = [project.file('src/test/resources')]
+            java {
+                srcDirs = ['src/test/java']
+            }
+            resources {
+                srcDirs = ['src/test/resources']
+            }
         }
     }
 }
 
 // Configuração das dependências do projeto.
 dependencies {
-    // Dependências de compilação e tempo de execução para o projeto principal.
-    implementation 'javax.servlet:javax.servlet-api:4.0.1' // API Servlet para aplicações web
-    implementation 'com.google.code.gson:gson:2.10.1' // Biblioteca Gson para JSON
-    implementation 'org.postgresql:postgresql:42.7.3' // Driver JDBC para PostgreSQL
+    // === DEPENDÊNCIAS DE COMPILAÇÃO E TEMPO DE EXECUÇÃO ===
+    // Dependência para Gson (biblioteca de serialização/desserialização JSON).
+    implementation 'com.google.code.gson:gson:2.10.1' // Versão compatível com Java 8
 
-    // Dependências de teste.
-    // JUnit Jupiter API para escrever testes.
-    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.0'
-    // JUnit Jupiter Engine para executar testes.
-    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.0'
+    // Dependência para HikariCP (pool de conexões JDBC de alta performance).
+    implementation 'com.zaxxer:HikariCP:5.0.1' // Versão compatível com Java 8
 
-    // === CORRIGIDO: Mockito para compatibilidade com Java 8 ===
-    // Mockito para criar mocks em testes unitários.
+    // Dependência para o driver JDBC do PostgreSQL.
+    implementation 'org.postgresql:postgresql:42.7.1' // Versão compatível com Java 8
+
+    // Dependência para SLF4J API (interface de logging).
+    implementation 'org.slf4j:slf4j-api:2.0.12' // Versão compatível com Java 8
+
+    // Dependência para Logback Classic (implementação de logging para SLF4J).
+    implementation 'ch.qos.logback:logback-classic:1.4.14' // Versão compatível com Java 8
+
+    // Dependência para a API de Servlet (para aplicações web).
+    // Usando Jakarta Servlet API 5.0.0, compatível com Java 8 e Jakarta EE 9.
+    // Este escopo indica que a dependência será fornecida pelo servidor de aplicação.
+    providedCompile 'jakarta.servlet:jakarta.servlet-api:5.0.0'
+
+    // === DEPENDÊNCIAS DE TESTE ===
+    // Dependência para JUnit Jupiter API (JUnit 5).
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.1' // Versão compatível com Java 8
+
+    // Dependência para JUnit Jupiter Engine (implementação de tempo de execução para JUnit 5).
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.1' // Versão compatível com Java 8
+
+    // Dependência para Mockito Core (framework de mocking).
     testImplementation 'org.mockito:mockito-core:3.12.4' // Versão compatível com Java 8
-    testImplementation 'org.mockito:mockito-junit-jupiter:3.12.4' // Versão compatível com Java 8
-    // =========================================================
 
-    // === ADICIONADO: Dependência para o H2 Database (banco de dados em memória para testes) ===
-    testImplementation 'com.h2database:h2:2.2.224' // Use a versão mais recente compatível
-    // ========================================================================================
+    // Dependência para Mockito JUnit Jupiter (integração Mockito com JUnit 5).
+    testImplementation 'org.mockito:mockito-junit-jupiter:3.12.4' // Integração Mockito com JUnit 5
+
+    // === ADICIONADO: Dependência para jBCrypt (para PasswordUtilTest) ===
+    // Esta dependência é necessária para o PasswordUtilTest.
+    testImplementation 'org.mindrot:jbcrypt:0.4' // Versão compatível com Java 8
+    // ===================================================================
 }
 
 // Configuração da tarefa de teste.
 test {
-    // Usa a plataforma JUnit para executar os testes.
+    // Usa a plataforma JUnit 5 para executar os testes.
     useJUnitPlatform()
-    // Garante que os testes falhem se houver erros.
-    failFast = true
-    testLogging {
-        events "passed", "skipped", "failed"
-    }
 
-    // Configuração explícita para o relatório HTML dos testes.
+    // Configurações para os relatórios de teste.
     reports {
+        // Habilita a geração de relatórios JUnit XML.
+        junitXml.required = true
+        // Define o diretório de saída para os relatórios JUnit XML.
+        junitXml.outputLocation = file("${buildDir}/reports/tests/test")
+
+        // Habilita a geração de relatórios HTML.
         html.required = true // Garante que o relatório HTML seja gerado.
+        // Define o diretório de saída.
         html.outputLocation = file("${buildDir}/reports/tests/test") // Define o diretório de saída.
     }
 }

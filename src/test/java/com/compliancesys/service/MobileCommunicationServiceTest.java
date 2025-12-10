@@ -1,9 +1,15 @@
 package com.compliancesys.service;
 
+import com.compliancesys.dao.MobileCommunicationDAO;
+import com.compliancesys.exception.BusinessException;
 import com.compliancesys.model.MobileCommunication;
+import com.compliancesys.service.impl.MobileCommunicationServiceImpl;
+import com.compliancesys.util.Validator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
 import java.sql.SQLException;
 import java.time.LocalDateTime;
@@ -13,246 +19,227 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.*;
 
-public class MobileCommunicationServiceTest {
+class MobileCommunicationServiceTest {
 
-    private MobileCommunicationService mobileCommunicationService;
+    @Mock
+    private MobileCommunicationDAO mobileCommunicationDAO;
+
+    @Mock
+    private Validator validator;
+
+    @InjectMocks
+    private MobileCommunicationServiceImpl mobileCommunicationService;
 
     @BeforeEach
     void setUp() {
-        // Inicializa o mock do MobileCommunicationService antes de cada teste
-        mobileCommunicationService = Mockito.mock(MobileCommunicationService.class);
+        MockitoAnnotations.openMocks(this);
+        // Configura o validator para sempre retornar true para validações básicas nos testes
+        when(validator.isValidId(anyInt())).thenReturn(true);
+        when(validator.isValidDateTime(any(LocalDateTime.class))).thenReturn(true);
+        when(validator.isValidLatitude(anyDouble())).thenReturn(true);
+        when(validator.isValidLongitude(anyDouble())).thenReturn(true);
+        when(validator.isValidSignalStrength(anyInt())).thenReturn(true);
+        when(validator.isValidBatteryLevel(anyInt())).thenReturn(true);
     }
 
     @Test
-    void testRegisterMobileCommunicationSuccess() throws SQLException, IllegalArgumentException {
-        MobileCommunication newComm = new MobileCommunication(0, 1, LocalDateTime.now(), "SMS", "Mensagem de teste");
-        when(mobileCommunicationService.registerMobileCommunication(newComm)).thenReturn(1); // Simula o registro retornando um ID
+    void testCreateMobileCommunicationSuccess() throws BusinessException, SQLException {
+        MobileCommunication newComm = new MobileCommunication(
+                1, // driverId
+                1, // recordId
+                LocalDateTime.now(), // timestamp
+                -23.5505, // latitude
+                -46.6333, // longitude
+                LocalDateTime.now(), // sendTimestamp
+                true, // sendSuccess
+                null // errorMessage
+        );
+        int generatedId = 1;
+        MobileCommunication createdComm = new MobileCommunication(
+                generatedId,
+                newComm.getDriverId(),
+                newComm.getRecordId(),
+                newComm.getTimestamp(),
+                newComm.getLatitude(),
+                newComm.getLongitude(),
+                newComm.getSendTimestamp(),
+                newComm.isSendSuccess(),
+                newComm.getErrorMessage(),
+                LocalDateTime.now(),
+                LocalDateTime.now()
+        );
 
-        int id = mobileCommunicationService.registerMobileCommunication(newComm);
+        when(mobileCommunicationDAO.create(any(MobileCommunication.class))).thenReturn(generatedId);
+        when(mobileCommunicationDAO.findById(generatedId)).thenReturn(Optional.of(createdComm));
 
-        assertEquals(1, id);
-        verify(mobileCommunicationService, times(1)).registerMobileCommunication(newComm);
+        MobileCommunication result = mobileCommunicationService.createMobileCommunication(newComm);
+
+        assertNotNull(result);
+        assertEquals(generatedId, result.getId());
+        verify(mobileCommunicationDAO, times(1)).create(any(MobileCommunication.class));
+        verify(mobileCommunicationDAO, times(1)).findById(generatedId);
     }
 
     @Test
-    void testRegisterMobileCommunicationInvalidData() throws SQLException, IllegalArgumentException {
-        MobileCommunication invalidComm = new MobileCommunication(0, 1, LocalDateTime.now(), "", "Mensagem de teste");
-        // Simula a exceção IllegalArgumentException para dados inválidos
-        doThrow(new IllegalArgumentException("Tipo de comunicação não pode ser vazio")).when(mobileCommunicationService).registerMobileCommunication(invalidComm);
+    void testCreateMobileCommunicationInvalidData() {
+        MobileCommunication invalidComm = new MobileCommunication(
+                0, // driverId inválido
+                1,
+                LocalDateTime.now(),
+                -23.5505,
+                -46.6333,
+                LocalDateTime.now(),
+                true,
+                null
+        );
+        when(validator.isValidId(0)).thenReturn(false); // Simula validação falha
 
-        IllegalArgumentException thrown = assertThrows(IllegalArgumentException.class, () -> {
-            mobileCommunicationService.registerMobileCommunication(invalidComm);
+        BusinessException exception = assertThrows(BusinessException.class, () -> {
+            mobileCommunicationService.createMobileCommunication(invalidComm);
         });
-
-        assertEquals("Tipo de comunicação não pode ser vazio", thrown.getMessage());
-        verify(mobileCommunicationService, times(1)).registerMobileCommunication(invalidComm);
+        assertEquals("Dados da comunicação móvel inválidos.", exception.getMessage());
+        verify(mobileCommunicationDAO, never()).create(any(MobileCommunication.class));
     }
 
     @Test
-    void testRegisterMobileCommunicationThrowsSQLException() throws SQLException, IllegalArgumentException {
-        MobileCommunication newComm = new MobileCommunication(0, 1, LocalDateTime.now(), "SMS", "Mensagem de teste");
-        // Simula a exceção SQLException em caso de erro no banco de dados
-        doThrow(new SQLException("Erro de conexão com o banco de dados")).when(mobileCommunicationService).registerMobileCommunication(newComm);
+    void testGetMobileCommunicationByIdFound() throws BusinessException, SQLException {
+        int commId = 1;
+        MobileCommunication expectedComm = new MobileCommunication(
+                commId, 1, 1, LocalDateTime.now(), -23.5505, -46.6333, LocalDateTime.now(), true, null, LocalDateTime.now(), LocalDateTime.now()
+        );
+        when(mobileCommunicationDAO.findById(commId)).thenReturn(Optional.of(expectedComm));
 
-        SQLException thrown = assertThrows(SQLException.class, () -> {
-            mobileCommunicationService.registerMobileCommunication(newComm);
-        });
-
-        assertEquals("Erro de conexão com o banco de dados", thrown.getMessage());
-        verify(mobileCommunicationService, times(1)).registerMobileCommunication(newComm);
-    }
-
-    @Test
-    void testGetMobileCommunicationByIdFound() throws SQLException {
-        MobileCommunication expectedComm = new MobileCommunication(1, 1, LocalDateTime.now(), "SMS", "Mensagem de teste");
-        when(mobileCommunicationService.getMobileCommunicationById(1)).thenReturn(Optional.of(expectedComm));
-
-        Optional<MobileCommunication> result = mobileCommunicationService.getMobileCommunicationById(1);
+        Optional<MobileCommunication> result = mobileCommunicationService.getMobileCommunicationById(commId);
 
         assertTrue(result.isPresent());
         assertEquals(expectedComm, result.get());
-        verify(mobileCommunicationService, times(1)).getMobileCommunicationById(1);
+        verify(mobileCommunicationDAO, times(1)).findById(commId);
     }
 
     @Test
-    void testGetMobileCommunicationByIdNotFound() throws SQLException {
-        when(mobileCommunicationService.getMobileCommunicationById(99)).thenReturn(Optional.empty());
+    void testGetMobileCommunicationByIdNotFound() throws BusinessException, SQLException {
+        int commId = 99;
+        when(mobileCommunicationDAO.findById(commId)).thenReturn(Optional.empty());
 
-        Optional<MobileCommunication> result = mobileCommunicationService.getMobileCommunicationById(99);
+        Optional<MobileCommunication> result = mobileCommunicationService.getMobileCommunicationById(commId);
 
         assertFalse(result.isPresent());
-        verify(mobileCommunicationService, times(1)).getMobileCommunicationById(99);
+        verify(mobileCommunicationDAO, times(1)).findById(commId);
     }
 
     @Test
-    void testGetMobileCommunicationByIdThrowsSQLException() throws SQLException {
-        when(mobileCommunicationService.getMobileCommunicationById(1)).thenThrow(new SQLException("Erro ao buscar comunicação por ID"));
-
-        SQLException thrown = assertThrows(SQLException.class, () -> {
-            mobileCommunicationService.getMobileCommunicationById(1);
-        });
-
-        assertEquals("Erro ao buscar comunicação por ID", thrown.getMessage());
-        verify(mobileCommunicationService, times(1)).getMobileCommunicationById(1);
-    }
-
-    @Test
-    void testGetMobileCommunicationsByRecordId() throws SQLException {
-        MobileCommunication comm1 = new MobileCommunication(1, 10, LocalDateTime.now(), "SMS", "Mensagem 1");
-        MobileCommunication comm2 = new MobileCommunication(2, 10, LocalDateTime.now().plusMinutes(5), "CALL", "Chamada perdida");
-        List<MobileCommunication> expectedList = Arrays.asList(comm1, comm2);
-
-        when(mobileCommunicationService.getMobileCommunicationsByRecordId(10)).thenReturn(expectedList);
-
-        List<MobileCommunication> result = mobileCommunicationService.getMobileCommunicationsByRecordId(10);
-
-        assertNotNull(result);
-        assertEquals(2, result.size());
-        assertEquals(expectedList, result);
-        verify(mobileCommunicationService, times(1)).getMobileCommunicationsByRecordId(10);
-    }
-
-    @Test
-    void testGetMobileCommunicationsByRecordIdNoCommunications() throws SQLException {
-        when(mobileCommunicationService.getMobileCommunicationsByRecordId(99)).thenReturn(Collections.emptyList());
-
-        List<MobileCommunication> result = mobileCommunicationService.getMobileCommunicationsByRecordId(99);
-
-        assertNotNull(result);
-        assertTrue(result.isEmpty());
-        verify(mobileCommunicationService, times(1)).getMobileCommunicationsByRecordId(99);
-    }
-
-    @Test
-    void testGetMobileCommunicationsByRecordIdThrowsSQLException() throws SQLException {
-        when(mobileCommunicationService.getMobileCommunicationsByRecordId(10)).thenThrow(new SQLException("Erro ao buscar comunicações por record ID"));
-
-        SQLException thrown = assertThrows(SQLException.class, () -> {
-            mobileCommunicationService.getMobileCommunicationsByRecordId(10);
-        });
-
-        assertEquals("Erro ao buscar comunicações por record ID", thrown.getMessage());
-        verify(mobileCommunicationService, times(1)).getMobileCommunicationsByRecordId(10);
-    }
-
-    @Test
-    void testGetAllMobileCommunications() throws SQLException {
-        MobileCommunication comm1 = new MobileCommunication(1, 1, LocalDateTime.now(), "SMS", "Mensagem 1");
-        MobileCommunication comm2 = new MobileCommunication(2, 2, LocalDateTime.now().plusHours(1), "CALL", "Chamada 2");
-        List<MobileCommunication> expectedList = Arrays.asList(comm1, comm2);
-
-        when(mobileCommunicationService.getAllMobileCommunications()).thenReturn(expectedList);
+    void testGetAllMobileCommunications() throws BusinessException, SQLException {
+        List<MobileCommunication> expectedComms = Arrays.asList(
+                new MobileCommunication(1, 1, 1, LocalDateTime.now(), -23.5505, -46.6333, LocalDateTime.now(), true, null, LocalDateTime.now(), LocalDateTime.now()),
+                new MobileCommunication(2, 2, 2, LocalDateTime.now(), -23.5505, -46.6333, LocalDateTime.now(), true, null, LocalDateTime.now(), LocalDateTime.now())
+        );
+        when(mobileCommunicationDAO.findAll()).thenReturn(expectedComms);
 
         List<MobileCommunication> result = mobileCommunicationService.getAllMobileCommunications();
 
         assertNotNull(result);
         assertEquals(2, result.size());
-        assertEquals(expectedList, result);
-        verify(mobileCommunicationService, times(1)).getAllMobileCommunications();
+        verify(mobileCommunicationDAO, times(1)).findAll();
     }
 
     @Test
-    void testGetAllMobileCommunicationsEmpty() throws SQLException {
-        when(mobileCommunicationService.getAllMobileCommunications()).thenReturn(Collections.emptyList());
+    void testGetMobileCommunicationsByDriverId() throws BusinessException, SQLException {
+        int driverId = 1;
+        List<MobileCommunication> expectedComms = Arrays.asList(
+                new MobileCommunication(1, driverId, 1, LocalDateTime.now(), -23.5505, -46.6333, LocalDateTime.now(), true, null, LocalDateTime.now(), LocalDateTime.now()),
+                new MobileCommunication(2, driverId, 2, LocalDateTime.now(), -23.5505, -46.6333, LocalDateTime.now(), true, null, LocalDateTime.now(), LocalDateTime.now())
+        );
+        when(mobileCommunicationDAO.findByDriverId(driverId)).thenReturn(expectedComms);
 
-        List<MobileCommunication> result = mobileCommunicationService.getAllMobileCommunications();
+        List<MobileCommunication> result = mobileCommunicationService.getMobileCommunicationsByDriverId(driverId);
 
         assertNotNull(result);
-        assertTrue(result.isEmpty());
-        verify(mobileCommunicationService, times(1)).getAllMobileCommunications();
+        assertEquals(2, result.size());
+        verify(mobileCommunicationDAO, times(1)).findByDriverId(driverId);
     }
 
     @Test
-    void testGetAllMobileCommunicationsThrowsSQLException() throws SQLException {
-        when(mobileCommunicationService.getAllMobileCommunications()).thenThrow(new SQLException("Erro ao listar todas as comunicações"));
+    void testGetMobileCommunicationsByRecordId() throws BusinessException, SQLException {
+        int recordId = 1;
+        List<MobileCommunication> expectedComms = Arrays.asList(
+                new MobileCommunication(1, 1, recordId, LocalDateTime.now(), -23.5505, -46.6333, LocalDateTime.now(), true, null, LocalDateTime.now(), LocalDateTime.now()),
+                new MobileCommunication(2, 2, recordId, LocalDateTime.now(), -23.5505, -46.6333, LocalDateTime.now(), true, null, LocalDateTime.now(), LocalDateTime.now())
+        );
+        when(mobileCommunicationDAO.findByRecordId(recordId)).thenReturn(expectedComms);
 
-        SQLException thrown = assertThrows(SQLException.class, () -> {
-            mobileCommunicationService.getAllMobileCommunications();
-        });
+        List<MobileCommunication> result = mobileCommunicationService.getMobileCommunicationsByRecordId(recordId);
 
-        assertEquals("Erro ao listar todas as comunicações", thrown.getMessage());
-        verify(mobileCommunicationService, times(1)).getAllMobileCommunications();
+        assertNotNull(result);
+        assertEquals(2, result.size());
+        verify(mobileCommunicationDAO, times(1)).findByRecordId(recordId);
     }
 
     @Test
-    void testUpdateMobileCommunicationSuccess() throws SQLException, IllegalArgumentException {
-        MobileCommunication updatedComm = new MobileCommunication(1, 1, LocalDateTime.now(), "EMAIL", "Email atualizado");
-        when(mobileCommunicationService.updateMobileCommunication(updatedComm)).thenReturn(true);
+    void testUpdateMobileCommunicationSuccess() throws BusinessException, SQLException {
+        int commId = 1;
+        MobileCommunication existingComm = new MobileCommunication(
+                commId, 1, 1, LocalDateTime.now(), -23.5505, -46.6333, LocalDateTime.now(), true, null, LocalDateTime.now(), LocalDateTime.now()
+        );
+        MobileCommunication updatedComm = new MobileCommunication(
+                commId, 1, 1, LocalDateTime.now().plusHours(1), -23.6000, -46.7000, LocalDateTime.now().plusHours(1), false, "Erro Teste", LocalDateTime.now(), LocalDateTime.now()
+        );
 
-        boolean result = mobileCommunicationService.updateMobileCommunication(updatedComm);
+        when(mobileCommunicationDAO.findById(commId)).thenReturn(Optional.of(existingComm));
+        when(mobileCommunicationDAO.update(any(MobileCommunication.class))).thenReturn(true);
 
-        assertTrue(result);
-        verify(mobileCommunicationService, times(1)).updateMobileCommunication(updatedComm);
+        MobileCommunication result = mobileCommunicationService.updateMobileCommunication(updatedComm);
+
+        assertNotNull(result);
+        assertEquals(updatedComm.getLatitude(), result.getLatitude());
+        assertEquals(updatedComm.getErrorMessage(), result.getErrorMessage());
+        verify(mobileCommunicationDAO, times(1)).findById(commId);
+        verify(mobileCommunicationDAO, times(1)).update(any(MobileCommunication.class));
     }
 
     @Test
-    void testUpdateMobileCommunicationFailure() throws SQLException, IllegalArgumentException {
-        MobileCommunication nonExistentComm = new MobileCommunication(99, 1, LocalDateTime.now(), "SMS", "Mensagem inexistente");
-        when(mobileCommunicationService.updateMobileCommunication(nonExistentComm)).thenReturn(false);
+    void testUpdateMobileCommunicationNotFound() throws BusinessException, SQLException {
+        int commId = 99;
+        MobileCommunication updatedComm = new MobileCommunication(
+                commId, 1, 1, LocalDateTime.now(), -23.5505, -46.6333, LocalDateTime.now(), true, null, LocalDateTime.now(), LocalDateTime.now()
+        );
 
-        boolean result = mobileCommunicationService.updateMobileCommunication(nonExistentComm);
+        when(mobileCommunicationDAO.findById(commId)).thenReturn(Optional.empty());
 
-        assertFalse(result);
-        verify(mobileCommunicationService, times(1)).updateMobileCommunication(nonExistentComm);
-    }
-
-    @Test
-    void testUpdateMobileCommunicationInvalidData() throws SQLException, IllegalArgumentException {
-        MobileCommunication invalidComm = new MobileCommunication(1, 1, LocalDateTime.now(), "  ", "Mensagem de teste");
-        doThrow(new IllegalArgumentException("Tipo de comunicação não pode ser vazio")).when(mobileCommunicationService).updateMobileCommunication(invalidComm);
-
-        IllegalArgumentException thrown = assertThrows(IllegalArgumentException.class, () -> {
-            mobileCommunicationService.updateMobileCommunication(invalidComm);
-        });
-
-        assertEquals("Tipo de comunicação não pode ser vazio", thrown.getMessage());
-        verify(mobileCommunicationService, times(1)).updateMobileCommunication(invalidComm);
-    }
-
-    @Test
-    void testUpdateMobileCommunicationThrowsSQLException() throws SQLException, IllegalArgumentException {
-        MobileCommunication updatedComm = new MobileCommunication(1, 1, LocalDateTime.now(), "EMAIL", "Email atualizado");
-        doThrow(new SQLException("Erro ao atualizar comunicação")).when(mobileCommunicationService).updateMobileCommunication(updatedComm);
-
-        SQLException thrown = assertThrows(SQLException.class, () -> {
+        BusinessException exception = assertThrows(BusinessException.class, () -> {
             mobileCommunicationService.updateMobileCommunication(updatedComm);
         });
-
-        assertEquals("Erro ao atualizar comunicação", thrown.getMessage());
-        verify(mobileCommunicationService, times(1)).updateMobileCommunication(updatedComm);
+        assertEquals("Comunicação móvel não encontrada para atualização.", exception.getMessage());
+        verify(mobileCommunicationDAO, times(1)).findById(commId);
+        verify(mobileCommunicationDAO, never()).update(any(MobileCommunication.class));
     }
 
     @Test
-    void testDeleteMobileCommunicationSuccess() throws SQLException {
-        when(mobileCommunicationService.deleteMobileCommunication(1)).thenReturn(true);
+    void testDeleteMobileCommunicationSuccess() throws BusinessException, SQLException {
+        int commId = 1;
+        when(mobileCommunicationDAO.findById(commId)).thenReturn(Optional.of(
+                new MobileCommunication(commId, 1, 1, LocalDateTime.now(), -23.5505, -46.6333, LocalDateTime.now(), true, null, LocalDateTime.now(), LocalDateTime.now())
+        )); // Mock para simular que existe
+        when(mobileCommunicationDAO.delete(commId)).thenReturn(true);
 
-        boolean result = mobileCommunicationService.deleteMobileCommunication(1);
+        boolean result = mobileCommunicationService.deleteMobileCommunication(commId);
 
         assertTrue(result);
-        verify(mobileCommunicationService, times(1)).deleteMobileCommunication(1);
+        verify(mobileCommunicationDAO, times(1)).delete(commId);
     }
 
     @Test
-    void testDeleteMobileCommunicationFailure() throws SQLException {
-        when(mobileCommunicationService.deleteMobileCommunication(99)).thenReturn(false);
+    void testDeleteMobileCommunicationNotFound() throws BusinessException, SQLException {
+        int commId = 99;
+        when(mobileCommunicationDAO.findById(commId)).thenReturn(Optional.empty());
 
-        boolean result = mobileCommunicationService.deleteMobileCommunication(99);
-
-        assertFalse(result);
-        verify(mobileCommunicationService, times(1)).deleteMobileCommunication(99);
-    }
-
-    @Test
-    void testDeleteMobileCommunicationThrowsSQLException() throws SQLException {
-        when(mobileCommunicationService.deleteMobileCommunication(1)).thenThrow(new SQLException("Erro ao deletar comunicação"));
-
-        SQLException thrown = assertThrows(SQLException.class, () -> {
-            mobileCommunicationService.deleteMobileCommunication(1);
+        BusinessException exception = assertThrows(BusinessException.class, () -> {
+            mobileCommunicationService.deleteMobileCommunication(commId);
         });
-
-        assertEquals("Erro ao deletar comunicação", thrown.getMessage());
-        verify(mobileCommunicationService, times(1)).deleteMobileCommunication(1);
+        assertEquals("Comunicação móvel não encontrada para exclusão.", exception.getMessage());
+        verify(mobileCommunicationDAO, never()).delete(anyInt());
     }
 }

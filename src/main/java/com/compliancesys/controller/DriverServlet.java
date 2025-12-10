@@ -1,52 +1,46 @@
 package com.compliancesys.controller;
 
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
-import javax.servlet.ServletException;
-import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
 import com.compliancesys.dao.DriverDAO;
 import com.compliancesys.dao.impl.DriverDAOImpl;
 import com.compliancesys.exception.BusinessException;
 import com.compliancesys.model.Driver;
 import com.compliancesys.service.DriverService;
-import com.compliancesys.service.impl.DriverServiceImpl; // Importar para o timestamp do ErrorResponse
+import com.compliancesys.service.impl.DriverServiceImpl;
 import com.compliancesys.util.GsonUtil;
 import com.compliancesys.util.Validator;
-import com.compliancesys.util.impl.GsonUtilImpl; // Importar para o Logger
-import com.compliancesys.util.impl.ValidatorImpl; // Importar para o Logger
+import com.compliancesys.util.impl.GsonUtilImpl;
+import com.compliancesys.util.impl.ValidatorImpl;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.sql.SQLException;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 @WebServlet("/drivers/*")
 public class DriverServlet extends HttpServlet {
 
-    private static final Logger LOGGER = Logger.getLogger(DriverServlet.class.getName()); // Adicionado Logger
-
+    private static final Logger LOGGER = Logger.getLogger(DriverServlet.class.getName());
     private DriverService driverService;
-    private GsonUtil gsonSerializer;
+    private GsonUtil gson;
 
     @Override
     public void init() throws ServletException {
-        super.init(); // Chamar o init da superclasse
-        try {
-            // Assumindo que DriverDAOImpl e ValidatorImpl não lançam exceções checadas no construtor
-            DriverDAO driverDAO = new DriverDAOImpl();
-            Validator validator = new ValidatorImpl();
-            this.driverService = new DriverServiceImpl(driverDAO, validator);
-            this.gsonSerializer = new GsonUtilImpl();
-            LOGGER.log(Level.INFO, "DriverServlet inicializado com sucesso.");
-        } catch (Exception e) { // Captura qualquer exceção durante a inicialização
-            LOGGER.log(Level.SEVERE, "Erro ao inicializar DriverServlet: " + e.getMessage(), e);
-            throw new ServletException("Erro ao inicializar DriverServlet", e);
-        }
+        DriverDAO driverDAO = new DriverDAOImpl();
+        Validator validator = new ValidatorImpl(); // Instanciação da implementação concreta
+        // CORRIGIDO: Construtor de DriverServiceImpl agora recebe DriverDAO e Validator
+        this.driverService = new DriverServiceImpl(driverDAO, validator);
+        this.gson = new GsonUtilImpl();
     }
 
     @Override
@@ -55,70 +49,85 @@ public class DriverServlet extends HttpServlet {
         response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
 
-        String pathInfo = request.getPathInfo();
+        String pathInfo = request.getPathInfo(); // Ex: /1, /cpf/12345678901, /email/test@example.com
         try {
             if (pathInfo == null || pathInfo.equals("/")) {
-                // GET /drivers - Retorna todos os motoristas
-                List<Driver> drivers = driverService.getAllDrivers(); // Método do service pode lançar BusinessException
-                out.print(gsonSerializer.serialize(drivers));
-            } else {
-                // GET /drivers/{id} - Retorna um motorista específico
-                // Ajuste para lidar com pathInfo como "/123" ou "/123/"
-                String idStr = pathInfo.substring(1); // Remove a primeira barra
-                if (idStr.endsWith("/")) {
-                    idStr = idStr.substring(0, idStr.length() - 1); // Remove a barra final se houver
-                }
-                int driverId = Integer.parseInt(idStr); // Pode lançar NumberFormatException
-                Optional<Driver> driver = driverService.getDriverById(driverId); // Método do service pode lançar BusinessException
+                List<Driver> drivers = driverService.getAllDrivers();
+                out.print(gson.serialize(drivers));
+            } else if (pathInfo.startsWith("/cpf/")) {
+                String cpf = pathInfo.substring("/cpf/".length());
+                Optional<Driver> driver = driverService.getDriverByCpf(cpf);
                 if (driver.isPresent()) {
-                    out.print(gsonSerializer.serialize(driver.get()));
+                    out.print(gson.serialize(driver.get()));
                 } else {
-                    response.setStatus(HttpServletResponse.SC_NOT_FOUND); // 404
-                    out.print(gsonSerializer.serialize(new ErrorResponse("Motorista não encontrado com ID: " + driverId)));
+                    response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+                    out.print(gson.serialize(new ErrorResponse("Motorista não encontrado com o CPF: " + cpf)));
+                }
+            } else if (pathInfo.startsWith("/email/")) {
+                String email = pathInfo.substring("/email/".length());
+                Optional<Driver> driver = driverService.getDriverByEmail(email);
+                if (driver.isPresent()) {
+                    out.print(gson.serialize(driver.get()));
+                } else {
+                    response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+                    out.print(gson.serialize(new ErrorResponse("Motorista não encontrado com o email: " + email)));
+                }
+            } else {
+                int id = Integer.parseInt(pathInfo.substring(1)); // Remove a barra inicial
+                Optional<Driver> driver = driverService.getDriverById(id);
+                if (driver.isPresent()) {
+                    out.print(gson.serialize(driver.get()));
+                } else {
+                    response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+                    out.print(gson.serialize(new ErrorResponse("Motorista não encontrado com o ID: " + id)));
                 }
             }
         } catch (NumberFormatException e) {
-            LOGGER.log(Level.WARNING, "ID de motorista inválido no GET: " + pathInfo + " - " + e.getMessage());
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST); // 400
-            out.print(gsonSerializer.serialize(new ErrorResponse("ID de motorista inválido.")));
-        } catch (BusinessException e) { // Captura BusinessException lançada pelo service
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            out.print(gson.serialize(new ErrorResponse("ID ou formato de URL inválido.")));
+            LOGGER.log(Level.WARNING, "Erro de formato de número no GET de motorista: " + e.getMessage(), e);
+        } catch (BusinessException e) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            out.print(gson.serialize(new ErrorResponse(e.getMessage())));
             LOGGER.log(Level.WARNING, "Erro de negócio no GET de motorista: " + e.getMessage(), e);
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST); // 400 ou 422 Unprocessable Entity
-            out.print(gsonSerializer.serialize(new ErrorResponse("Erro: " + e.getMessage())));
-        } catch (Exception e) { // Captura qualquer outra exceção inesperada
-            LOGGER.log(Level.SEVERE, "Erro inesperado no doGet do DriverServlet: " + e.getMessage(), e);
-            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR); // 500
-            out.print(gsonSerializer.serialize(new ErrorResponse("Erro interno do servidor: " + e.getMessage())));
+        } catch (SQLException e) {
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.print(gson.serialize(new ErrorResponse("Erro de banco de dados: " + e.getMessage())));
+            LOGGER.log(Level.SEVERE, "Erro de SQL no GET de motorista: " + e.getMessage(), e);
+        } catch (Exception e) {
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.print(gson.serialize(new ErrorResponse("Erro inesperado no GET de motorista: " + e.getMessage())));
+            LOGGER.log(Level.SEVERE, "Erro inesperado no GET de motorista: " + e.getMessage(), e);
         } finally {
             out.flush();
         }
     }
 
-     @Override
+    @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
 
         try {
-            // Ler o corpo da requisição. request.getReader().readLine() pode não ser o ideal para JSON complexo.
-            // O ideal é usar gsonSerializer.deserialize(request.getReader(), Driver.class);
-            // Mas mantendo sua implementação atual para compatibilidade, apenas ajustando o tratamento de exceção.
-            String requestBody = request.getReader().lines().collect(java.util.stream.Collectors.joining(System.lineSeparator()));
-            Driver driver = gsonSerializer.deserialize(requestBody, Driver.class); // Pode lançar JsonSyntaxException ou BusinessException
-
-            // CORREÇÃO AQUI: Mudando de createDriver para registerDriver
-            Driver registeredDriver = driverService.registerDriver(driver); // Método do service pode lançar BusinessException
-            response.setStatus(HttpServletResponse.SC_CREATED); // 201
-            out.print(gsonSerializer.serialize(registeredDriver));
-        } catch (BusinessException e) { // Captura BusinessException lançada pelo service
+            String jsonBody = request.getReader().lines().collect(Collectors.joining());
+            Driver newDriver = gson.deserialize(jsonBody, Driver.class);
+            // CORRIGIDO: Chamada de método para createDriver
+            Driver createdDriver = driverService.createDriver(newDriver);
+            response.setStatus(HttpServletResponse.SC_CREATED);
+            out.print(gson.serialize(createdDriver));
+        } catch (BusinessException e) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            out.print(gson.serialize(new ErrorResponse(e.getMessage())));
             LOGGER.log(Level.WARNING, "Erro de negócio ao criar motorista: " + e.getMessage(), e);
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST); // 400 ou 422
-            out.print(gsonSerializer.serialize(new ErrorResponse(e.getMessage())));
-        } catch (Exception e) { // Captura JsonSyntaxException ou qualquer outra exceção inesperada
-            LOGGER.log(Level.SEVERE, "Erro inesperado no doPost do DriverServlet: " + e.getMessage(), e);
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST); // 400 para erros de parsing, 500 para outros
-            out.print(gsonSerializer.serialize(new ErrorResponse("Dados inválidos ou erro interno: " + e.getMessage())));
+        } catch (SQLException e) {
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.print(gson.serialize(new ErrorResponse("Erro de banco de dados: " + e.getMessage())));
+            LOGGER.log(Level.SEVERE, "Erro de SQL ao criar motorista: " + e.getMessage(), e);
+        } catch (Exception e) {
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.print(gson.serialize(new ErrorResponse("Erro inesperado ao criar motorista: " + e.getMessage())));
+            LOGGER.log(Level.SEVERE, "Erro inesperado ao criar motorista: " + e.getMessage(), e);
         } finally {
             out.flush();
         }
@@ -133,37 +142,36 @@ public class DriverServlet extends HttpServlet {
         String pathInfo = request.getPathInfo();
         if (pathInfo == null || pathInfo.equals("/")) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse("ID do motorista é obrigatório para atualização.")));
+            out.print(gson.serialize(new ErrorResponse("ID do motorista é obrigatório para atualização.")));
             out.flush();
             return;
         }
 
         try {
-            String idStr = pathInfo.substring(1);
-            if (idStr.endsWith("/")) {
-                idStr = idStr.substring(0, idStr.length() - 1);
-            }
-            int driverId = Integer.parseInt(idStr); // Pode lançar NumberFormatException
+            int id = Integer.parseInt(pathInfo.substring(1));
+            String jsonBody = request.getReader().lines().collect(Collectors.joining());
+            Driver updatedDriver = gson.deserialize(jsonBody, Driver.class);
+            updatedDriver.setId(id);
 
-            String requestBody = request.getReader().lines().collect(java.util.stream.Collectors.joining(System.lineSeparator()));
-            Driver driver = gsonSerializer.deserialize(requestBody, Driver.class); // Pode lançar JsonSyntaxException ou BusinessException
-            driver.setId(driverId); // Garante que o ID do objeto corresponde ao da URL
-
-            Driver updatedDriver = driverService.updateDriver(driver); // Método do service pode lançar BusinessException
-            response.setStatus(HttpServletResponse.SC_OK); // 200
-            out.print(gsonSerializer.serialize(updatedDriver));
+            Driver result = driverService.updateDriver(updatedDriver);
+            response.setStatus(HttpServletResponse.SC_OK);
+            out.print(gson.serialize(result));
         } catch (NumberFormatException e) {
-            LOGGER.log(Level.WARNING, "ID de motorista inválido no PUT: " + pathInfo + " - " + e.getMessage());
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST); // 400
-            out.print(gsonSerializer.serialize(new ErrorResponse("ID inválido.")));
-        } catch (BusinessException e) { // Captura BusinessException lançada pelo service
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            out.print(gson.serialize(new ErrorResponse("ID do motorista inválido.")));
+            LOGGER.log(Level.WARNING, "Erro de formato de número ao atualizar motorista: " + e.getMessage(), e);
+        } catch (BusinessException e) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            out.print(gson.serialize(new ErrorResponse(e.getMessage())));
             LOGGER.log(Level.WARNING, "Erro de negócio ao atualizar motorista: " + e.getMessage(), e);
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST); // 400 ou 422
-            out.print(gsonSerializer.serialize(new ErrorResponse(e.getMessage())));
-        } catch (Exception e) { // Captura JsonSyntaxException ou qualquer outra exceção inesperada
-            LOGGER.log(Level.SEVERE, "Erro inesperado no doPut do DriverServlet: " + e.getMessage(), e);
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST); // 400 para erros de parsing, 500 para outros
-            out.print(gsonSerializer.serialize(new ErrorResponse("Dados inválidos ou erro interno: " + e.getMessage())));
+        } catch (SQLException e) {
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.print(gson.serialize(new ErrorResponse("Erro de banco de dados: " + e.getMessage())));
+            LOGGER.log(Level.SEVERE, "Erro de SQL ao atualizar motorista: " + e.getMessage(), e);
+        } catch (Exception e) {
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.print(gson.serialize(new ErrorResponse("Erro inesperado ao atualizar motorista: " + e.getMessage())));
+            LOGGER.log(Level.SEVERE, "Erro inesperado ao atualizar motorista: " + e.getMessage(), e);
         } finally {
             out.flush();
         }
@@ -178,57 +186,55 @@ public class DriverServlet extends HttpServlet {
         String pathInfo = request.getPathInfo();
         if (pathInfo == null || pathInfo.equals("/")) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse("ID do motorista é obrigatório para exclusão.")));
+            out.print(gson.serialize(new ErrorResponse("ID do motorista é obrigatório para exclusão.")));
             out.flush();
             return;
         }
 
         try {
-            String idStr = pathInfo.substring(1);
-            if (idStr.endsWith("/")) {
-                idStr = idStr.substring(0, idStr.length() - 1);
-            }
-            int driverId = Integer.parseInt(idStr); // Pode lançar NumberFormatException
-
-            if (driverService.deleteDriver(driverId)) { // Método do service pode lançar BusinessException
-                response.setStatus(HttpServletResponse.SC_NO_CONTENT); // 204 No Content
+            int id = Integer.parseInt(pathInfo.substring(1));
+            boolean deleted = driverService.deleteDriver(id);
+            if (deleted) {
+                response.setStatus(HttpServletResponse.SC_NO_CONTENT);
             } else {
-                response.setStatus(HttpServletResponse.SC_NOT_FOUND); // 404
-                out.print(gsonSerializer.serialize(new ErrorResponse("Motorista não encontrado ou não pôde ser excluído com ID: " + driverId)));
+                response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+                out.print(gson.serialize(new ErrorResponse("Motorista não encontrado para exclusão.")));
             }
         } catch (NumberFormatException e) {
-            LOGGER.log(Level.WARNING, "ID de motorista inválido no DELETE: " + pathInfo + " - " + e.getMessage());
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST); // 400
-            out.print(gsonSerializer.serialize(new ErrorResponse("ID inválido.")));
-        } catch (BusinessException e) { // Captura BusinessException lançada pelo service
-            LOGGER.log(Level.WARNING, "Erro de negócio ao excluir motorista: " + e.getMessage(), e);
-            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR); // 500, pois se o service lançou, é um erro interno
-            out.print(gsonSerializer.serialize(new ErrorResponse("Erro: " + e.getMessage())));
-        } catch (Exception e) { // Captura qualquer outra exceção inesperada
-            LOGGER.log(Level.SEVERE, "Erro inesperado no doDelete do DriverServlet: " + e.getMessage(), e);
-            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR); // 500
-            out.print(gsonSerializer.serialize(new ErrorResponse("Erro interno do servidor: " + e.getMessage())));
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            out.print(gson.serialize(new ErrorResponse("ID do motorista inválido.")));
+            LOGGER.log(Level.WARNING, "Erro de formato de número ao deletar motorista: " + e.getMessage(), e);
+        } catch (BusinessException e) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            out.print(gson.serialize(new ErrorResponse(e.getMessage())));
+            LOGGER.log(Level.WARNING, "Erro de negócio ao deletar motorista: " + e.getMessage(), e);
+        } catch (SQLException e) {
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.print(gson.serialize(new ErrorResponse("Erro de banco de dados: " + e.getMessage())));
+            LOGGER.log(Level.SEVERE, "Erro de SQL ao deletar motorista: " + e.getMessage(), e);
+        } catch (Exception e) {
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.print(gson.serialize(new ErrorResponse("Erro inesperado ao deletar motorista: " + e.getMessage())));
+            LOGGER.log(Level.SEVERE, "Erro inesperado ao deletar motorista: " + e.getMessage(), e);
         } finally {
             out.flush();
         }
     }
 
-    // Classe auxiliar para padronizar as respostas de erro JSON
     private static class ErrorResponse {
         private String message;
-        private String timestamp; // Adicionado timestamp
+        private LocalDateTime timestamp;
 
         public ErrorResponse(String message) {
             this.message = message;
-            this.timestamp = LocalDateTime.now().toString(); // Preenche com o tempo atual
+            this.timestamp = LocalDateTime.now();
         }
 
-        // Getters para Gson serializar
         public String getMessage() {
             return message;
         }
 
-        public String getTimestamp() {
+        public LocalDateTime getTimestamp() {
             return timestamp;
         }
     }

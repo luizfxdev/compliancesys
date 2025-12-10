@@ -1,20 +1,29 @@
 package com.compliancesys.service;
 
-import com.compliancesys.model.TimeRecord;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
-
-import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Arrays;
+import java.util.Arrays; // Importar EventType
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.mockito.ArgumentMatchers.any;
+import org.mockito.Mockito;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import com.compliancesys.exception.BusinessException;
+import com.compliancesys.model.TimeRecord;
+import com.compliancesys.model.enums.EventType;
 
 public class TimeRecordServiceTest {
 
@@ -22,131 +31,130 @@ public class TimeRecordServiceTest {
 
     @BeforeEach
     void setUp() {
-        // Inicializa o mock do TimeRecordService antes de cada teste
         timeRecordService = Mockito.mock(TimeRecordService.class);
     }
 
     @Test
-    void testRegisterTimeRecordSuccess() throws SQLException, IllegalArgumentException {
-        TimeRecord newRecord = new TimeRecord(0, 1, LocalDateTime.now(), "IN", "Location A");
-        when(timeRecordService.registerTimeRecord(newRecord)).thenReturn(1); // Simula o registro retornando um ID
+    void testRegisterTimeRecordSuccess() throws BusinessException {
+        TimeRecord newRecord = new TimeRecord(0, 1, 1, 1, LocalDateTime.now(), EventType.IN, "Local A", "Entrada", null, null);
+        TimeRecord expectedRecord = new TimeRecord(1, 1, 1, 1, LocalDateTime.now(), EventType.IN, "Local A", "Entrada", LocalDateTime.now(), LocalDateTime.now());
 
-        int id = timeRecordService.registerTimeRecord(newRecord);
+        when(timeRecordService.registerTimeRecord(any(TimeRecord.class))).thenReturn(expectedRecord);
 
-        assertEquals(1, id);
+        TimeRecord result = timeRecordService.registerTimeRecord(newRecord);
+
+        assertNotNull(result);
+        assertEquals(expectedRecord.getId(), result.getId());
+        assertEquals(expectedRecord.getEventType(), result.getEventType());
         verify(timeRecordService, times(1)).registerTimeRecord(newRecord);
     }
 
     @Test
-    void testRegisterTimeRecordInvalidInput() throws SQLException, IllegalArgumentException {
-        TimeRecord invalidRecord = new TimeRecord(0, 1, null, "IN", "Location A"); // Data/Hora nula
-        // Simula a exceção IllegalArgumentException para dados inválidos
-        doThrow(new IllegalArgumentException("Timestamp não pode ser nulo")).when(timeRecordService).registerTimeRecord(invalidRecord);
+    void testRegisterTimeRecordInvalidDriverId() throws BusinessException {
+        TimeRecord newRecord = new TimeRecord(0, -1, 1, 1, LocalDateTime.now(), EventType.IN, "Local A", "Entrada", null, null);
 
-        IllegalArgumentException thrown = assertThrows(IllegalArgumentException.class, () -> {
-            timeRecordService.registerTimeRecord(invalidRecord);
-        });
+        doThrow(new BusinessException("ID do motorista inválido")).when(timeRecordService).registerTimeRecord(any(TimeRecord.class));
 
-        assertEquals("Timestamp não pode ser nulo", thrown.getMessage());
-        verify(timeRecordService, times(1)).registerTimeRecord(invalidRecord);
-    }
-
-    @Test
-    void testRegisterTimeRecordThrowsSQLException() throws SQLException, IllegalArgumentException {
-        TimeRecord newRecord = new TimeRecord(0, 1, LocalDateTime.now(), "IN", "Location A");
-        // Simula a exceção SQLException em caso de erro no banco de dados
-        doThrow(new SQLException("Erro de conexão com o banco de dados")).when(timeRecordService).registerTimeRecord(newRecord);
-
-        // AQUI ESTAVA O ERRO! A linha abaixo foi corrigida.
-        SQLException thrown = assertThrows(SQLException.class, () -> {
+        BusinessException thrown = assertThrows(BusinessException.class, () -> {
             timeRecordService.registerTimeRecord(newRecord);
         });
 
-        assertEquals("Erro de conexão com o banco de dados", thrown.getMessage());
+        assertEquals("ID do motorista inválido", thrown.getMessage());
         verify(timeRecordService, times(1)).registerTimeRecord(newRecord);
     }
 
-    // --- Métodos de teste para findById ---
     @Test
-    void testFindByIdSuccess() throws SQLException {
-        TimeRecord expectedRecord = new TimeRecord(1, 1, LocalDateTime.now(), "IN", "Location A");
-        when(timeRecordService.findById(1)).thenReturn(Optional.of(expectedRecord));
+    void testGetTimeRecordByIdFound() throws BusinessException {
+        int recordId = 1;
+        TimeRecord expectedRecord = new TimeRecord(recordId, 1, 1, 1, LocalDateTime.now(), EventType.IN, "Local A", "Entrada", LocalDateTime.now(), LocalDateTime.now());
 
-        Optional<TimeRecord> foundRecord = timeRecordService.findById(1);
+        // Corrigido: Usar getTimeRecordById
+        when(timeRecordService.getTimeRecordById(recordId)).thenReturn(Optional.of(expectedRecord));
 
-        assertTrue(foundRecord.isPresent());
-        assertEquals(expectedRecord, foundRecord.get());
-        verify(timeRecordService, times(1)).findById(1);
+        // Corrigido: Usar getTimeRecordById
+        Optional<TimeRecord> result = timeRecordService.getTimeRecordById(recordId);
+
+        assertTrue(result.isPresent());
+        assertEquals(expectedRecord, result.get());
+        // Corrigido: Usar getTimeRecordById
+        verify(timeRecordService, times(1)).getTimeRecordById(recordId);
     }
 
     @Test
-    void testFindByIdNotFound() throws SQLException {
-        when(timeRecordService.findById(99)).thenReturn(Optional.empty());
+    void testGetTimeRecordByIdNotFound() throws BusinessException {
+        int recordId = 99;
+        // Corrigido: Usar getTimeRecordById
+        when(timeRecordService.getTimeRecordById(recordId)).thenReturn(Optional.empty());
 
-        Optional<TimeRecord> foundRecord = timeRecordService.findById(99);
+        // Corrigido: Usar getTimeRecordById
+        Optional<TimeRecord> result = timeRecordService.getTimeRecordById(recordId);
 
-        assertFalse(foundRecord.isPresent());
-        verify(timeRecordService, times(1)).findById(99);
+        assertFalse(result.isPresent());
+        // Corrigido: Usar getTimeRecordById
+        verify(timeRecordService, times(1)).getTimeRecordById(recordId);
     }
 
     @Test
-    void testFindByIdThrowsSQLException() throws SQLException {
-        doThrow(new SQLException("Erro de banco de dados")).when(timeRecordService).findById(1);
+    void testGetTimeRecordByIdThrowsBusinessException() throws BusinessException {
+        int recordId = 1;
+        // Corrigido: Usar getTimeRecordById
+        doThrow(new BusinessException("Erro de banco de dados")).when(timeRecordService).getTimeRecordById(recordId);
 
-        SQLException thrown = assertThrows(SQLException.class, () -> {
-            timeRecordService.findById(1);
+        BusinessException thrown = assertThrows(BusinessException.class, () -> {
+            // Corrigido: Usar getTimeRecordById
+            timeRecordService.getTimeRecordById(recordId);
         });
 
         assertEquals("Erro de banco de dados", thrown.getMessage());
-        verify(timeRecordService, times(1)).findById(1);
-    }
-
-    // --- Métodos de teste para findByDriverId ---
-    @Test
-    void testFindByDriverIdSuccess() throws SQLException {
-        List<TimeRecord> expectedRecords = Arrays.asList(
-                new TimeRecord(1, 1, LocalDateTime.now(), "IN", "Loc A"),
-                new TimeRecord(2, 1, LocalDateTime.now().plusHours(1), "OUT", "Loc B")
-        );
-        when(timeRecordService.findByDriverId(1)).thenReturn(expectedRecords);
-
-        List<TimeRecord> foundRecords = timeRecordService.findByDriverId(1);
-
-        assertNotNull(foundRecords);
-        assertFalse(foundRecords.isEmpty());
-        assertEquals(2, foundRecords.size());
-        assertEquals(expectedRecords, foundRecords);
-        verify(timeRecordService, times(1)).findByDriverId(1);
+        // Corrigido: Usar getTimeRecordById
+        verify(timeRecordService, times(1)).getTimeRecordById(recordId);
     }
 
     @Test
-    void testFindByDriverIdNotFound() throws SQLException {
-        when(timeRecordService.findByDriverId(99)).thenReturn(Collections.emptyList());
+    void testGetAllTimeRecords() throws BusinessException {
+        TimeRecord record1 = new TimeRecord(1, 1, 1, 1, LocalDateTime.now(), EventType.IN, "Local A", "Entrada", LocalDateTime.now(), LocalDateTime.now());
+        TimeRecord record2 = new TimeRecord(2, 1, 1, 1, LocalDateTime.now().plusHours(1), EventType.OUT, "Local B", "Saída", LocalDateTime.now(), LocalDateTime.now());
+        List<TimeRecord> expectedRecords = Arrays.asList(record1, record2);
 
-        List<TimeRecord> foundRecords = timeRecordService.findByDriverId(99);
+        when(timeRecordService.getAllTimeRecords()).thenReturn(expectedRecords);
 
-        assertNotNull(foundRecords);
-        assertTrue(foundRecords.isEmpty());
-        verify(timeRecordService, times(1)).findByDriverId(99);
+        List<TimeRecord> result = timeRecordService.getAllTimeRecords();
+
+        assertNotNull(result);
+        assertEquals(2, result.size());
+        assertEquals(expectedRecords, result);
+        verify(timeRecordService, times(1)).getAllTimeRecords();
     }
 
     @Test
-    void testFindByDriverIdThrowsSQLException() throws SQLException {
-        doThrow(new SQLException("Erro de banco de dados")).when(timeRecordService).findByDriverId(1);
+    void testGetAllTimeRecordsEmpty() throws BusinessException {
+        when(timeRecordService.getAllTimeRecords()).thenReturn(Collections.emptyList());
 
-        SQLException thrown = assertThrows(SQLException.class, () -> {
-            timeRecordService.findByDriverId(1);
+        List<TimeRecord> result = timeRecordService.getAllTimeRecords();
+
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+        verify(timeRecordService, times(1)).getAllTimeRecords();
+    }
+
+    @Test
+    void testGetAllTimeRecordsThrowsBusinessException() throws BusinessException {
+        doThrow(new BusinessException("Erro de banco de dados")).when(timeRecordService).getAllTimeRecords();
+
+        BusinessException thrown = assertThrows(BusinessException.class, () -> {
+            timeRecordService.getAllTimeRecords();
         });
 
         assertEquals("Erro de banco de dados", thrown.getMessage());
-        verify(timeRecordService, times(1)).findByDriverId(1);
+        verify(timeRecordService, times(1)).getAllTimeRecords();
     }
 
-    // --- Métodos de teste para updateTimeRecord ---
     @Test
-    void testUpdateTimeRecordSuccess() throws SQLException, IllegalArgumentException {
-        TimeRecord updatedRecord = new TimeRecord(1, 1, LocalDateTime.now(), "OUT", "Location C");
-        when(timeRecordService.updateTimeRecord(updatedRecord)).thenReturn(true);
+    void testUpdateTimeRecordSuccess() throws BusinessException {
+        TimeRecord existingRecord = new TimeRecord(1, 1, 1, 1, LocalDateTime.now(), EventType.IN, "Local A", "Entrada", LocalDateTime.now(), LocalDateTime.now());
+        TimeRecord updatedRecord = new TimeRecord(1, 1, 1, 1, LocalDateTime.now().plusMinutes(30), EventType.IN, "Local A", "Entrada Atualizada", LocalDateTime.now(), LocalDateTime.now());
+
+        when(timeRecordService.updateTimeRecord(any(TimeRecord.class))).thenReturn(true);
 
         boolean result = timeRecordService.updateTimeRecord(updatedRecord);
 
@@ -155,9 +163,10 @@ public class TimeRecordServiceTest {
     }
 
     @Test
-    void testUpdateTimeRecordNotFound() throws SQLException, IllegalArgumentException {
-        TimeRecord nonExistentRecord = new TimeRecord(99, 1, LocalDateTime.now(), "OUT", "Location D");
-        when(timeRecordService.updateTimeRecord(nonExistentRecord)).thenReturn(false);
+    void testUpdateTimeRecordNotFound() throws BusinessException {
+        TimeRecord nonExistentRecord = new TimeRecord(99, 1, 1, 1, LocalDateTime.now(), EventType.IN, "Local X", "Notas", null, null);
+
+        when(timeRecordService.updateTimeRecord(any(TimeRecord.class))).thenReturn(false);
 
         boolean result = timeRecordService.updateTimeRecord(nonExistentRecord);
 
@@ -166,24 +175,12 @@ public class TimeRecordServiceTest {
     }
 
     @Test
-    void testUpdateTimeRecordInvalidInput() throws SQLException, IllegalArgumentException {
-        TimeRecord invalidRecord = new TimeRecord(1, 1, null, "OUT", "Location E");
-        doThrow(new IllegalArgumentException("Timestamp não pode ser nulo")).when(timeRecordService).updateTimeRecord(invalidRecord);
+    void testUpdateTimeRecordThrowsBusinessException() throws BusinessException {
+        TimeRecord recordToUpdate = new TimeRecord(1, 1, 1, 1, LocalDateTime.now(), EventType.IN, "Local A", "Entrada", null, null);
 
-        IllegalArgumentException thrown = assertThrows(IllegalArgumentException.class, () -> {
-            timeRecordService.updateTimeRecord(invalidRecord);
-        });
+        doThrow(new BusinessException("Erro de banco de dados")).when(timeRecordService).updateTimeRecord(any(TimeRecord.class));
 
-        assertEquals("Timestamp não pode ser nulo", thrown.getMessage());
-        verify(timeRecordService, times(1)).updateTimeRecord(invalidRecord);
-    }
-
-    @Test
-    void testUpdateTimeRecordThrowsSQLException() throws SQLException, IllegalArgumentException {
-        TimeRecord recordToUpdate = new TimeRecord(1, 1, LocalDateTime.now(), "OUT", "Location F");
-        doThrow(new SQLException("Erro de banco de dados")).when(timeRecordService).updateTimeRecord(recordToUpdate);
-
-        SQLException thrown = assertThrows(SQLException.class, () -> {
+        BusinessException thrown = assertThrows(BusinessException.class, () -> {
             timeRecordService.updateTimeRecord(recordToUpdate);
         });
 
@@ -191,36 +188,140 @@ public class TimeRecordServiceTest {
         verify(timeRecordService, times(1)).updateTimeRecord(recordToUpdate);
     }
 
-    // --- Métodos de teste para deleteTimeRecord ---
     @Test
-    void testDeleteTimeRecordSuccess() throws SQLException {
-        when(timeRecordService.deleteTimeRecord(1)).thenReturn(true);
+    void testDeleteTimeRecordSuccess() throws BusinessException {
+        int recordId = 1;
+        when(timeRecordService.deleteTimeRecord(recordId)).thenReturn(true);
 
-        boolean result = timeRecordService.deleteTimeRecord(1);
+        boolean deleted = timeRecordService.deleteTimeRecord(recordId);
 
-        assertTrue(result);
-        verify(timeRecordService, times(1)).deleteTimeRecord(1);
+        assertTrue(deleted);
+        verify(timeRecordService, times(1)).deleteTimeRecord(recordId);
     }
 
     @Test
-    void testDeleteTimeRecordNotFound() throws SQLException {
-        when(timeRecordService.deleteTimeRecord(99)).thenReturn(false);
+    void testDeleteTimeRecordNotFound() throws BusinessException {
+        int recordId = 99;
+        when(timeRecordService.deleteTimeRecord(recordId)).thenReturn(false);
 
-        boolean result = timeRecordService.deleteTimeRecord(99);
+        boolean deleted = timeRecordService.deleteTimeRecord(recordId);
 
-        assertFalse(result);
-        verify(timeRecordService, times(1)).deleteTimeRecord(99);
+        assertFalse(deleted);
+        verify(timeRecordService, times(1)).deleteTimeRecord(recordId);
     }
 
     @Test
-    void testDeleteTimeRecordThrowsSQLException() throws SQLException {
-        doThrow(new SQLException("Erro de banco de dados")).when(timeRecordService).deleteTimeRecord(1);
+    void testDeleteTimeRecordThrowsBusinessException() throws BusinessException {
+        int recordId = 1;
+        doThrow(new BusinessException("Erro de banco de dados")).when(timeRecordService).deleteTimeRecord(recordId);
 
-        SQLException thrown = assertThrows(SQLException.class, () -> {
-            timeRecordService.deleteTimeRecord(1);
+        BusinessException thrown = assertThrows(BusinessException.class, () -> {
+            timeRecordService.deleteTimeRecord(recordId);
         });
 
         assertEquals("Erro de banco de dados", thrown.getMessage());
-        verify(timeRecordService, times(1)).deleteTimeRecord(1);
+        verify(timeRecordService, times(1)).deleteTimeRecord(recordId);
+    }
+
+    @Test
+    void testGetTimeRecordsByDriverId() throws BusinessException {
+        int driverId = 1;
+        // Corrigido: Usar o construtor correto de TimeRecord e EventType enum
+        List<TimeRecord> expectedRecords = Arrays.asList(
+                new TimeRecord(1, driverId, 1, 1, LocalDateTime.now(), EventType.IN, "Loc A", "Notas", null, null),
+                new TimeRecord(2, driverId, 1, 1, LocalDateTime.now().plusHours(1), EventType.OUT, "Loc B", "Notas", null, null)
+        );
+
+        // Corrigido: Usar getTimeRecordsByDriverId
+        when(timeRecordService.getTimeRecordsByDriverId(driverId)).thenReturn(expectedRecords);
+
+        // Corrigido: Usar getTimeRecordsByDriverId
+        List<TimeRecord> foundRecords = timeRecordService.getTimeRecordsByDriverId(driverId);
+
+        assertNotNull(foundRecords);
+        assertEquals(2, foundRecords.size());
+        assertEquals(expectedRecords, foundRecords);
+        // Corrigido: Usar getTimeRecordsByDriverId
+        verify(timeRecordService, times(1)).getTimeRecordsByDriverId(driverId);
+    }
+
+    @Test
+    void testGetTimeRecordsByDriverIdEmpty() throws BusinessException {
+        int driverId = 99;
+        // Corrigido: Usar getTimeRecordsByDriverId
+        when(timeRecordService.getTimeRecordsByDriverId(driverId)).thenReturn(Collections.emptyList());
+
+        // Corrigido: Usar getTimeRecordsByDriverId
+        List<TimeRecord> foundRecords = timeRecordService.getTimeRecordsByDriverId(driverId);
+
+        assertNotNull(foundRecords);
+        assertTrue(foundRecords.isEmpty());
+        // Corrigido: Usar getTimeRecordsByDriverId
+        verify(timeRecordService, times(1)).getTimeRecordsByDriverId(driverId);
+    }
+
+    @Test
+    void testGetTimeRecordsByDriverIdThrowsBusinessException() throws BusinessException {
+        int driverId = 1;
+        // Corrigido: Usar getTimeRecordsByDriverId
+        doThrow(new BusinessException("Erro de banco de dados")).when(timeRecordService).getTimeRecordsByDriverId(driverId);
+
+        BusinessException thrown = assertThrows(BusinessException.class, () -> {
+            // Corrigido: Usar getTimeRecordsByDriverId
+            timeRecordService.getTimeRecordsByDriverId(driverId);
+        });
+
+        assertEquals("Erro de banco de dados", thrown.getMessage());
+        // Corrigido: Usar getTimeRecordsByDriverId
+        verify(timeRecordService, times(1)).getTimeRecordsByDriverId(driverId);
+    }
+
+    @Test
+    void testGetTimeRecordsByDriverIdAndDate() throws BusinessException {
+        int driverId = 1;
+        LocalDate date = LocalDate.now();
+        // Corrigido: Usar o construtor correto de TimeRecord e EventType enum
+        List<TimeRecord> expectedRecords = Arrays.asList(
+                new TimeRecord(1, driverId, 1, 1, LocalDateTime.now(), EventType.IN, "Loc A", "Notas", null, null),
+                new TimeRecord(2, driverId, 1, 1, LocalDateTime.now().plusHours(1), EventType.OUT, "Loc B", "Notas", null, null)
+        );
+
+        when(timeRecordService.getTimeRecordsByDriverIdAndDate(driverId, date)).thenReturn(expectedRecords);
+
+        List<TimeRecord> foundRecords = timeRecordService.getTimeRecordsByDriverIdAndDate(driverId, date);
+
+        assertNotNull(foundRecords);
+        assertEquals(2, foundRecords.size());
+        assertEquals(expectedRecords, foundRecords);
+        verify(timeRecordService, times(1)).getTimeRecordsByDriverIdAndDate(driverId, date);
+    }
+
+    @Test
+    void testGetTimeRecordsByDriverIdAndDateEmpty() throws BusinessException {
+        int driverId = 99;
+        LocalDate date = LocalDate.now();
+
+        when(timeRecordService.getTimeRecordsByDriverIdAndDate(driverId, date)).thenReturn(Collections.emptyList());
+
+        List<TimeRecord> foundRecords = timeRecordService.getTimeRecordsByDriverIdAndDate(driverId, date);
+
+        assertNotNull(foundRecords);
+        assertTrue(foundRecords.isEmpty());
+        verify(timeRecordService, times(1)).getTimeRecordsByDriverIdAndDate(driverId, date);
+    }
+
+    @Test
+    void testGetTimeRecordsByDriverIdAndDateThrowsBusinessException() throws BusinessException {
+        int driverId = 1;
+        LocalDate date = LocalDate.now();
+
+        doThrow(new BusinessException("Erro de banco de dados")).when(timeRecordService).getTimeRecordsByDriverIdAndDate(driverId, date);
+
+        BusinessException thrown = assertThrows(BusinessException.class, () -> {
+            timeRecordService.getTimeRecordsByDriverIdAndDate(driverId, date);
+        });
+
+        assertEquals("Erro de banco de dados", thrown.getMessage());
+        verify(timeRecordService, times(1)).getTimeRecordsByDriverIdAndDate(driverId, date);
     }
 }

@@ -2,13 +2,34 @@ package com.compliancesys.util;
 
 import java.time.Duration;
 import java.time.LocalDate;
-import java.time.LocalDateTime; // ADICIONADO
-import java.time.LocalTime;      // ADICIONADO
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 /**
  * Interface para validação de dados de entrada em várias entidades do sistema.
  */
 public interface Validator {
+
+    /**
+     * Valida um ID genérico.
+     * @param id O ID a ser validado.
+     * @return true se o ID é válido (maior que zero), false caso contrário.
+     */
+    boolean isValidId(int id);
+
+    /**
+     * Valida um ID de motorista.
+     * @param driverId O ID do motorista a ser validado.
+     * @return true se o ID do motorista é válido (maior que zero), false caso contrário.
+     */
+    boolean isValidDriverId(int driverId);
+
+    /**
+     * Valida um ID de empresa.
+     * @param companyId O ID da empresa a ser validado.
+     * @return true se o ID da empresa é válido (maior que zero), false caso contrário.
+     */
+    boolean isValidCompanyId(int companyId);
 
     /**
      * Valida um nome.
@@ -92,7 +113,7 @@ public interface Validator {
      * @param dateTime O LocalDateTime a ser validado.
      * @return true se o LocalDateTime é válido, false caso contrário.
      */
-    boolean isValidDateTime(LocalDateTime dateTime); // ADICIONADO
+    boolean isValidDateTime(LocalDateTime dateTime);
 
     /**
      * Valida se um período de tempo está dentro de um limite máximo.
@@ -100,7 +121,7 @@ public interface Validator {
      * @param maxDuration O limite máximo permitido.
      * @return true se a duração é menor ou igual ao limite máximo, false caso contrário.
      */
-    boolean isWithinMaxDuration(Duration duration, Duration maxDuration); // ADICIONADO
+    boolean isWithinMaxDuration(Duration duration, Duration maxDuration);
 
     /**
      * Valida se um período de tempo está acima de um limite mínimo.
@@ -108,5 +129,5 @@ public interface Validator {
      * @param minDuration O limite mínimo permitido.
      * @return true se a duração é maior ou igual ao limite mínimo, false caso contrário.
      */
-    boolean isAboveMinDuration(Duration duration, Duration minDuration); // ADICIONADO
+    boolean isAboveMinDuration(Duration duration, Duration minDuration);
 }

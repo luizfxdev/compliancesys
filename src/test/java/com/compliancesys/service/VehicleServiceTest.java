@@ -1,291 +1,185 @@
 package com.compliancesys.service;
 
+import com.compliancesys.dao.VehicleDAO;
+import com.compliancesys.exception.BusinessException;
 import com.compliancesys.model.Vehicle;
+import com.compliancesys.service.impl.VehicleServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
 import java.sql.SQLException;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-public class VehicleServiceTest {
+class VehicleServiceTest {
 
-    private VehicleService vehicleService;
+    @Mock
+    private VehicleDAO vehicleDAO;
+
+    @InjectMocks
+    private VehicleServiceImpl vehicleService;
 
     @BeforeEach
     void setUp() {
-        // Inicializa o mock do VehicleService antes de cada teste
-        vehicleService = Mockito.mock(VehicleService.class);
+        MockitoAnnotations.openMocks(this);
     }
 
     @Test
-    void testRegisterVehicleSuccess() throws SQLException, IllegalArgumentException {
-        Vehicle newVehicle = new Vehicle(0, "ABC1234", "Truck", "Model X", 1, true);
-        when(vehicleService.registerVehicle(newVehicle)).thenReturn(1); // Simula o registro retornando um ID
+    void testRegisterVehicleSuccess() throws BusinessException, SQLException {
+        // Usando o construtor de inserção (sem ID, createdAt, updatedAt)
+        Vehicle newVehicle = new Vehicle("ABC1234", "MarcaX", "ModeloY", 2020, 1);
+        Vehicle expectedVehicle = new Vehicle(1, "ABC1234", "MarcaX", "ModeloY", 2020, 1, LocalDateTime.now(), LocalDateTime.now());
 
-        int id = vehicleService.registerVehicle(newVehicle);
+        when(vehicleDAO.findByPlate(newVehicle.getPlate())).thenReturn(Optional.empty());
+        when(vehicleDAO.create(any(Vehicle.class))).thenReturn(1); // DAO retorna o ID
+        when(vehicleDAO.findById(1)).thenReturn(Optional.of(expectedVehicle)); // Para simular o retorno do service
 
-        assertEquals(1, id);
-        verify(vehicleService, times(1)).registerVehicle(newVehicle);
+        Vehicle registeredVehicle = vehicleService.registerVehicle(newVehicle);
+
+        assertNotNull(registeredVehicle);
+        assertEquals(1, registeredVehicle.getId());
+        assertEquals("ABC1234", registeredVehicle.getPlate());
+        verify(vehicleDAO, times(1)).create(any(Vehicle.class));
     }
 
     @Test
-    void testRegisterVehicleInvalidData() throws SQLException, IllegalArgumentException {
-        Vehicle invalidVehicle = new Vehicle(0, "", "Truck", "Model X", 1, true); // Placa vazia
-        // Simula a exceção IllegalArgumentException para dados inválidos
-        doThrow(new IllegalArgumentException("Placa do veículo não pode ser vazia")).when(vehicleService).registerVehicle(invalidVehicle);
+    void testRegisterVehicleInvalidPlate() throws SQLException {
+        Vehicle newVehicle = new Vehicle("INVALID", "MarcaX", "ModeloY", 2020, 1);
 
-        IllegalArgumentException thrown = assertThrows(IllegalArgumentException.class, () -> {
-            vehicleService.registerVehicle(invalidVehicle);
-        });
-
-        assertEquals("Placa do veículo não pode ser vazia", thrown.getMessage());
-        verify(vehicleService, times(1)).registerVehicle(invalidVehicle);
-    }
-
-    @Test
-    void testRegisterVehicleThrowsSQLException() throws SQLException, IllegalArgumentException {
-        Vehicle newVehicle = new Vehicle(0, "ABC1234", "Truck", "Model X", 1, true);
-        // Simula a exceção SQLException em caso de erro no banco de dados
-        doThrow(new SQLException("Erro de conexão com o banco de dados")).when(vehicleService).registerVehicle(newVehicle);
-
-        SQLException thrown = assertThrows(SQLException.class, () -> {
+        BusinessException exception = assertThrows(BusinessException.class, () -> {
             vehicleService.registerVehicle(newVehicle);
         });
-
-        assertEquals("Erro de conexão com o banco de dados", thrown.getMessage());
-        verify(vehicleService, times(1)).registerVehicle(newVehicle);
+        assertEquals("Placa inválida.", exception.getMessage());
+        verify(vehicleDAO, never()).create(any(Vehicle.class));
     }
 
     @Test
-    void testGetVehicleByIdFound() throws SQLException {
-        Vehicle expectedVehicle = new Vehicle(1, "ABC1234", "Truck", "Model X", 1, true);
-        when(vehicleService.getVehicleById(1)).thenReturn(Optional.of(expectedVehicle));
+    void testRegisterVehiclePlateAlreadyExists() throws SQLException {
+        Vehicle existingVehicle = new Vehicle(1, "ABC1234", "MarcaX", "ModeloY", 2020, 1);
+        Vehicle newVehicle = new Vehicle("ABC1234", "MarcaZ", "ModeloW", 2021, 1);
 
-        Optional<Vehicle> result = vehicleService.getVehicleById(1);
+        when(vehicleDAO.findByPlate(newVehicle.getPlate())).thenReturn(Optional.of(existingVehicle));
 
-        assertTrue(result.isPresent());
-        assertEquals(expectedVehicle, result.get());
-        verify(vehicleService, times(1)).getVehicleById(1);
-    }
-
-    @Test
-    void testGetVehicleByIdNotFound() throws SQLException {
-        when(vehicleService.getVehicleById(99)).thenReturn(Optional.empty());
-
-        Optional<Vehicle> result = vehicleService.getVehicleById(99);
-
-        assertFalse(result.isPresent());
-        verify(vehicleService, times(1)).getVehicleById(99);
-    }
-
-    @Test
-    void testGetVehicleByIdThrowsSQLException() throws SQLException {
-        when(vehicleService.getVehicleById(1)).thenThrow(new SQLException("Erro ao buscar veículo por ID"));
-
-        SQLException thrown = assertThrows(SQLException.class, () -> {
-            vehicleService.getVehicleById(1);
+        BusinessException exception = assertThrows(BusinessException.class, () -> {
+            vehicleService.registerVehicle(newVehicle);
         });
-
-        assertEquals("Erro ao buscar veículo por ID", thrown.getMessage());
-        verify(vehicleService, times(1)).getVehicleById(1);
+        assertEquals("Já existe um veículo cadastrado com esta placa.", exception.getMessage());
+        verify(vehicleDAO, never()).create(any(Vehicle.class));
     }
 
     @Test
-    void testGetVehicleByPlateFound() throws SQLException {
-        Vehicle expectedVehicle = new Vehicle(1, "ABC1234", "Truck", "Model X", 1, true);
-        when(vehicleService.getVehicleByPlate("ABC1234")).thenReturn(Optional.of(expectedVehicle));
+    void testGetVehicleByIdSuccess() throws BusinessException, SQLException {
+        int vehicleId = 1;
+        Vehicle expectedVehicle = new Vehicle(vehicleId, "ABC1234", "MarcaX", "ModeloY", 2020, 1, LocalDateTime.now(), LocalDateTime.now());
 
-        Optional<Vehicle> result = vehicleService.getVehicleByPlate("ABC1234");
+        when(vehicleDAO.findById(vehicleId)).thenReturn(Optional.of(expectedVehicle));
 
-        assertTrue(result.isPresent());
-        assertEquals(expectedVehicle, result.get());
-        verify(vehicleService, times(1)).getVehicleByPlate("ABC1234");
+        Optional<Vehicle> actualVehicle = vehicleService.getVehicleById(vehicleId);
+
+        assertTrue(actualVehicle.isPresent());
+        assertEquals(expectedVehicle, actualVehicle.get());
+        verify(vehicleDAO, times(1)).findById(vehicleId);
     }
 
     @Test
-    void testGetVehicleByPlateNotFound() throws SQLException {
-        when(vehicleService.getVehicleByPlate("XYZ7890")).thenReturn(Optional.empty());
+    void testGetVehicleByIdNotFound() throws BusinessException, SQLException {
+        int vehicleId = 99;
+        when(vehicleDAO.findById(vehicleId)).thenReturn(Optional.empty());
 
-        Optional<Vehicle> result = vehicleService.getVehicleByPlate("XYZ7890");
+        Optional<Vehicle> actualVehicle = vehicleService.getVehicleById(vehicleId);
 
-        assertFalse(result.isPresent());
-        verify(vehicleService, times(1)).getVehicleByPlate("XYZ7890");
+        assertFalse(actualVehicle.isPresent());
+        verify(vehicleDAO, times(1)).findById(vehicleId);
     }
 
     @Test
-    void testGetVehicleByPlateThrowsSQLException() throws SQLException {
-        when(vehicleService.getVehicleByPlate("ABC1234")).thenThrow(new SQLException("Erro ao buscar veículo por placa"));
+    void testGetAllVehiclesSuccess() throws BusinessException, SQLException {
+        List<Vehicle> expectedVehicles = Arrays.asList(
+                new Vehicle(1, "ABC1234", "MarcaX", "ModeloY", 2020, 1, LocalDateTime.now(), LocalDateTime.now()),
+                new Vehicle(2, "DEF5678", "MarcaA", "ModeloB", 2021, 1, LocalDateTime.now(), LocalDateTime.now())
+        );
+        when(vehicleDAO.findAll()).thenReturn(expectedVehicles);
 
-        SQLException thrown = assertThrows(SQLException.class, () -> {
-            vehicleService.getVehicleByPlate("ABC1234");
-        });
+        List<Vehicle> actualVehicles = vehicleService.getAllVehicles();
 
-        assertEquals("Erro ao buscar veículo por placa", thrown.getMessage());
-        verify(vehicleService, times(1)).getVehicleByPlate("ABC1234");
+        assertNotNull(actualVehicles);
+        assertEquals(2, actualVehicles.size());
+        assertEquals(expectedVehicles, actualVehicles);
+        verify(vehicleDAO, times(1)).findAll();
     }
 
     @Test
-    void testGetAllVehicles() throws SQLException {
-        Vehicle vehicle1 = new Vehicle(1, "ABC1234", "Truck", "Model X", 1, true);
-        Vehicle vehicle2 = new Vehicle(2, "DEF5678", "Car", "Model Y", 2, false);
-        List<Vehicle> expectedList = Arrays.asList(vehicle1, vehicle2);
+    void testGetAllVehiclesEmpty() throws BusinessException, SQLException {
+        when(vehicleDAO.findAll()).thenReturn(Collections.emptyList());
 
-        when(vehicleService.getAllVehicles()).thenReturn(expectedList);
+        List<Vehicle> actualVehicles = vehicleService.getAllVehicles();
 
-        List<Vehicle> result = vehicleService.getAllVehicles();
-
-        assertNotNull(result);
-        assertEquals(2, result.size());
-        assertEquals(expectedList, result);
-        verify(vehicleService, times(1)).getAllVehicles();
+        assertNotNull(actualVehicles);
+        assertTrue(actualVehicles.isEmpty());
+        verify(vehicleDAO, times(1)).findAll();
     }
 
     @Test
-    void testGetAllVehiclesEmpty() throws SQLException {
-        when(vehicleService.getAllVehicles()).thenReturn(Collections.emptyList());
+    void testUpdateVehicleSuccess() throws BusinessException, SQLException {
+        Vehicle existingVehicle = new Vehicle(1, "ABC1234", "MarcaX", "ModeloY", 2020, 1, LocalDateTime.now(), LocalDateTime.now());
+        Vehicle updatedVehicle = new Vehicle(1, "ABC1234", "MarcaAtualizada", "ModeloAtualizado", 2022, 1, LocalDateTime.now(), LocalDateTime.now());
 
-        List<Vehicle> result = vehicleService.getAllVehicles();
-
-        assertNotNull(result);
-        assertTrue(result.isEmpty());
-        verify(vehicleService, times(1)).getAllVehicles();
-    }
-
-    @Test
-    void testGetAllVehiclesThrowsSQLException() throws SQLException {
-        when(vehicleService.getAllVehicles()).thenThrow(new SQLException("Erro ao listar todos os veículos"));
-
-        SQLException thrown = assertThrows(SQLException.class, () -> {
-            vehicleService.getAllVehicles();
-        });
-
-        assertEquals("Erro ao listar todos os veículos", thrown.getMessage());
-        verify(vehicleService, times(1)).getAllVehicles();
-    }
-
-    @Test
-    void testGetVehiclesByCompanyId() throws SQLException {
-        Vehicle vehicle1 = new Vehicle(1, "ABC1234", "Truck", "Model X", 1, true);
-        Vehicle vehicle2 = new Vehicle(3, "GHI9012", "Van", "Model Z", 1, true);
-        List<Vehicle> expectedList = Arrays.asList(vehicle1, vehicle2);
-
-        when(vehicleService.getVehiclesByCompanyId(1)).thenReturn(expectedList);
-
-        List<Vehicle> result = vehicleService.getVehiclesByCompanyId(1);
-
-        assertNotNull(result);
-        assertEquals(2, result.size());
-        assertEquals(expectedList, result);
-        verify(vehicleService, times(1)).getVehiclesByCompanyId(1);
-    }
-
-    @Test
-    void testGetVehiclesByCompanyIdNoVehicles() throws SQLException {
-        when(vehicleService.getVehiclesByCompanyId(99)).thenReturn(Collections.emptyList());
-
-        List<Vehicle> result = vehicleService.getVehiclesByCompanyId(99);
-
-        assertNotNull(result);
-        assertTrue(result.isEmpty());
-        verify(vehicleService, times(1)).getVehiclesByCompanyId(99);
-    }
-
-    @Test
-    void testGetVehiclesByCompanyIdThrowsSQLException() throws SQLException {
-        when(vehicleService.getVehiclesByCompanyId(1)).thenThrow(new SQLException("Erro ao buscar veículos por ID de empresa"));
-
-        SQLException thrown = assertThrows(SQLException.class, () -> {
-            vehicleService.getVehiclesByCompanyId(1);
-        });
-
-        assertEquals("Erro ao buscar veículos por ID de empresa", thrown.getMessage());
-        verify(vehicleService, times(1)).getVehiclesByCompanyId(1);
-    }
-
-    @Test
-    void testUpdateVehicleSuccess() throws SQLException, IllegalArgumentException {
-        Vehicle updatedVehicle = new Vehicle(1, "ABC1234", "Truck", "Model X Pro", 1, false);
-        when(vehicleService.updateVehicle(updatedVehicle)).thenReturn(true);
+        when(vehicleDAO.findById(updatedVehicle.getId())).thenReturn(Optional.of(existingVehicle));
+        when(vehicleDAO.update(any(Vehicle.class))).thenReturn(true);
 
         boolean result = vehicleService.updateVehicle(updatedVehicle);
 
         assertTrue(result);
-        verify(vehicleService, times(1)).updateVehicle(updatedVehicle);
+        verify(vehicleDAO, times(1)).update(any(Vehicle.class));
     }
 
     @Test
-    void testUpdateVehicleFailure() throws SQLException, IllegalArgumentException {
-        Vehicle nonExistentVehicle = new Vehicle(99, "NON9999", "Car", "Model A", 1, true);
-        when(vehicleService.updateVehicle(nonExistentVehicle)).thenReturn(false);
+    void testUpdateVehicleNotFound() throws SQLException {
+        Vehicle nonExistentVehicle = new Vehicle(99, "XYZ9999", "MarcaNaoExiste", "ModeloNaoExiste", 2023, 1, LocalDateTime.now(), LocalDateTime.now());
 
-        boolean result = vehicleService.updateVehicle(nonExistentVehicle);
+        when(vehicleDAO.findById(nonExistentVehicle.getId())).thenReturn(Optional.empty());
 
-        assertFalse(result);
-        verify(vehicleService, times(1)).updateVehicle(nonExistentVehicle);
-    }
-
-    @Test
-    void testUpdateVehicleInvalidData() throws SQLException, IllegalArgumentException {
-        Vehicle invalidVehicle = new Vehicle(1, "ABC1234", "", "Model X", 1, true); // Tipo vazio
-        doThrow(new IllegalArgumentException("Tipo de veículo não pode ser vazio")).when(vehicleService).updateVehicle(invalidVehicle);
-
-        IllegalArgumentException thrown = assertThrows(IllegalArgumentException.class, () -> {
-            vehicleService.updateVehicle(invalidVehicle);
+        BusinessException exception = assertThrows(BusinessException.class, () -> {
+            vehicleService.updateVehicle(nonExistentVehicle);
         });
-
-        assertEquals("Tipo de veículo não pode ser vazio", thrown.getMessage());
-        verify(vehicleService, times(1)).updateVehicle(invalidVehicle);
+        assertEquals("Veículo não encontrado para atualização.", exception.getMessage());
+        verify(vehicleDAO, never()).update(any(Vehicle.class));
     }
 
     @Test
-    void testUpdateVehicleThrowsSQLException() throws SQLException, IllegalArgumentException {
-        Vehicle updatedVehicle = new Vehicle(1, "ABC1234", "Truck", "Model X Pro", 1, false);
-        doThrow(new SQLException("Erro ao atualizar veículo")).when(vehicleService).updateVehicle(updatedVehicle);
+    void testDeleteVehicleSuccess() throws SQLException, BusinessException {
+        int vehicleId = 1;
+        Vehicle vehicleToDelete = new Vehicle(vehicleId, "ABC1234", "MarcaX", "ModeloY", 2020, 1, LocalDateTime.now(), LocalDateTime.now());
 
-        SQLException thrown = assertThrows(SQLException.class, () -> {
-            vehicleService.updateVehicle(updatedVehicle);
-        });
+        when(vehicleDAO.findById(vehicleId)).thenReturn(Optional.of(vehicleToDelete));
+        when(vehicleDAO.delete(vehicleId)).thenReturn(true);
 
-        assertEquals("Erro ao atualizar veículo", thrown.getMessage());
-        verify(vehicleService, times(1)).updateVehicle(updatedVehicle);
-    }
-
-    @Test
-    void testDeleteVehicleSuccess() throws SQLException {
-        when(vehicleService.deleteVehicle(1)).thenReturn(true);
-
-        boolean result = vehicleService.deleteVehicle(1);
+        boolean result = vehicleService.deleteVehicle(vehicleId);
 
         assertTrue(result);
-        verify(vehicleService, times(1)).deleteVehicle(1);
+        verify(vehicleDAO, times(1)).delete(vehicleId);
     }
 
     @Test
-    void testDeleteVehicleFailure() throws SQLException {
-        when(vehicleService.deleteVehicle(99)).thenReturn(false);
+    void testDeleteVehicleNotFound() throws SQLException {
+        int vehicleId = 99;
+        when(vehicleDAO.findById(vehicleId)).thenReturn(Optional.empty());
 
-        boolean result = vehicleService.deleteVehicle(99);
-
-        assertFalse(result);
-        verify(vehicleService, times(1)).deleteVehicle(99);
-    }
-
-    @Test
-    void testDeleteVehicleThrowsSQLException() throws SQLException {
-        when(vehicleService.deleteVehicle(1)).thenThrow(new SQLException("Erro ao deletar veículo"));
-
-        SQLException thrown = assertThrows(SQLException.class, () -> {
-            vehicleService.deleteVehicle(1);
+        BusinessException exception = assertThrows(BusinessException.class, () -> {
+            vehicleService.deleteVehicle(vehicleId);
         });
-
-        assertEquals("Erro ao deletar veículo", thrown.getMessage());
-        verify(vehicleService, times(1)).deleteVehicle(1);
+        assertEquals("Veículo não encontrado para exclusão.", exception.getMessage());
+        verify(vehicleDAO, never()).delete(vehicleId);
     }
 }
+
