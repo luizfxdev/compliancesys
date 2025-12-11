@@ -10,29 +10,29 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.logging.Logger;
 
 import com.compliancesys.dao.ComplianceAuditDAO;
 import com.compliancesys.model.ComplianceAudit;
-import com.compliancesys.model.enums.ComplianceStatus;
-import com.compliancesys.util.DatabaseConnection;
 
 public class ComplianceAuditDAOImpl implements ComplianceAuditDAO {
 
-    private static final Logger LOGGER = Logger.getLogger(ComplianceAuditDAOImpl.class.getName());
+    private final Connection connection;
+
+    public ComplianceAuditDAOImpl(Connection connection) {
+        this.connection = connection;
+    }
 
     @Override
     public int create(ComplianceAudit audit) throws SQLException {
-        String sql = "INSERT INTO compliance_audits (journey_id, audit_date, compliance_status, auditor_name, notes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        // SQL usa 'status' e 'details', que são os nomes das colunas no DB.
+        String sql = "INSERT INTO compliance_audits (journey_id, audit_date, status, details, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)";
+        try (PreparedStatement stmt = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             stmt.setInt(1, audit.getJourneyId());
-            stmt.setTimestamp(2, Timestamp.valueOf(audit.getAuditDate())); // audit.getAuditDate() já é LocalDateTime
-            stmt.setString(3, audit.getComplianceStatus().name());
-            stmt.setString(4, audit.getAuditorName());
-            stmt.setString(5, audit.getNotes());
-            stmt.setTimestamp(6, Timestamp.valueOf(audit.getCreatedAt()));
-            stmt.setTimestamp(7, Timestamp.valueOf(audit.getUpdatedAt()));
+            stmt.setTimestamp(2, Timestamp.valueOf(audit.getAuditDate()));
+            stmt.setString(3, audit.getComplianceStatus()); // CORRIGIDO: getStatus() -> getComplianceStatus()
+            stmt.setString(4, audit.getNotes());            // CORRIGIDO: getDetails() -> getNotes()
+            stmt.setTimestamp(5, Timestamp.valueOf(audit.getCreatedAt()));
+            stmt.setTimestamp(6, Timestamp.valueOf(audit.getUpdatedAt()));
 
             int affectedRows = stmt.executeUpdate();
             if (affectedRows == 0) {
@@ -52,8 +52,7 @@ public class ComplianceAuditDAOImpl implements ComplianceAuditDAO {
     @Override
     public Optional<ComplianceAudit> findById(int id) throws SQLException {
         String sql = "SELECT * FROM compliance_audits WHERE id = ?";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setInt(1, id);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
@@ -68,8 +67,7 @@ public class ComplianceAuditDAOImpl implements ComplianceAuditDAO {
     public List<ComplianceAudit> findAll() throws SQLException {
         List<ComplianceAudit> audits = new ArrayList<>();
         String sql = "SELECT * FROM compliance_audits ORDER BY audit_date DESC";
-        try (Connection conn = DatabaseConnection.getConnection();
-             Statement stmt = conn.createStatement();
+        try (Statement stmt = connection.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
             while (rs.next()) {
                 audits.add(mapResultSetToComplianceAudit(rs));
@@ -79,17 +77,16 @@ public class ComplianceAuditDAOImpl implements ComplianceAuditDAO {
     }
 
     @Override
-    public boolean update(ComplianceAudit audit) throws SQLException { // Retorno boolean
-        String sql = "UPDATE compliance_audits SET journey_id = ?, audit_date = ?, compliance_status = ?, auditor_name = ?, notes = ?, updated_at = ? WHERE id = ?";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+    public boolean update(ComplianceAudit audit) throws SQLException {
+        // SQL usa 'status' e 'details', que são os nomes das colunas no DB.
+        String sql = "UPDATE compliance_audits SET journey_id = ?, audit_date = ?, status = ?, details = ?, updated_at = ? WHERE id = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setInt(1, audit.getJourneyId());
-            stmt.setTimestamp(2, Timestamp.valueOf(audit.getAuditDate())); // audit.getAuditDate() já é LocalDateTime
-            stmt.setString(3, audit.getComplianceStatus().name());
-            stmt.setString(4, audit.getAuditorName());
-            stmt.setString(5, audit.getNotes());
-            stmt.setTimestamp(6, Timestamp.valueOf(audit.getUpdatedAt()));
-            stmt.setInt(7, audit.getId());
+            stmt.setTimestamp(2, Timestamp.valueOf(audit.getAuditDate()));
+            stmt.setString(3, audit.getComplianceStatus()); // CORRIGIDO: getStatus() -> getComplianceStatus()
+            stmt.setString(4, audit.getNotes());            // CORRIGIDO: getDetails() -> getNotes()
+            stmt.setTimestamp(5, Timestamp.valueOf(audit.getUpdatedAt()));
+            stmt.setInt(6, audit.getId());
             return stmt.executeUpdate() > 0;
         }
     }
@@ -97,8 +94,7 @@ public class ComplianceAuditDAOImpl implements ComplianceAuditDAO {
     @Override
     public boolean delete(int id) throws SQLException {
         String sql = "DELETE FROM compliance_audits WHERE id = ?";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setInt(1, id);
             return stmt.executeUpdate() > 0;
         }
@@ -108,8 +104,7 @@ public class ComplianceAuditDAOImpl implements ComplianceAuditDAO {
     public List<ComplianceAudit> findByJourneyId(int journeyId) throws SQLException {
         List<ComplianceAudit> audits = new ArrayList<>();
         String sql = "SELECT * FROM compliance_audits WHERE journey_id = ? ORDER BY audit_date DESC";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setInt(1, journeyId);
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
@@ -124,12 +119,29 @@ public class ComplianceAuditDAOImpl implements ComplianceAuditDAO {
     public List<ComplianceAudit> findByAuditDateRange(LocalDate startDate, LocalDate endDate) throws SQLException {
         List<ComplianceAudit> audits = new ArrayList<>();
         String sql = "SELECT * FROM compliance_audits WHERE audit_date BETWEEN ? AND ? ORDER BY audit_date ASC";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            // Para comparar com TIMESTAMP no banco, precisamos de LocalDateTime
-            // startDate.atStartOfDay() e endDate.atTime(23, 59, 59) para cobrir o dia inteiro
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setTimestamp(1, Timestamp.valueOf(startDate.atStartOfDay()));
             stmt.setTimestamp(2, Timestamp.valueOf(endDate.atTime(23, 59, 59)));
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    audits.add(mapResultSetToComplianceAudit(rs));
+                }
+            }
+        }
+        return audits;
+    }
+
+    @Override
+    public List<ComplianceAudit> findByDriverIdAndAuditDateRange(int driverId, LocalDate startDate, LocalDate endDate) throws SQLException {
+        List<ComplianceAudit> audits = new ArrayList<>();
+        String sql = "SELECT ca.* FROM compliance_audits ca " +
+                     "INNER JOIN journeys j ON ca.journey_id = j.id " +
+                     "WHERE j.driver_id = ? AND ca.audit_date BETWEEN ? AND ? " +
+                     "ORDER BY ca.audit_date ASC";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setInt(1, driverId);
+            stmt.setTimestamp(2, Timestamp.valueOf(startDate.atStartOfDay()));
+            stmt.setTimestamp(3, Timestamp.valueOf(endDate.atTime(23, 59, 59)));
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
                     audits.add(mapResultSetToComplianceAudit(rs));
@@ -143,10 +155,9 @@ public class ComplianceAuditDAOImpl implements ComplianceAuditDAO {
         ComplianceAudit audit = new ComplianceAudit();
         audit.setId(rs.getInt("id"));
         audit.setJourneyId(rs.getInt("journey_id"));
-        audit.setAuditDate(rs.getTimestamp("audit_date").toLocalDateTime()); // Correção: remove .toLocalDate()
-        audit.setComplianceStatus(ComplianceStatus.valueOf(rs.getString("compliance_status")));
-        audit.setAuditorName(rs.getString("auditor_name"));
-        audit.setNotes(rs.getString("notes"));
+        audit.setAuditDate(rs.getTimestamp("audit_date").toLocalDateTime());
+        audit.setComplianceStatus(rs.getString("status")); // Lendo da coluna 'status' do DB
+        audit.setNotes(rs.getString("details"));           // Lendo da coluna 'details' do DB
         audit.setCreatedAt(rs.getTimestamp("created_at").toLocalDateTime());
         audit.setUpdatedAt(rs.getTimestamp("updated_at").toLocalDateTime());
         return audit;

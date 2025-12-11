@@ -27,7 +27,7 @@ public class TimeRecordServiceImpl implements TimeRecordService {
     }
 
     @Override
-    public TimeRecord registerTimeRecord(TimeRecord timeRecord) throws BusinessException {
+    public TimeRecord createTimeRecord(TimeRecord timeRecord) throws BusinessException {
         if (timeRecord == null) {
             throw new BusinessException("Registro de ponto não pode ser nulo.");
         }
@@ -43,24 +43,25 @@ public class TimeRecordServiceImpl implements TimeRecordService {
         if (timeRecord.getEventType() == null) {
             throw new BusinessException("Tipo de evento do registro de ponto é obrigatório.");
         }
+
         // Validações adicionais com o validator
         if (!validator.isValidDateTime(timeRecord.getRecordTime())) {
             throw new BusinessException("Timestamp do registro de ponto inválido ou no futuro.");
         }
 
         try {
-            // Verifica se já existe um registro de ponto para o mesmo motorista, recordTime e tipo de evento
+            // Verifica duplicidade antes de criar
             Optional<TimeRecord> existingRecord = timeRecordDAO.findByDriverIdAndRecordTimeAndEventType(
-                            timeRecord.getDriverId(), timeRecord.getRecordTime(), timeRecord.getEventType().name()); // CORREÇÃO AQUI: .name()
+                    timeRecord.getDriverId(), timeRecord.getRecordTime(), timeRecord.getEventType().name());
             if (existingRecord.isPresent()) {
                 throw new BusinessException("Já existe um registro de ponto com o mesmo motorista, timestamp e tipo de evento.");
             }
 
             timeRecord.setCreatedAt(LocalDateTime.now());
             timeRecord.setUpdatedAt(LocalDateTime.now());
-            int id = timeRecordDAO.create(timeRecord);
-            timeRecord.setId(id);
-            LOGGER.log(Level.INFO, "Registro de ponto criado com sucesso: ID {0}", id);
+            int newId = timeRecordDAO.create(timeRecord);
+            timeRecord.setId(newId);
+            LOGGER.log(Level.INFO, "Registro de ponto criado com sucesso: ID {0}", newId);
             return timeRecord;
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Erro de SQL ao criar registro de ponto: " + e.getMessage(), e);
@@ -119,11 +120,11 @@ public class TimeRecordServiceImpl implements TimeRecordService {
                 throw new BusinessException("Registro de ponto com ID " + timeRecord.getId() + " não encontrado para atualização.");
             }
 
-            // Verifica se a atualização resultaria em um registro duplicado (se recordTime e eventType mudarem)
+            // Verifica se a atualização resultaria em um registro duplicado
             if (!existingRecord.get().getRecordTime().equals(timeRecord.getRecordTime()) ||
                     !existingRecord.get().getEventType().equals(timeRecord.getEventType())) {
                 Optional<TimeRecord> potentialDuplicate = timeRecordDAO.findByDriverIdAndRecordTimeAndEventType(
-                                timeRecord.getDriverId(), timeRecord.getRecordTime(), timeRecord.getEventType().name()); // CORREÇÃO AQUI: .name()
+                        timeRecord.getDriverId(), timeRecord.getRecordTime(), timeRecord.getEventType().name());
                 if (potentialDuplicate.isPresent() && potentialDuplicate.get().getId() != timeRecord.getId()) {
                     throw new BusinessException("Já existe outro registro de ponto com o mesmo motorista, timestamp e tipo de evento.");
                 }

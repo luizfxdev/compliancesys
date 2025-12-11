@@ -7,24 +7,16 @@ import java.util.Objects;
 /**
  * Representa uma jornada de trabalho de um motorista.
  * Corresponde à tabela 'journeys' no banco de dados.
+ * Alinhado com o schema.sql fornecido.
  */
 public class Journey {
     private int id;
     private int driverId;
-    private int vehicleId; // Adicionado para associar a jornada a um veículo
     private LocalDate journeyDate;
-    private LocalDateTime startTime;
-    private LocalDateTime endTime;
-    private String startLocation;
-    private String endLocation;
-    private double totalDistance; // Em km
-    private double totalDuration; // Em minutos
-    private double drivingDuration; // Em minutos
-    private double breakDuration; // Em minutos
-    private double restDuration; // Em minutos
-    private double mealDuration; // Em minutos
-    private String status; // Mantido como String, conforme sua correção
-    private boolean dailyLimitExceeded; // Indica se algum limite diário foi excedido
+    private int totalDrivingTimeMinutes; // Alinhado com schema.sql
+    private int totalRestTimeMinutes;    // Alinhado com schema.sql
+    private String complianceStatus;     // Alinhado com schema.sql (VARCHAR)
+    private boolean dailyLimitExceeded;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -32,48 +24,32 @@ public class Journey {
     }
 
     // Construtor completo
-    public Journey(int id, int driverId, int vehicleId, LocalDate journeyDate, LocalDateTime startTime, LocalDateTime endTime,
-                   String startLocation, String endLocation, double totalDistance, double totalDuration,
-                   double drivingDuration, double breakDuration, double restDuration, double mealDuration,
-                   String status, boolean dailyLimitExceeded, LocalDateTime createdAt, LocalDateTime updatedAt) { // Status como String
+    public Journey(int id, int driverId, LocalDate journeyDate, int totalDrivingTimeMinutes,
+                   int totalRestTimeMinutes, String complianceStatus, boolean dailyLimitExceeded,
+                   LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.driverId = driverId;
-        this.vehicleId = vehicleId;
         this.journeyDate = journeyDate;
-        this.startTime = startTime;
-        this.endTime = endTime;
-        this.startLocation = startLocation;
-        this.endLocation = endLocation;
-        this.totalDistance = totalDistance;
-        this.totalDuration = totalDuration;
-        this.drivingDuration = drivingDuration;
-        this.breakDuration = breakDuration;
-        this.restDuration = restDuration;
-        this.mealDuration = mealDuration;
-        this.status = status;
+        this.totalDrivingTimeMinutes = totalDrivingTimeMinutes;
+        this.totalRestTimeMinutes = totalRestTimeMinutes;
+        this.complianceStatus = complianceStatus;
         this.dailyLimitExceeded = dailyLimitExceeded;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
 
     // Construtor para inserção (sem ID, createdAt, updatedAt)
-    public Journey(int driverId, int vehicleId, LocalDate journeyDate, LocalDateTime startTime, LocalDateTime endTime,
-                   String startLocation, String endLocation, double totalDistance, double totalDuration,
-                   double drivingDuration, double breakDuration, double restDuration, double mealDuration,
-                   String status, boolean dailyLimitExceeded) { // Status como String
-        this(0, driverId, vehicleId, journeyDate, startTime, endTime, startLocation, endLocation,
-             totalDistance, totalDuration, drivingDuration, breakDuration, restDuration, mealDuration,
-             status, dailyLimitExceeded, null, null);
+    public Journey(int driverId, LocalDate journeyDate, int totalDrivingTimeMinutes,
+                   int totalRestTimeMinutes, String complianceStatus, boolean dailyLimitExceeded) {
+        this(0, driverId, journeyDate, totalDrivingTimeMinutes, totalRestTimeMinutes,
+             complianceStatus, dailyLimitExceeded, null, null);
     }
 
     // Construtor para atualização (com ID, sem createdAt, updatedAt)
-    public Journey(int id, int driverId, int vehicleId, LocalDate journeyDate, LocalDateTime startTime, LocalDateTime endTime,
-                   String startLocation, String endLocation, double totalDistance, double totalDuration,
-                   double drivingDuration, double breakDuration, double restDuration, double mealDuration,
-                   String status, boolean dailyLimitExceeded) { // Status como String
-        this(id, driverId, vehicleId, journeyDate, startTime, endTime, startLocation, endLocation,
-             totalDistance, totalDuration, drivingDuration, breakDuration, restDuration, mealDuration,
-             status, dailyLimitExceeded, null, null);
+    public Journey(int id, int driverId, LocalDate journeyDate, int totalDrivingTimeMinutes,
+                   int totalRestTimeMinutes, String complianceStatus, boolean dailyLimitExceeded) {
+        this(id, driverId, journeyDate, totalDrivingTimeMinutes, totalRestTimeMinutes,
+             complianceStatus, dailyLimitExceeded, null, null);
     }
 
     // Getters e Setters
@@ -93,14 +69,6 @@ public class Journey {
         this.driverId = driverId;
     }
 
-    public int getVehicleId() {
-        return vehicleId;
-    }
-
-    public void setVehicleId(int vehicleId) {
-        this.vehicleId = vehicleId;
-    }
-
     public LocalDate getJourneyDate() {
         return journeyDate;
     }
@@ -109,92 +77,28 @@ public class Journey {
         this.journeyDate = journeyDate;
     }
 
-    public LocalDateTime getStartTime() {
-        return startTime;
+    public int getTotalDrivingTimeMinutes() {
+        return totalDrivingTimeMinutes;
     }
 
-    public void setStartTime(LocalDateTime startTime) {
-        this.startTime = startTime;
+    public void setTotalDrivingTimeMinutes(int totalDrivingTimeMinutes) {
+        this.totalDrivingTimeMinutes = totalDrivingTimeMinutes;
     }
 
-    public LocalDateTime getEndTime() {
-        return endTime;
+    public int getTotalRestTimeMinutes() {
+        return totalRestTimeMinutes;
     }
 
-    public void setEndTime(LocalDateTime endTime) {
-        this.endTime = endTime;
+    public void setTotalRestTimeMinutes(int totalRestTimeMinutes) {
+        this.totalRestTimeMinutes = totalRestTimeMinutes;
     }
 
-    public String getStartLocation() {
-        return startLocation;
+    public String getComplianceStatus() {
+        return complianceStatus;
     }
 
-    public void setStartLocation(String startLocation) {
-        this.startLocation = startLocation;
-    }
-
-    public String getEndLocation() {
-        return endLocation;
-    }
-
-    public void setEndLocation(String endLocation) {
-        this.endLocation = endLocation;
-    }
-
-    public double getTotalDistance() {
-        return totalDistance;
-    }
-
-    public void setTotalDistance(double totalDistance) {
-        this.totalDistance = totalDistance;
-    }
-
-    public double getTotalDuration() {
-        return totalDuration;
-    }
-
-    public void setTotalDuration(double totalDuration) {
-        this.totalDuration = totalDuration;
-    }
-
-    public double getDrivingDuration() {
-        return drivingDuration;
-    }
-
-    public void setDrivingDuration(double drivingDuration) {
-        this.drivingDuration = drivingDuration;
-    }
-
-    public double getBreakDuration() {
-        return breakDuration;
-    }
-
-    public void setBreakDuration(double breakDuration) {
-        this.breakDuration = breakDuration;
-    }
-
-    public double getRestDuration() {
-        return restDuration;
-    }
-
-    public void setRestDuration(double restDuration) {
-        this.restDuration = restDuration;
-    }
-
-    public double getMealDuration() {
-        return mealDuration;
-    }
-
-    public void setMealDuration(double mealDuration) {
-        this.mealDuration = mealDuration;
-    }
-
-    public String getStatus() { // Retorna String
-        return status;
-    }
-
-    public void setStatus(String status) { // Recebe String
-        this.status = status;
+    public void setComplianceStatus(String complianceStatus) {
+        this.complianceStatus = complianceStatus;
     }
 
     public boolean isDailyLimitExceeded() {
@@ -226,19 +130,10 @@ public class Journey {
         return "Journey{" +
                 "id=" + id +
                 ", driverId=" + driverId +
-                ", vehicleId=" + vehicleId +
                 ", journeyDate=" + journeyDate +
-                ", startTime=" + startTime +
-                ", endTime=" + endTime +
-                ", startLocation='" + startLocation + '\'' +
-                ", endLocation='" + endLocation + '\'' +
-                ", totalDistance=" + totalDistance +
-                ", totalDuration=" + totalDuration +
-                ", drivingDuration=" + drivingDuration +
-                ", breakDuration=" + breakDuration +
-                ", restDuration=" + restDuration +
-                ", mealDuration=" + mealDuration +
-                ", status='" + status + '\'' + // Mantido como String
+                ", totalDrivingTimeMinutes=" + totalDrivingTimeMinutes +
+                ", totalRestTimeMinutes=" + totalRestTimeMinutes +
+                ", complianceStatus='" + complianceStatus + '\'' +
                 ", dailyLimitExceeded=" + dailyLimitExceeded +
                 ", createdAt=" + createdAt +
                 ", updatedAt=" + updatedAt +
@@ -252,28 +147,16 @@ public class Journey {
         Journey journey = (Journey) o;
         return id == journey.id &&
                 driverId == journey.driverId &&
-                vehicleId == journey.vehicleId &&
-                Double.compare(journey.totalDistance, totalDistance) == 0 &&
-                Double.compare(journey.totalDuration, totalDuration) == 0 &&
-                Double.compare(journey.drivingDuration, drivingDuration) == 0 &&
-                Double.compare(journey.breakDuration, breakDuration) == 0 &&
-                Double.compare(journey.restDuration, restDuration) == 0 &&
-                Double.compare(journey.mealDuration, mealDuration) == 0 &&
+                totalDrivingTimeMinutes == journey.totalDrivingTimeMinutes &&
+                totalRestTimeMinutes == journey.totalRestTimeMinutes &&
                 dailyLimitExceeded == journey.dailyLimitExceeded &&
                 Objects.equals(journeyDate, journey.journeyDate) &&
-                Objects.equals(startTime, journey.startTime) &&
-                Objects.equals(endTime, journey.endTime) &&
-                Objects.equals(startLocation, journey.startLocation) &&
-                Objects.equals(endLocation, journey.endLocation) &&
-                Objects.equals(status, journey.status) && // Comparação de String
-                Objects.equals(createdAt, journey.createdAt) &&
-                Objects.equals(updatedAt, journey.updatedAt);
+                Objects.equals(complianceStatus, journey.complianceStatus);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, driverId, vehicleId, journeyDate, startTime, endTime, startLocation, endLocation,
-                            totalDistance, totalDuration, drivingDuration, breakDuration, restDuration, mealDuration,
-                            status, dailyLimitExceeded, createdAt, updatedAt);
+        return Objects.hash(id, driverId, journeyDate, totalDrivingTimeMinutes,
+                            totalRestTimeMinutes, complianceStatus, dailyLimitExceeded);
     }
 }

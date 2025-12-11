@@ -1,277 +1,278 @@
 package com.compliancesys.service;
 
+import com.compliancesys.dao.JourneyDAO;
+import com.compliancesys.dao.TimeRecordDAO;
+import com.compliancesys.exception.BusinessException;
+import com.compliancesys.model.Journey;
+import com.compliancesys.model.TimeRecord;
+import com.compliancesys.model.enums.ComplianceStatus;
+import com.compliancesys.model.enums.EventType;
+import com.compliancesys.service.impl.JourneyServiceImpl;
+import com.compliancesys.util.Validator;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Arrays; // Importar EventType
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import static org.mockito.ArgumentMatchers.any;
-import org.mockito.Mockito;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
-import com.compliancesys.exception.BusinessException;
-import com.compliancesys.model.Journey;
-import com.compliancesys.model.TimeRecord;
-import com.compliancesys.model.enums.EventType;
+@DisplayName("Testes para JourneyService")
+class JourneyServiceTest {
 
-public class JourneyServiceTest {
+    @Mock
+    private JourneyDAO journeyDAO;
+    @Mock
+    private TimeRecordDAO timeRecordDAO;
+    @Mock
+    private Validator validator;
 
-    private JourneyService journeyService;
+    @InjectMocks
+    private JourneyServiceImpl journeyService;
 
     @BeforeEach
     void setUp() {
-        journeyService = Mockito.mock(JourneyService.class);
+        MockitoAnnotations.openMocks(this);
+        when(validator.isValidId(anyInt())).thenReturn(true);
     }
 
     @Test
-    void testCreateJourneySuccess() throws BusinessException, SQLException {
-        // Construtor para inserção: driverId, vehicleId, journeyDate, startTime, endTime, startLocation, endLocation, totalDistance, totalDuration, drivingDuration, breakDuration, restDuration, mealDuration, status, dailyLimitExceeded
-        Journey newJourney = new Journey(1, 1, LocalDate.now(), LocalDateTime.now(), null, "Inicio", null, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "INICIADA", false);
-        Journey expectedJourney = new Journey(1, 1, 1, LocalDate.now(), LocalDateTime.now(), null, "Inicio", null, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "INICIADA", false, LocalDateTime.now(), LocalDateTime.now());
+    @DisplayName("Deve criar uma jornada com sucesso")
+    void shouldCreateJourneySuccessfully() throws BusinessException, SQLException {
+        Journey journey = new Journey(1, LocalDate.now(), 480, 60, ComplianceStatus.CONFORME.name(), false);
+        when(journeyDAO.create(any(Journey.class))).thenReturn(1);
 
-        when(journeyService.createJourney(any(Journey.class))).thenReturn(expectedJourney);
-
-        Journey createdJourney = journeyService.createJourney(newJourney);
+        Journey createdJourney = journeyService.createJourney(journey);
 
         assertNotNull(createdJourney);
-        assertEquals(expectedJourney.getId(), createdJourney.getId());
-        assertEquals(expectedJourney.getStatus(), createdJourney.getStatus());
-        verify(journeyService, times(1)).createJourney(newJourney);
+        assertEquals(1, createdJourney.getId());
+        verify(journeyDAO, times(1)).create(journey);
     }
 
     @Test
-    void testCreateJourneyThrowsBusinessException() throws BusinessException, SQLException {
-        Journey newJourney = new Journey(1, 1, LocalDate.now(), LocalDateTime.now(), null, "Inicio", null, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "INICIADA", false);
-        doThrow(new BusinessException("Erro ao criar jornada")).when(journeyService).createJourney(any(Journey.class));
-
-        BusinessException thrown = assertThrows(BusinessException.class, () -> {
-            journeyService.createJourney(newJourney);
-        });
-
-        assertEquals("Erro ao criar jornada", thrown.getMessage());
-        verify(journeyService, times(1)).createJourney(newJourney);
+    @DisplayName("Deve lançar BusinessException ao criar jornada nula")
+    void shouldThrowBusinessExceptionWhenCreatingNullJourney() {
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                journeyService.createJourney(null));
+        assertEquals("Jornada não pode ser nula.", exception.getMessage());
+        verify(journeyDAO, never()).create(any(Journey.class));
     }
 
     @Test
-    void testGetJourneyByIdFound() throws BusinessException, SQLException {
+    @DisplayName("Deve retornar uma jornada por ID")
+    void shouldReturnJourneyById() throws BusinessException, SQLException {
         int journeyId = 1;
-        Journey expectedJourney = new Journey(journeyId, 1, 1, LocalDate.now(), LocalDateTime.now(), null, "Inicio", null, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "INICIADA", false, LocalDateTime.now(), LocalDateTime.now());
-
-        when(journeyService.getJourneyById(journeyId)).thenReturn(Optional.of(expectedJourney));
+        Journey expectedJourney = new Journey(journeyId, 1, LocalDate.now(), 480, 60, ComplianceStatus.CONFORME.name(), false, LocalDateTime.now(), LocalDateTime.now());
+        when(journeyDAO.findById(journeyId)).thenReturn(Optional.of(expectedJourney));
 
         Optional<Journey> result = journeyService.getJourneyById(journeyId);
 
         assertTrue(result.isPresent());
         assertEquals(expectedJourney, result.get());
-        verify(journeyService, times(1)).getJourneyById(journeyId);
+        verify(journeyDAO, times(1)).findById(journeyId);
     }
 
     @Test
-    void testGetJourneyByIdNotFound() throws BusinessException, SQLException {
-        int journeyId = 99;
-        when(journeyService.getJourneyById(journeyId)).thenReturn(Optional.empty());
+    @DisplayName("Deve retornar Optional.empty se a jornada não for encontrada por ID")
+    void shouldReturnEmptyOptionalWhenJourneyNotFoundById() throws BusinessException, SQLException {
+        int journeyId = 1;
+        when(journeyDAO.findById(journeyId)).thenReturn(Optional.empty());
 
         Optional<Journey> result = journeyService.getJourneyById(journeyId);
 
         assertFalse(result.isPresent());
-        verify(journeyService, times(1)).getJourneyById(journeyId);
+        verify(journeyDAO, times(1)).findById(journeyId);
     }
 
     @Test
-    void testGetJourneyByIdThrowsBusinessException() throws BusinessException, SQLException {
-        int journeyId = 1;
-        doThrow(new BusinessException("Erro ao buscar jornada por ID")).when(journeyService).getJourneyById(journeyId);
-
-        BusinessException thrown = assertThrows(BusinessException.class, () -> {
-            journeyService.getJourneyById(journeyId);
-        });
-
-        assertEquals("Erro ao buscar jornada por ID", thrown.getMessage());
-        verify(journeyService, times(1)).getJourneyById(journeyId);
+    @DisplayName("Deve lançar BusinessException ao buscar jornada com ID inválido")
+    void shouldThrowBusinessExceptionWhenGettingJourneyWithInvalidId() {
+        when(validator.isValidId(anyInt())).thenReturn(false);
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                journeyService.getJourneyById(-1));
+        assertEquals("ID da jornada inválido.", exception.getMessage());
+        verify(journeyDAO, never()).findById(anyInt());
     }
 
     @Test
-    void testGetJourneysByDriverIdFound() throws BusinessException, SQLException {
-        int driverId = 1;
-        Journey journey1 = new Journey(1, driverId, 1, LocalDate.now(), LocalDateTime.now(), null, "Inicio A", null, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "INICIADA", false, LocalDateTime.now(), LocalDateTime.now());
-        Journey journey2 = new Journey(2, driverId, 1, LocalDate.now().minusDays(1), LocalDateTime.now().minusDays(1), null, "Inicio B", null, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "FINALIZADA", false, LocalDateTime.now(), LocalDateTime.now());
+    @DisplayName("Deve retornar todas as jornadas")
+    void shouldReturnAllJourneys() throws BusinessException, SQLException {
+        Journey journey1 = new Journey(1, 1, LocalDate.now(), 480, 60, ComplianceStatus.CONFORME.name(), false, LocalDateTime.now(), LocalDateTime.now());
+        Journey journey2 = new Journey(2, 2, LocalDate.now().plusDays(1), 400, 120, ComplianceStatus.NAO_CONFORME.name(), true, LocalDateTime.now(), LocalDateTime.now());
         List<Journey> expectedJourneys = Arrays.asList(journey1, journey2);
+        when(journeyDAO.findAll()).thenReturn(expectedJourneys);
 
-        when(journeyService.getJourneysByDriverId(driverId)).thenReturn(expectedJourneys);
+        List<Journey> result = journeyService.getAllJourneys();
 
-        List<Journey> resultJourneys = journeyService.getJourneysByDriverId(driverId);
-
-        assertNotNull(resultJourneys);
-        assertEquals(2, resultJourneys.size());
-        assertEquals(expectedJourneys, resultJourneys);
-        verify(journeyService, times(1)).getJourneysByDriverId(driverId);
+        assertNotNull(result);
+        assertEquals(2, result.size());
+        assertEquals(expectedJourneys, result);
+        verify(journeyDAO, times(1)).findAll();
     }
 
     @Test
-    void testGetJourneysByDriverIdNotFound() throws BusinessException, SQLException {
-        int driverId = 99;
-        when(journeyService.getJourneysByDriverId(driverId)).thenReturn(Collections.emptyList());
+    @DisplayName("Deve retornar lista vazia se não houver jornadas")
+    void shouldReturnEmptyListIfNoJourneys() throws BusinessException, SQLException {
+        when(journeyDAO.findAll()).thenReturn(Collections.emptyList());
 
-        List<Journey> resultJourneys = journeyService.getJourneysByDriverId(driverId);
+        List<Journey> result = journeyService.getAllJourneys();
 
-        assertNotNull(resultJourneys);
-        assertTrue(resultJourneys.isEmpty());
-        verify(journeyService, times(1)).getJourneysByDriverId(driverId);
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+        verify(journeyDAO, times(1)).findAll();
     }
 
     @Test
-    void testGetJourneysByDriverIdThrowsBusinessException() throws BusinessException, SQLException {
-        int driverId = 1;
-        doThrow(new BusinessException("Erro ao buscar jornadas por motorista")).when(journeyService).getJourneysByDriverId(driverId);
+    @DisplayName("Deve lançar BusinessException ao obter todas as jornadas com erro de SQL")
+    void shouldThrowBusinessExceptionWhenGettingAllJourneysWithSqlError() throws SQLException {
+        when(journeyDAO.findAll()).thenThrow(new SQLException("Erro ao buscar todas as jornadas"));
 
-        BusinessException thrown = assertThrows(BusinessException.class, () -> {
-            journeyService.getJourneysByDriverId(driverId);
-        });
-
-        assertEquals("Erro ao buscar jornadas por motorista", thrown.getMessage());
-        verify(journeyService, times(1)).getJourneysByDriverId(driverId);
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                journeyService.getAllJourneys());
+        assertTrue(exception.getMessage().contains("Erro interno ao buscar todas as jornadas."));
+        verify(journeyDAO, times(1)).findAll();
     }
 
     @Test
-    void testGetJourneyByDriverIdAndDateFound() throws BusinessException, SQLException {
-        int driverId = 1;
-        LocalDate journeyDate = LocalDate.now();
-        Journey expectedJourney = new Journey(1, driverId, 1, journeyDate, LocalDateTime.now(), null, "Inicio", null, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "INICIADA", false, LocalDateTime.now(), LocalDateTime.now());
+    @DisplayName("Deve atualizar uma jornada com sucesso")
+    void shouldUpdateJourneySuccessfully() throws BusinessException, SQLException {
+        Journey updatedJourney = new Journey(1, 1, LocalDate.now(), 450, 90, ComplianceStatus.ALERTA.name(), false, LocalDateTime.now(), LocalDateTime.now());
+        when(journeyDAO.update(any(Journey.class))).thenReturn(true);
 
-        when(journeyService.getJourneyByDriverIdAndDate(driverId, journeyDate)).thenReturn(Optional.of(expectedJourney));
+        boolean result = journeyService.updateJourney(updatedJourney);
 
-        Optional<Journey> result = journeyService.getJourneyByDriverIdAndDate(driverId, journeyDate);
-
-        assertTrue(result.isPresent());
-        assertEquals(expectedJourney, result.get());
-        verify(journeyService, times(1)).getJourneyByDriverIdAndDate(driverId, journeyDate);
+        assertTrue(result);
+        verify(journeyDAO, times(1)).update(updatedJourney);
     }
 
     @Test
-    void testGetJourneyByDriverIdAndDateNotFound() throws BusinessException, SQLException {
-        int driverId = 99;
-        LocalDate journeyDate = LocalDate.now();
-        when(journeyService.getJourneyByDriverIdAndDate(driverId, journeyDate)).thenReturn(Optional.empty());
-
-        Optional<Journey> result = journeyService.getJourneyByDriverIdAndDate(driverId, journeyDate);
-
-        assertFalse(result.isPresent());
-        verify(journeyService, times(1)).getJourneyByDriverIdAndDate(driverId, journeyDate);
+    @DisplayName("Deve lançar BusinessException ao atualizar jornada nula")
+    void shouldThrowBusinessExceptionWhenUpdatingNullJourney() {
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                journeyService.updateJourney(null));
+        assertEquals("Jornada não pode ser nula.", exception.getMessage());
+        verify(journeyDAO, never()).update(any(Journey.class));
     }
 
     @Test
-    void testGetJourneyByDriverIdAndDateThrowsBusinessException() throws BusinessException, SQLException {
-        int driverId = 1;
-        LocalDate journeyDate = LocalDate.now();
-        doThrow(new BusinessException("Erro ao buscar jornada por motorista e data")).when(journeyService).getJourneyByDriverIdAndDate(driverId, journeyDate);
-
-        BusinessException thrown = assertThrows(BusinessException.class, () -> {
-            journeyService.getJourneyByDriverIdAndDate(driverId, journeyDate);
-        });
-
-        assertEquals("Erro ao buscar jornada por motorista e data", thrown.getMessage());
-        verify(journeyService, times(1)).getJourneyByDriverIdAndDate(driverId, journeyDate);
+    @DisplayName("Deve lançar BusinessException ao atualizar jornada com ID inválido")
+    void shouldThrowBusinessExceptionWhenUpdatingJourneyWithInvalidId() {
+        when(validator.isValidId(anyInt())).thenReturn(false);
+        Journey journey = new Journey(-1, 1, LocalDate.now(), 480, 60, ComplianceStatus.CONFORME.name(), false, LocalDateTime.now(), LocalDateTime.now());
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                journeyService.updateJourney(journey));
+        assertEquals("ID da jornada inválido.", exception.getMessage());
+        verify(journeyDAO, never()).update(any(Journey.class));
     }
 
     @Test
-    void testUpdateJourneySuccess() throws BusinessException, SQLException {
-        Journey journeyToUpdate = new Journey(1, 1, 1, LocalDate.now(), LocalDateTime.now(), null, "Inicio", null, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "INICIADA", false, LocalDateTime.now(), LocalDateTime.now());
-        Journey updatedJourney = new Journey(1, 1, 1, LocalDate.now(), LocalDateTime.now(), LocalDateTime.now().plusHours(8), "Inicio", "Fim", 100.0, 480.0, 400.0, 30.0, 40.0, 10.0, "FINALIZADA", false, LocalDateTime.now(), LocalDateTime.now());
-
-        when(journeyService.updateJourney(any(Journey.class))).thenReturn(updatedJourney);
-
-        Journey resultJourney = journeyService.updateJourney(journeyToUpdate);
-
-        assertNotNull(resultJourney);
-        assertEquals(updatedJourney.getStatus(), resultJourney.getStatus());
-        assertEquals(updatedJourney.getTotalDistance(), resultJourney.getTotalDistance());
-        verify(journeyService, times(1)).updateJourney(journeyToUpdate);
-    }
-
-    @Test
-    void testUpdateJourneyThrowsBusinessException() throws BusinessException, SQLException {
-        Journey journeyToUpdate = new Journey(1, 1, 1, LocalDate.now(), LocalDateTime.now(), null, "Inicio", null, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "INICIADA", false, LocalDateTime.now(), LocalDateTime.now());
-        doThrow(new BusinessException("Erro ao atualizar jornada")).when(journeyService).updateJourney(any(Journey.class));
-
-        BusinessException thrown = assertThrows(BusinessException.class, () -> {
-            journeyService.updateJourney(journeyToUpdate);
-        });
-
-        assertEquals("Erro ao atualizar jornada", thrown.getMessage());
-        verify(journeyService, times(1)).updateJourney(journeyToUpdate);
-    }
-
-    @Test
-    void testDeleteJourneySuccess() throws BusinessException, SQLException {
+    @DisplayName("Deve deletar uma jornada com sucesso")
+    void shouldDeleteJourneySuccessfully() throws BusinessException, SQLException {
         int journeyId = 1;
-        when(journeyService.deleteJourney(journeyId)).thenReturn(true);
+        when(journeyDAO.delete(journeyId)).thenReturn(true);
 
-        boolean deleted = journeyService.deleteJourney(journeyId);
+        boolean result = journeyService.deleteJourney(journeyId);
 
-        assertTrue(deleted);
-        verify(journeyService, times(1)).deleteJourney(journeyId);
+        assertTrue(result);
+        verify(journeyDAO, times(1)).delete(journeyId);
     }
 
     @Test
-    void testDeleteJourneyThrowsBusinessException() throws BusinessException, SQLException {
-        int journeyId = 1;
-        doThrow(new BusinessException("Erro ao deletar jornada")).when(journeyService).deleteJourney(journeyId);
-
-        BusinessException thrown = assertThrows(BusinessException.class, () -> {
-            journeyService.deleteJourney(journeyId);
-        });
-
-        assertEquals("Erro ao deletar jornada", thrown.getMessage());
-        verify(journeyService, times(1)).deleteJourney(journeyId);
+    @DisplayName("Deve lançar BusinessException ao deletar jornada com ID inválido")
+    void shouldThrowBusinessExceptionWhenDeletingJourneyWithInvalidId() {
+        when(validator.isValidId(anyInt())).thenReturn(false);
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                journeyService.deleteJourney(-1));
+        assertEquals("ID da jornada inválido.", exception.getMessage());
+        verify(journeyDAO, never()).delete(anyInt());
     }
 
     @Test
-    void testCalculateAndAuditJourneySuccess() throws BusinessException, SQLException {
+    @DisplayName("Deve calcular e auditar jornada com sucesso")
+    void shouldCalculateAndAuditJourneySuccessfully() throws BusinessException, SQLException {
         int driverId = 1;
+        LocalDate journeyDate = LocalDate.now();
         List<TimeRecord> timeRecords = Arrays.asList(
-            new TimeRecord(1, driverId, 1, 1, LocalDateTime.now().minusHours(8), EventType.IN, "Inicio", "Notas", null, null),
-            new TimeRecord(2, driverId, 1, 1, LocalDateTime.now().minusHours(4), EventType.OUT, "Parada", "Notas", null, null),
-            new TimeRecord(3, driverId, 1, 1, LocalDateTime.now().minusHours(3), EventType.IN, "Retorno", "Notas", null, null),
-            new TimeRecord(4, driverId, 1, 1, LocalDateTime.now(), EventType.OUT, "Fim", "Notas", null, null)
+                new TimeRecord(1, driverId, 1, 1, LocalDateTime.now().minusHours(8), EventType.IN, "Inicio", "Notas", null, null),
+                new TimeRecord(2, driverId, 1, 1, LocalDateTime.now().minusHours(4), EventType.OUT, "Parada", "Notas", null, null),
+                new TimeRecord(3, driverId, 1, 1, LocalDateTime.now().minusHours(3), EventType.IN, "Retorno", "Notas", null, null),
+                new TimeRecord(4, driverId, 1, 1, LocalDateTime.now(), EventType.OUT, "Fim", "Notas", null, null)
         );
 
-        // Construtor completo de Journey: id, driverId, vehicleId, journeyDate, startTime, endTime, startLocation, endLocation, totalDistance, totalDuration, drivingDuration, breakDuration, restDuration, mealDuration, status, dailyLimitExceeded, createdAt, updatedAt
-        Journey expectedJourney = new Journey(1, driverId, 1, LocalDate.now(), LocalDateTime.now().minusHours(8), LocalDateTime.now(), "Inicio", "Fim", 150.0, 480.0, 400.0, 30.0, 40.0, 10.0, "FINALIZADA", false, LocalDateTime.now(), LocalDateTime.now()); // Status como String
-
-        when(journeyService.calculateAndAuditJourney(driverId, timeRecords)).thenReturn(expectedJourney);
+        // Mock para findByDriverIdAndDate para simular que a jornada não existe e será criada
+        when(journeyDAO.findByDriverIdAndDate(driverId, journeyDate)).thenReturn(Optional.empty());
+        // Mock para create para retornar um ID para a nova jornada
+        when(journeyDAO.create(any(Journey.class))).thenReturn(1);
+        // Mock para update para simular a atualização da jornada
+        when(journeyDAO.update(any(Journey.class))).thenReturn(true);
 
         Journey resultJourney = journeyService.calculateAndAuditJourney(driverId, timeRecords);
 
         assertNotNull(resultJourney);
-        assertEquals(expectedJourney.getTotalDuration(), resultJourney.getTotalDuration());
-        assertEquals(expectedJourney.getStatus(), resultJourney.getStatus());
-        verify(journeyService, times(1)).calculateAndAuditJourney(driverId, timeRecords);
+        assertEquals(ComplianceStatus.CONFORME.name(), resultJourney.getComplianceStatus()); // Verifica o status de conformidade
+        assertEquals(480, resultJourney.getTotalDrivingTimeMinutes()); // 8 horas de condução
+        assertEquals(60, resultJourney.getTotalRestTimeMinutes()); // 1 hora de descanso
+        assertFalse(resultJourney.isDailyLimitExceeded());
+        verify(journeyDAO, times(1)).findByDriverIdAndDate(driverId, journeyDate);
+        verify(journeyDAO, times(1)).create(any(Journey.class)); // Verifica que a jornada foi criada
+        verify(journeyDAO, times(1)).update(any(Journey.class)); // Verifica que a jornada foi atualizada
     }
 
     @Test
-    void testCalculateAndAuditJourneyThrowsBusinessException() throws BusinessException, SQLException {
+    @DisplayName("Deve lançar BusinessException ao calcular jornada com registros nulos")
+    void shouldThrowBusinessExceptionWhenCalculatingJourneyWithNullRecords() {
         int driverId = 1;
-        List<TimeRecord> timeRecords = Collections.emptyList();
-        doThrow(new BusinessException("Erro ao calcular e auditar jornada")).when(journeyService).calculateAndAuditJourney(driverId, timeRecords);
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                journeyService.calculateAndAuditJourney(driverId, null));
+        assertEquals("Registros de ponto não podem ser nulos ou vazios.", exception.getMessage());
+    }
 
-        BusinessException thrown = assertThrows(BusinessException.class, () -> {
-            journeyService.calculateAndAuditJourney(driverId, timeRecords);
-        });
+    @Test
+    @DisplayName("Deve lançar BusinessException ao calcular jornada com registros vazios")
+    void shouldThrowBusinessExceptionWhenCalculatingJourneyWithEmptyRecords() {
+        int driverId = 1;
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                journeyService.calculateAndAuditJourney(driverId, Collections.emptyList()));
+        assertEquals("Registros de ponto não podem ser nulos ou vazios.", exception.getMessage());
+    }
 
-        assertEquals("Erro ao calcular e auditar jornada", thrown.getMessage());
-        verify(journeyService, times(1)).calculateAndAuditJourney(driverId, timeRecords);
+    @Test
+    @DisplayName("Deve lançar BusinessException ao calcular jornada com ID de motorista inválido")
+    void shouldThrowBusinessExceptionWhenCalculatingJourneyWithInvalidDriverId() {
+        when(validator.isValidId(anyInt())).thenReturn(false);
+        int driverId = -1;
+        List<TimeRecord> timeRecords = Arrays.asList(new TimeRecord());
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                journeyService.calculateAndAuditJourney(driverId, timeRecords));
+        assertEquals("ID do motorista inválido.", exception.getMessage());
+    }
+
+    @Test
+    @DisplayName("Deve lançar BusinessException ao calcular jornada com erro de SQL")
+    void shouldThrowBusinessExceptionWhenCalculatingJourneyWithSqlError() throws SQLException {
+        int driverId = 1;
+        LocalDate journeyDate = LocalDate.now();
+        List<TimeRecord> timeRecords = Arrays.asList(
+                new TimeRecord(1, driverId, 1, 1, LocalDateTime.now().minusHours(8), EventType.IN, "Inicio", "Notas", null, null)
+        );
+
+        when(journeyDAO.findByDriverIdAndDate(driverId, journeyDate)).thenThrow(new SQLException("Erro de DB"));
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                journeyService.calculateAndAuditJourney(driverId, timeRecords));
+        assertTrue(exception.getMessage().contains("Erro interno ao calcular e auditar jornada."));
+        verify(journeyDAO, times(1)).findByDriverIdAndDate(driverId, journeyDate);
+        verify(journeyDAO, never()).create(any(Journey.class));
+        verify(journeyDAO, never()).update(any(Journey.class));
     }
 }

@@ -5,19 +5,15 @@ import java.util.Objects;
 
 import com.compliancesys.model.enums.EventType;
 
-/**
- * Representa um registro de ponto de um motorista.
- * Corresponde à tabela 'time_records' no banco de dados.
- */
 public class TimeRecord {
     private int id;
     private int driverId;
-    private int companyId; // Adicionado para associar o registro a uma empresa
-    private int vehicleId; // Adicionado para associar o registro a um veículo
+    private int companyId;
+    private int vehicleId;
     private LocalDateTime recordTime;
-    private EventType eventType;
-    private String location; // Adicionado
-    private String notes; // Adicionado
+    private EventType eventType; // Alterado de String para EventType
+    private String location;
+    private String notes;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -25,8 +21,9 @@ public class TimeRecord {
     }
 
     // Construtor completo
-    public TimeRecord(int id, int driverId, int companyId, int vehicleId, LocalDateTime recordTime, EventType eventType,
-                      String location, String notes, LocalDateTime createdAt, LocalDateTime updatedAt) {
+    public TimeRecord(int id, int driverId, int companyId, int vehicleId, LocalDateTime recordTime,
+                      EventType eventType, String location, String notes, LocalDateTime createdAt,
+                      LocalDateTime updatedAt) {
         this.id = id;
         this.driverId = driverId;
         this.companyId = companyId;
@@ -39,10 +36,18 @@ public class TimeRecord {
         this.updatedAt = updatedAt;
     }
 
-    // Construtor para inserção (sem ID, createdAt, updatedAt)
-    public TimeRecord(int driverId, int companyId, int vehicleId, LocalDateTime recordTime, EventType eventType,
-                      String location, String notes) {
-        this(0, driverId, companyId, vehicleId, recordTime, eventType, location, notes, null, null);
+    // Construtor sem ID para criação
+    public TimeRecord(int driverId, int companyId, int vehicleId, LocalDateTime recordTime,
+                      EventType eventType, String location, String notes) {
+        this.driverId = driverId;
+        this.companyId = companyId;
+        this.vehicleId = vehicleId;
+        this.recordTime = recordTime;
+        this.eventType = eventType;
+        this.location = location;
+        this.notes = notes;
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
     }
 
     // Getters e Setters
@@ -127,38 +132,40 @@ public class TimeRecord {
     }
 
     @Override
-    public String toString() {
-        return "TimeRecord{" +
-                "id=" + id +
-                ", driverId=" + driverId +
-                ", companyId=" + companyId +
-                ", vehicleId=" + vehicleId +
-                ", recordTime=" + recordTime +
-                ", eventType=" + eventType +
-                ", location='" + location + '\'' +
-                ", notes='" + notes + '\'' +
-                ", createdAt=" + createdAt +
-                ", updatedAt=" + updatedAt +
-                '}';
-    }
-
-    @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         TimeRecord that = (TimeRecord) o;
         return id == that.id &&
-                driverId == that.driverId &&
-                companyId == that.companyId &&
-                vehicleId == that.vehicleId &&
-                eventType == that.eventType &&
-                Objects.equals(recordTime, that.recordTime) &&
-                Objects.equals(location, that.location) &&
-                Objects.equals(notes, that.notes);
+               driverId == that.driverId &&
+               companyId == that.companyId &&
+               vehicleId == that.vehicleId &&
+               Objects.equals(recordTime, that.recordTime) &&
+               eventType == that.eventType &&
+               Objects.equals(location, that.location) &&
+               Objects.equals(notes, that.notes) &&
+               Objects.equals(createdAt, that.createdAt) &&
+               Objects.equals(updatedAt, that.updatedAt);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, driverId, companyId, vehicleId, recordTime, eventType, location, notes);
+        return Objects.hash(id, driverId, companyId, vehicleId, recordTime, eventType, location, notes, createdAt, updatedAt);
+    }
+
+    @Override
+    public String toString() {
+        return "TimeRecord{" +
+               "id=" + id +
+               ", driverId=" + driverId +
+               ", companyId=" + companyId +
+               ", vehicleId=" + vehicleId +
+               ", recordTime=" + recordTime +
+               ", eventType=" + eventType +
+               ", location='" + location + '\'' +
+               ", notes='" + notes + '\'' +
+               ", createdAt=" + createdAt +
+               ", updatedAt=" + updatedAt +
+               '}';
     }
 }

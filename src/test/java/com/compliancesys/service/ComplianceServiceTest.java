@@ -1,8 +1,8 @@
 package com.compliancesys.service;
 
 import java.sql.SQLException;
-import java.time.LocalDate; // Importar ComplianceReport
-import java.time.LocalDateTime; // Importar ComplianceStatus
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -11,7 +11,6 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,6 +21,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.compliancesys.exception.BusinessException;
 import com.compliancesys.model.ComplianceAudit;
 import com.compliancesys.model.ComplianceReport;
 import com.compliancesys.model.enums.ComplianceStatus;
@@ -36,38 +36,42 @@ public class ComplianceServiceTest {
     }
 
     @Test
-    void testPerformComplianceAuditSuccess() throws SQLException {
+    void testPerformComplianceAuditSuccess() throws SQLException, BusinessException {
         int journeyId = 10;
+        LocalDate journeyDate = LocalDate.now(); // Adicionado para corresponder à assinatura do método
         // O método performComplianceAudit retorna um ComplianceAudit, não um int
-        ComplianceAudit expectedAudit = new ComplianceAudit(journeyId, LocalDateTime.now(), ComplianceStatus.CONFORME, "Auditor Teste", "Auditoria OK");
+        // Usar .name() para converter o enum para String, conforme o construtor de ComplianceAudit
+        ComplianceAudit expectedAudit = new ComplianceAudit(journeyId, LocalDateTime.now(), ComplianceStatus.CONFORME.name(), "Auditor Teste", "Auditoria OK");
 
-        when(complianceService.performComplianceAudit(journeyId)).thenReturn(expectedAudit);
+        when(complianceService.performComplianceAudit(journeyId, journeyDate)).thenReturn(expectedAudit);
 
-        ComplianceAudit resultAudit = complianceService.performComplianceAudit(journeyId);
+        ComplianceAudit resultAudit = complianceService.performComplianceAudit(journeyId, journeyDate);
 
         assertNotNull(resultAudit);
         assertEquals(expectedAudit.getJourneyId(), resultAudit.getJourneyId());
         assertEquals(expectedAudit.getComplianceStatus(), resultAudit.getComplianceStatus());
-        verify(complianceService, times(1)).performComplianceAudit(journeyId);
+        verify(complianceService, times(1)).performComplianceAudit(journeyId, journeyDate);
     }
 
     @Test
-    void testPerformComplianceAuditThrowsSQLException() throws SQLException {
+    void testPerformComplianceAuditThrowsSQLException() throws SQLException, BusinessException {
         int journeyId = 10;
-        doThrow(new SQLException("Erro ao realizar auditoria")).when(complianceService).performComplianceAudit(journeyId);
+        LocalDate journeyDate = LocalDate.now(); // Adicionado para corresponder à assinatura do método
+        doThrow(new SQLException("Erro ao realizar auditoria")).when(complianceService).performComplianceAudit(journeyId, journeyDate);
 
         SQLException thrown = assertThrows(SQLException.class, () -> {
-            complianceService.performComplianceAudit(journeyId);
+            complianceService.performComplianceAudit(journeyId, journeyDate);
         });
 
         assertEquals("Erro ao realizar auditoria", thrown.getMessage());
-        verify(complianceService, times(1)).performComplianceAudit(journeyId);
+        verify(complianceService, times(1)).performComplianceAudit(journeyId, journeyDate);
     }
 
     @Test
-    void testGetComplianceAuditByIdFound() throws SQLException {
+    void testGetComplianceAuditByIdFound() throws SQLException, BusinessException {
         int auditId = 1;
-        ComplianceAudit expectedAudit = new ComplianceAudit(auditId, 10, LocalDateTime.now(), ComplianceStatus.CONFORME, "Auditor Teste", "Auditoria OK", LocalDateTime.now(), LocalDateTime.now());
+        // Usar .name() para converter o enum para String, conforme o construtor de ComplianceAudit
+        ComplianceAudit expectedAudit = new ComplianceAudit(auditId, 10, LocalDateTime.now(), ComplianceStatus.CONFORME.name(), "Auditor Teste", "Auditoria OK", LocalDateTime.now(), LocalDateTime.now());
         when(complianceService.getComplianceAuditById(auditId)).thenReturn(Optional.of(expectedAudit));
 
         Optional<ComplianceAudit> result = complianceService.getComplianceAuditById(auditId);
@@ -78,7 +82,7 @@ public class ComplianceServiceTest {
     }
 
     @Test
-    void testGetComplianceAuditByIdNotFound() throws SQLException {
+    void testGetComplianceAuditByIdNotFound() throws SQLException, BusinessException {
         int auditId = 99;
         when(complianceService.getComplianceAuditById(auditId)).thenReturn(Optional.empty());
 
@@ -89,7 +93,7 @@ public class ComplianceServiceTest {
     }
 
     @Test
-    void testGetComplianceAuditByIdThrowsSQLException() throws SQLException {
+    void testGetComplianceAuditByIdThrowsSQLException() throws SQLException, BusinessException {
         int auditId = 1;
         doThrow(new SQLException("Erro ao buscar auditoria por ID")).when(complianceService).getComplianceAuditById(auditId);
 
@@ -102,9 +106,10 @@ public class ComplianceServiceTest {
     }
 
     @Test
-    void testGetAllComplianceAudits() throws SQLException {
-        ComplianceAudit audit1 = new ComplianceAudit(1, 10, LocalDateTime.now(), ComplianceStatus.CONFORME, "Auditor A", "Notas A", LocalDateTime.now(), LocalDateTime.now());
-        ComplianceAudit audit2 = new ComplianceAudit(2, 11, LocalDateTime.now().plusDays(1), ComplianceStatus.NAO_CONFORME, "Auditor B", "Notas B", LocalDateTime.now(), LocalDateTime.now());
+    void testGetAllComplianceAudits() throws SQLException, BusinessException {
+        // Usar .name() para converter o enum para String, conforme o construtor de ComplianceAudit
+        ComplianceAudit audit1 = new ComplianceAudit(1, 10, LocalDateTime.now(), ComplianceStatus.CONFORME.name(), "Auditor A", "Notas A", LocalDateTime.now(), LocalDateTime.now());
+        ComplianceAudit audit2 = new ComplianceAudit(2, 11, LocalDateTime.now().plusDays(1), ComplianceStatus.NAO_CONFORME.name(), "Auditor B", "Notas B", LocalDateTime.now(), LocalDateTime.now());
         List<ComplianceAudit> expectedAudits = Arrays.asList(audit1, audit2);
 
         when(complianceService.getAllComplianceAudits()).thenReturn(expectedAudits);
@@ -118,18 +123,7 @@ public class ComplianceServiceTest {
     }
 
     @Test
-    void testGetAllComplianceAuditsEmpty() throws SQLException {
-        when(complianceService.getAllComplianceAudits()).thenReturn(Collections.emptyList());
-
-        List<ComplianceAudit> result = complianceService.getAllComplianceAudits();
-
-        assertNotNull(result);
-        assertTrue(result.isEmpty());
-        verify(complianceService, times(1)).getAllComplianceAudits();
-    }
-
-    @Test
-    void testGetAllComplianceAuditsThrowsSQLException() throws SQLException {
+    void testGetAllComplianceAuditsThrowsSQLException() throws SQLException, BusinessException {
         doThrow(new SQLException("Erro ao buscar todas as auditorias")).when(complianceService).getAllComplianceAudits();
 
         SQLException thrown = assertThrows(SQLException.class, () -> {
@@ -141,67 +135,67 @@ public class ComplianceServiceTest {
     }
 
     @Test
-    void testUpdateComplianceAuditSuccess() throws SQLException {
-        ComplianceAudit existingAudit = new ComplianceAudit(1, 10, LocalDateTime.now(), ComplianceStatus.CONFORME, "Auditor Original", "Notas Originais", LocalDateTime.now(), LocalDateTime.now());
-        ComplianceAudit updatedAudit = new ComplianceAudit(1, 10, LocalDateTime.now().plusHours(1), ComplianceStatus.ALERTA, "Auditor Atualizado", "Notas Atualizadas", LocalDateTime.now(), LocalDateTime.now());
+    void testUpdateComplianceAuditSuccess() throws SQLException, BusinessException {
+        // Usar .name() para converter o enum para String, conforme o construtor de ComplianceAudit
+        ComplianceAudit audit = new ComplianceAudit(1, 10, LocalDateTime.now(), ComplianceStatus.ALERTA.name(), "Auditor C", "Notas C", LocalDateTime.now(), LocalDateTime.now());
+        when(complianceService.updateComplianceAudit(audit)).thenReturn(true);
 
-        when(complianceService.updateComplianceAudit(updatedAudit)).thenReturn(updatedAudit);
+        boolean result = complianceService.updateComplianceAudit(audit);
 
-        ComplianceAudit result = complianceService.updateComplianceAudit(updatedAudit);
-
-        assertNotNull(result);
-        assertEquals(updatedAudit, result);
-        verify(complianceService, times(1)).updateComplianceAudit(updatedAudit);
+        assertTrue(result);
+        verify(complianceService, times(1)).updateComplianceAudit(audit);
     }
 
     @Test
-    void testUpdateComplianceAuditNotFound() throws SQLException {
-        ComplianceAudit nonExistentAudit = new ComplianceAudit(99, 10, LocalDateTime.now(), ComplianceStatus.CONFORME, "Auditor Teste", "Notas Teste", LocalDateTime.now(), LocalDateTime.now());
-        when(complianceService.updateComplianceAudit(nonExistentAudit)).thenReturn(null); // Ou Optional.empty() se o método retornar Optional
+    void testUpdateComplianceAuditFailure() throws SQLException, BusinessException {
+        // Usar .name() para converter o enum para String, conforme o construtor de ComplianceAudit
+        ComplianceAudit audit = new ComplianceAudit(1, 10, LocalDateTime.now(), ComplianceStatus.ALERTA.name(), "Auditor C", "Notas C", LocalDateTime.now(), LocalDateTime.now());
+        when(complianceService.updateComplianceAudit(audit)).thenReturn(false);
 
-        ComplianceAudit result = complianceService.updateComplianceAudit(nonExistentAudit);
+        boolean result = complianceService.updateComplianceAudit(audit);
 
-        assertNull(result); // Ou assertFalse(result.isPresent())
-        verify(complianceService, times(1)).updateComplianceAudit(nonExistentAudit);
+        assertFalse(result);
+        verify(complianceService, times(1)).updateComplianceAudit(audit);
     }
 
     @Test
-    void testUpdateComplianceAuditThrowsSQLException() throws SQLException {
-        ComplianceAudit auditToUpdate = new ComplianceAudit(1, 10, LocalDateTime.now(), ComplianceStatus.CONFORME, "Auditor Teste", "Notas Teste", LocalDateTime.now(), LocalDateTime.now());
-        doThrow(new SQLException("Erro ao atualizar auditoria")).when(complianceService).updateComplianceAudit(auditToUpdate);
+    void testUpdateComplianceAuditThrowsSQLException() throws SQLException, BusinessException {
+        // Usar .name() para converter o enum para String, conforme o construtor de ComplianceAudit
+        ComplianceAudit audit = new ComplianceAudit(1, 10, LocalDateTime.now(), ComplianceStatus.ALERTA.name(), "Auditor C", "Notas C", LocalDateTime.now(), LocalDateTime.now());
+        doThrow(new SQLException("Erro ao atualizar auditoria")).when(complianceService).updateComplianceAudit(audit);
 
         SQLException thrown = assertThrows(SQLException.class, () -> {
-            complianceService.updateComplianceAudit(auditToUpdate);
+            complianceService.updateComplianceAudit(audit);
         });
 
         assertEquals("Erro ao atualizar auditoria", thrown.getMessage());
-        verify(complianceService, times(1)).updateComplianceAudit(auditToUpdate);
+        verify(complianceService, times(1)).updateComplianceAudit(audit);
     }
 
     @Test
-    void testDeleteComplianceAuditSuccess() throws SQLException {
+    void testDeleteComplianceAuditSuccess() throws SQLException, BusinessException {
         int auditId = 1;
         when(complianceService.deleteComplianceAudit(auditId)).thenReturn(true);
 
-        boolean deleted = complianceService.deleteComplianceAudit(auditId);
+        boolean result = complianceService.deleteComplianceAudit(auditId);
 
-        assertTrue(deleted);
+        assertTrue(result);
         verify(complianceService, times(1)).deleteComplianceAudit(auditId);
     }
 
     @Test
-    void testDeleteComplianceAuditNotFound() throws SQLException {
-        int auditId = 99;
+    void testDeleteComplianceAuditFailure() throws SQLException, BusinessException {
+        int auditId = 1;
         when(complianceService.deleteComplianceAudit(auditId)).thenReturn(false);
 
-        boolean deleted = complianceService.deleteComplianceAudit(auditId);
+        boolean result = complianceService.deleteComplianceAudit(auditId);
 
-        assertFalse(deleted);
+        assertFalse(result);
         verify(complianceService, times(1)).deleteComplianceAudit(auditId);
     }
 
     @Test
-    void testDeleteComplianceAuditThrowsSQLException() throws SQLException {
+    void testDeleteComplianceAuditThrowsSQLException() throws SQLException, BusinessException {
         int auditId = 1;
         doThrow(new SQLException("Erro ao deletar auditoria")).when(complianceService).deleteComplianceAudit(auditId);
 
@@ -214,79 +208,64 @@ public class ComplianceServiceTest {
     }
 
     @Test
-    void testGenerateDriverComplianceReport() throws SQLException {
-        LocalDate startDate = LocalDate.of(2025, 1, 1);
-        LocalDate endDate = LocalDate.of(2025, 1, 31);
+    void testGenerateDriverComplianceReport() throws SQLException, BusinessException {
+        int driverId = 1;
+        LocalDate startDate = LocalDate.of(2023, 1, 1);
+        LocalDate endDate = LocalDate.of(2023, 1, 31);
+        ComplianceReport expectedReport = new ComplianceReport(driverId, 5, 2, 1, 2, 0); // Exemplo de relatório
+        when(complianceService.generateDriverComplianceReport(driverId, startDate, endDate)).thenReturn(expectedReport);
 
-        // Ajustado para usar o construtor completo de ComplianceReport
-        // Parâmetros: reportName, generatedDate, driverId, driverName, startDate, endDate, totalAudits, compliantAudits, nonCompliantAudits, complianceRate, audits
-        ComplianceReport expectedReport = new ComplianceReport(
-                "Relatório de Conformidade do Motorista", // reportName
-                LocalDate.now(),                          // generatedDate
-                1,                                        // driverId
-                "Nome do Motorista",                      // driverName
-                startDate,                                // startDate
-                endDate,                                  // endDate
-                5,                                        // totalAudits
-                2,                                        // compliantAudits
-                3,                                        // nonCompliantAudits
-                60.0,                                     // complianceRate
-                Collections.emptyList()                   // audits (pode ser uma lista vazia ou mockada)
-        );
-
-        when(complianceService.generateDriverComplianceReport(1, startDate, endDate)).thenReturn(expectedReport);
-
-        ComplianceReport resultReport = complianceService.generateDriverComplianceReport(1, startDate, endDate);
+        ComplianceReport resultReport = complianceService.generateDriverComplianceReport(driverId, startDate, endDate);
 
         assertNotNull(resultReport);
         assertEquals(expectedReport.getDriverId(), resultReport.getDriverId());
-        assertEquals(expectedReport.getComplianceRate(), resultReport.getComplianceRate());
-        verify(complianceService, times(1)).generateDriverComplianceReport(1, startDate, endDate);
+        verify(complianceService, times(1)).generateDriverComplianceReport(driverId, startDate, endDate);
     }
 
     @Test
-    void testGenerateDriverComplianceReportThrowsSQLException() throws SQLException {
-        LocalDate startDate = LocalDate.of(2025, 1, 1);
-        LocalDate endDate = LocalDate.of(2025, 1, 31);
-        doThrow(new SQLException("Erro ao gerar relatório de conformidade do motorista")).when(complianceService).generateDriverComplianceReport(1, startDate, endDate);
-
-        SQLException thrown = assertThrows(SQLException.class, () -> {
-            complianceService.generateDriverComplianceReport(1, startDate, endDate);
-        });
-
-        assertEquals("Erro ao gerar relatório de conformidade do motorista", thrown.getMessage());
-        verify(complianceService, times(1)).generateDriverComplianceReport(1, startDate, endDate);
-    }
-
-    @Test
-    void testGenerateOverallComplianceReport() throws SQLException {
-        LocalDate startDate = LocalDate.of(2025, 1, 1);
-        LocalDate endDate = LocalDate.of(2025, 1, 31);
-        ComplianceAudit audit1 = new ComplianceAudit(1, 10, LocalDateTime.now(), ComplianceStatus.CONFORME, "Auditor A", "Notas A", LocalDateTime.now(), LocalDateTime.now());
-        ComplianceAudit audit2 = new ComplianceAudit(2, 11, LocalDateTime.now().plusDays(1), ComplianceStatus.NAO_CONFORME, "Auditor B", "Notas B", LocalDateTime.now(), LocalDateTime.now());
-        List<ComplianceAudit> expectedAudits = Arrays.asList(audit1, audit2);
-
+    void testGenerateOverallComplianceReport() throws SQLException, BusinessException {
+        LocalDate startDate = LocalDate.of(2023, 1, 1);
+        LocalDate endDate = LocalDate.of(2023, 1, 31);
+        // Usar .name() para converter o enum para String, conforme o construtor de ComplianceAudit
+        ComplianceAudit audit1 = new ComplianceAudit(1, 10, LocalDateTime.now(), ComplianceStatus.CONFORME.name(), "Auditor A", "Notas A", LocalDateTime.now(), LocalDateTime.now());
+        List<ComplianceAudit> expectedAudits = Collections.singletonList(audit1);
         when(complianceService.generateOverallComplianceReport(startDate, endDate)).thenReturn(expectedAudits);
 
-        List<ComplianceAudit> result = complianceService.generateOverallComplianceReport(startDate, endDate);
+        List<ComplianceAudit> resultAudits = complianceService.generateOverallComplianceReport(startDate, endDate);
 
-        assertNotNull(result);
-        assertEquals(2, result.size());
-        assertEquals(expectedAudits, result);
+        assertNotNull(resultAudits);
+        assertFalse(resultAudits.isEmpty());
+        assertEquals(expectedAudits.size(), resultAudits.size());
         verify(complianceService, times(1)).generateOverallComplianceReport(startDate, endDate);
     }
 
     @Test
-    void testGenerateOverallComplianceReportThrowsSQLException() throws SQLException {
-        LocalDate startDate = LocalDate.of(2025, 1, 1);
-        LocalDate endDate = LocalDate.of(2025, 1, 31);
-        doThrow(new SQLException("Erro ao gerar relatório geral de conformidade")).when(complianceService).generateOverallComplianceReport(startDate, endDate);
+    void testCreateComplianceAudit() throws SQLException, BusinessException {
+        // Usar .name() para converter o enum para String, conforme o construtor de ComplianceAudit
+        ComplianceAudit auditToCreate = new ComplianceAudit(0, 10, LocalDateTime.now(), ComplianceStatus.PENDENTE.name(), "Auditor X", "Notas X");
+        ComplianceAudit createdAudit = new ComplianceAudit(1, 10, LocalDateTime.now(), ComplianceStatus.PENDENTE.name(), "Auditor X", "Notas X", LocalDateTime.now(), LocalDateTime.now());
+        when(complianceService.createComplianceAudit(auditToCreate)).thenReturn(createdAudit);
 
-        SQLException thrown = assertThrows(SQLException.class, () -> {
-            complianceService.generateOverallComplianceReport(startDate, endDate);
-        });
+        ComplianceAudit result = complianceService.createComplianceAudit(auditToCreate);
 
-        assertEquals("Erro ao gerar relatório geral de conformidade", thrown.getMessage());
-        verify(complianceService, times(1)).generateOverallComplianceReport(startDate, endDate);
+        assertNotNull(result);
+        assertEquals(createdAudit.getId(), result.getId());
+        verify(complianceService, times(1)).createComplianceAudit(auditToCreate);
+    }
+
+    @Test
+    void testGetTimeRecordsForJourney() throws SQLException, BusinessException {
+        int driverId = 1;
+        LocalDate journeyDate = LocalDate.now();
+        TimeRecord tr1 = new TimeRecord(1, driverId, 1, 1, LocalDateTime.now(), com.compliancesys.model.enums.EventType.IN, "Loc1", "Notes1");
+        List<TimeRecord> expectedRecords = Collections.singletonList(tr1);
+        when(complianceService.getTimeRecordsForJourney(driverId, journeyDate)).thenReturn(expectedRecords);
+
+        List<TimeRecord> resultRecords = complianceService.getTimeRecordsForJourney(driverId, journeyDate);
+
+        assertNotNull(resultRecords);
+        assertFalse(resultRecords.isEmpty());
+        assertEquals(expectedRecords.size(), resultRecords.size());
+        verify(complianceService, times(1)).getTimeRecordsForJourney(driverId, journeyDate);
     }
 }

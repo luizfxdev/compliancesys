@@ -23,7 +23,7 @@ public interface JourneyService {
      * @throws BusinessException Se houver uma regra de negócio violada.
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
      */
-    Journey createJourney(Journey journey) throws BusinessException, SQLException; // Retorna Journey
+    Journey createJourney(Journey journey) throws BusinessException, SQLException;
 
     /**
      * Busca uma jornada pelo seu ID.
@@ -42,7 +42,7 @@ public interface JourneyService {
      * @throws BusinessException Se ocorrer um erro de negócio.
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
      */
-    List<Journey> getAllJourneys() throws BusinessException, SQLException; // Adicionado
+    List<Journey> getAllJourneys() throws BusinessException, SQLException;
 
     /**
      * Busca jornadas por ID do motorista.
@@ -52,7 +52,7 @@ public interface JourneyService {
      * @throws BusinessException Se o ID do motorista for inválido.
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
      */
-    List<Journey> getJourneysByDriverId(int driverId) throws BusinessException, SQLException; // Retorna List<Journey>
+    List<Journey> getJourneysByDriverId(int driverId) throws BusinessException, SQLException;
 
     /**
      * Busca uma jornada específica de um motorista em uma determinada data.
@@ -63,7 +63,7 @@ public interface JourneyService {
      * @throws BusinessException Se os parâmetros forem inválidos.
      * @throws SQLException Se ocorrer um erro de acesso ao banco de dados.
      */
-    Optional<Journey> getJourneyByDriverIdAndDate(int driverId, LocalDate journeyDate) throws BusinessException, SQLException; // Retorna Optional<Journey>
+    Optional<Journey> getJourneyByDriverIdAndDate(int driverId, LocalDate journeyDate) throws BusinessException, SQLException;
 
     /**
      * Atualiza os dados de uma jornada existente.

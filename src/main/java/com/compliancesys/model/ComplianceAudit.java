@@ -3,19 +3,18 @@ package com.compliancesys.model;
 import java.time.LocalDateTime;
 import java.util.Objects;
 
-import com.compliancesys.model.enums.ComplianceStatus;
-
 /**
  * Representa um registro de auditoria de conformidade para uma jornada.
  * Corresponde à tabela 'compliance_audits' no banco de dados.
+ * Alinhado com o schema.sql fornecido.
  */
 public class ComplianceAudit {
     private int id;
     private int journeyId;
     private LocalDateTime auditDate;
-    private ComplianceStatus complianceStatus; // Renomeado de 'status' para 'complianceStatus' para evitar conflitos
-    private String auditorName; // ADICIONADO
-    private String notes; // ADICIONADO
+    private String complianceStatus; // Alterado para String para alinhar com schema.sql
+    private String auditorName;
+    private String notes;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -23,7 +22,8 @@ public class ComplianceAudit {
     }
 
     // Construtor completo
-    public ComplianceAudit(int id, int journeyId, LocalDateTime auditDate, ComplianceStatus complianceStatus, String auditorName, String notes, LocalDateTime createdAt, LocalDateTime updatedAt) {
+    public ComplianceAudit(int id, int journeyId, LocalDateTime auditDate, String complianceStatus,
+                           String auditorName, String notes, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.journeyId = journeyId;
         this.auditDate = auditDate;
@@ -35,12 +35,14 @@ public class ComplianceAudit {
     }
 
     // Construtor para inserção (sem ID, createdAt, updatedAt)
-    public ComplianceAudit(int journeyId, LocalDateTime auditDate, ComplianceStatus complianceStatus, String auditorName, String notes) {
+    public ComplianceAudit(int journeyId, LocalDateTime auditDate, String complianceStatus,
+                           String auditorName, String notes) {
         this(0, journeyId, auditDate, complianceStatus, auditorName, notes, null, null);
     }
 
     // Construtor para atualização (com ID, sem createdAt, updatedAt)
-    public ComplianceAudit(int id, int journeyId, LocalDateTime auditDate, ComplianceStatus complianceStatus, String auditorName, String notes) {
+    public ComplianceAudit(int id, int journeyId, LocalDateTime auditDate, String complianceStatus,
+                           String auditorName, String notes) {
         this(id, journeyId, auditDate, complianceStatus, auditorName, notes, null, null);
     }
 
@@ -69,27 +71,27 @@ public class ComplianceAudit {
         this.auditDate = auditDate;
     }
 
-    public ComplianceStatus getComplianceStatus() { // Getter para complianceStatus
+    public String getComplianceStatus() {
         return complianceStatus;
     }
 
-    public void setComplianceStatus(ComplianceStatus complianceStatus) { // Setter para complianceStatus
+    public void setComplianceStatus(String complianceStatus) {
         this.complianceStatus = complianceStatus;
     }
 
-    public String getAuditorName() { // ADICIONADO
+    public String getAuditorName() {
         return auditorName;
     }
 
-    public void setAuditorName(String auditorName) { // ADICIONADO
+    public void setAuditorName(String auditorName) {
         this.auditorName = auditorName;
     }
 
-    public String getNotes() { // ADICIONADO
+    public String getNotes() {
         return notes;
     }
 
-    public void setNotes(String notes) { // ADICIONADO
+    public void setNotes(String notes) {
         this.notes = notes;
     }
 
@@ -115,7 +117,7 @@ public class ComplianceAudit {
                 "id=" + id +
                 ", journeyId=" + journeyId +
                 ", auditDate=" + auditDate +
-                ", complianceStatus=" + complianceStatus +
+                ", complianceStatus='" + complianceStatus + '\'' +
                 ", auditorName='" + auditorName + '\'' +
                 ", notes='" + notes + '\'' +
                 ", createdAt=" + createdAt +
@@ -130,8 +132,8 @@ public class ComplianceAudit {
         ComplianceAudit that = (ComplianceAudit) o;
         return id == that.id &&
                 journeyId == that.journeyId &&
-                complianceStatus == that.complianceStatus &&
                 Objects.equals(auditDate, that.auditDate) &&
+                Objects.equals(complianceStatus, that.complianceStatus) &&
                 Objects.equals(auditorName, that.auditorName) &&
                 Objects.equals(notes, that.notes);
     }

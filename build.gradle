@@ -21,8 +21,8 @@ repositories {
 java {
     // Define a versão do Java a ser usada para compilação e execução.
     // O projeto requer Java 8 ou superior.
-    // REMOVIDO: sourceCompatibility = JavaVersion.VERSION_1_8
-    // REMOVIDO: targetCompatibility = JavaVersion.VERSION_1_8
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
 
     // === ADICIONADO: Configuração de toolchain para Java 8 ===
     // Isso instrui o Gradle a procurar e usar um JDK 8 para compilação e execução,
@@ -59,7 +59,8 @@ dependencies {
     implementation 'com.google.code.gson:gson:2.10.1' // Versão compatível com Java 8
 
     // Dependência para HikariCP (pool de conexões JDBC de alta performance).
-    implementation 'com.zaxxer:HikariCP:5.0.1' // Versão compatível com Java 8
+    // CORRIGIDO: Versão alterada para 3.4.5 para compatibilidade com Java 8.
+    implementation 'com.zaxxer:HikariCP:3.4.5'
 
     // Dependência para o driver JDBC do PostgreSQL.
     implementation 'org.postgresql:postgresql:42.7.1' // Versão compatível com Java 8
@@ -73,7 +74,7 @@ dependencies {
     // Dependência para a API de Servlet (para aplicações web).
     // Usando Jakarta Servlet API 5.0.0, compatível com Java 8 e Jakarta EE 9.
     // Este escopo indica que a dependência será fornecida pelo servidor de aplicação.
-    providedCompile 'jakarta.servlet:jakarta.servlet-api:5.0.0'
+    compileOnly 'jakarta.servlet:jakarta.servlet-api:5.0.0'
 
     // === DEPENDÊNCIAS DE TESTE ===
     // Dependência para JUnit Jupiter API (JUnit 5).
@@ -94,27 +95,14 @@ dependencies {
     // ===================================================================
 }
 
-// Configuração da tarefa de teste.
+// Configuração para as tarefas de teste.
 test {
-    // Usa a plataforma JUnit 5 para executar os testes.
+    // Usa a plataforma JUnit Jupiter para executar os testes.
     useJUnitPlatform()
-
-    // Configurações para os relatórios de teste.
-    reports {
-        // Habilita a geração de relatórios JUnit XML.
-        junitXml.required = true
-        // Define o diretório de saída para os relatórios JUnit XML.
-        junitXml.outputLocation = file("${buildDir}/reports/tests/test")
-
-        // Habilita a geração de relatórios HTML.
-        html.required = true // Garante que o relatório HTML seja gerado.
-        // Define o diretório de saída.
-        html.outputLocation = file("${buildDir}/reports/tests/test") // Define o diretório de saída.
+    // Garante que os testes falhem se houver alguma falha.
+    failFast = true
+    // Exibe os resultados dos testes no console.
+    testLogging {
+        events "passed", "skipped", "failed"
     }
-}
-
-// Configuração da tarefa WAR para o nome do arquivo de saída.
-war {
-    // Define o nome do arquivo WAR gerado.
-    archiveFileName = "${project.name}.war"
 }

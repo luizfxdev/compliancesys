@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import com.compliancesys.model.TimeRecord; // Importar TimeRecord
 import com.compliancesys.util.TimeUtil;
 
 /**
@@ -54,5 +55,40 @@ public class TimeUtilImpl implements TimeUtil {
             return false; // Ou lance uma IllegalArgumentException
         }
         return !duration.isNegative() && (duration.compareTo(minDuration) >= 0);
+    }
+
+    // --- NOVOS MÉTODOS PARA CÁLCULO DE TEMPO ---
+
+    @Override
+    public long calculateTotalDrivingTime(List<TimeRecord> timeRecords) {
+        long totalDrivingMinutes = 0;
+        // Assumindo que timeRecords são pares de entrada/saída
+        for (int i = 0; i < timeRecords.size(); i += 2) {
+            if (i + 1 < timeRecords.size()) {
+                LocalDateTime start = timeRecords.get(i).getRecordTime();
+                LocalDateTime end = timeRecords.get(i + 1).getRecordTime();
+                if (start != null && end != null && end.isAfter(start)) {
+                    totalDrivingMinutes += Duration.between(start, end).toMinutes();
+                }
+            }
+        }
+        return totalDrivingMinutes;
+    }
+
+    @Override
+    public long calculateTotalRestTime(List<TimeRecord> timeRecords) {
+        long totalRestMinutes = 0;
+        // Assumindo que timeRecords são pares de entrada/saída e que o descanso ocorre entre as jornadas
+        // ou entre o fim de uma jornada e o início da próxima (se houver)
+        for (int i = 1; i < timeRecords.size(); i += 2) {
+            if (i + 1 < timeRecords.size()) {
+                LocalDateTime endDriving = timeRecords.get(i).getRecordTime();
+                LocalDateTime startNextDriving = timeRecords.get(i + 1).getRecordTime();
+                if (endDriving != null && startNextDriving != null && startNextDriving.isAfter(endDriving)) {
+                    totalRestMinutes += Duration.between(endDriving, startNextDriving).toMinutes();
+                }
+            }
+        }
+        return totalRestMinutes;
     }
 }

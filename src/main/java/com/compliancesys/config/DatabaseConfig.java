@@ -3,7 +3,6 @@ package com.compliancesys.config;
 import java.io.IOException;
 import java.io.InputStream;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -11,23 +10,91 @@ import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+
+/**
+ * Classe de configuração do banco de dados usando HikariCP como pool de conexões.
+ * Implementa o padrão Singleton para garantir uma única instância do DataSource.
+ * As configurações do banco de dados são carregadas de um arquivo de propriedades.
+ */
 public class DatabaseConfig {
 
     private static final Logger LOGGER = Logger.getLogger(DatabaseConfig.class.getName());
     private static final String DB_PROPERTIES_FILE = "database.properties";
-    private static Properties properties;
 
-    // --- ADICIONADO: Implementação do padrão Singleton ---
-    private static DatabaseConfig instance; // Instância única
-    private Connection connection; // Conexão para a instância Singleton
+    private static DatabaseConfig instance;
+    private final HikariDataSource dataSource;
+    private static Properties properties; // Para carregar as propriedades do arquivo
 
-    // Construtor privado para evitar instanciação externa
+    /**
+     * Construtor privado para implementar Singleton.
+     * Carrega as propriedades do arquivo e inicializa o HikariCP DataSource.
+     */
     private DatabaseConfig() {
-        loadProperties();
-        // A conexão para a instância singleton será estabelecida sob demanda
+        loadProperties(); // Carrega as propriedades do arquivo
+
+        HikariConfig config = new HikariConfig();
+        config.setJdbcUrl(properties.getProperty("db.url"));
+        config.setUsername(properties.getProperty("db.username"));
+        config.setPassword(properties.getProperty("db.password"));
+        config.setDriverClassName(properties.getProperty("db.driver")); // É bom definir o driver explicitamente
+
+        // Configurações do pool (podem vir do arquivo de propriedades também)
+        config.setMaximumPoolSize(Integer.parseInt(properties.getProperty("hikari.maximumPoolSize", "10")));
+        config.setMinimumIdle(Integer.parseInt(properties.getProperty("hikari.minimumIdle", "2")));
+        config.setConnectionTimeout(Long.parseLong(properties.getProperty("hikari.connectionTimeout", "30000")));
+        config.setIdleTimeout(Long.parseLong(properties.getProperty("hikari.idleTimeout", "600000")));
+        config.setMaxLifetime(Long.parseLong(properties.getProperty("hikari.maxLifetime", "1800000")));
+
+        // Se você sempre quer autoCommit=false, configure aqui no pool
+        config.setAutoCommit(Boolean.parseBoolean(properties.getProperty("hikari.autoCommit", "false")));
+
+        // Propriedades adicionais do PostgreSQL (também podem vir do arquivo)
+        // Note que as propriedades do DataSource podem ter nomes ligeiramente diferentes entre as versões do HikariCP
+        // e drivers JDBC. As que você usou são geralmente compatíveis.
+        config.addDataSourceProperty("cachePrepStmts", properties.getProperty("hikari.cachePrepStmts", "true"));
+        config.addDataSourceProperty("prepStmtCacheSize", properties.getProperty("hikari.prepStmtCacheSize", "250"));
+        config.addDataSourceProperty("prepStmtCacheSqlLimit", properties.getProperty("hikari.prepStmtCacheSqlLimit", "2048"));
+
+        try {
+            this.dataSource = new HikariDataSource(config);
+            LOGGER.log(Level.INFO, "HikariCP DataSource inicializado com sucesso.");
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Erro ao inicializar HikariCP DataSource: " + e.getMessage(), e);
+            throw new RuntimeException("Não foi possível inicializar o pool de conexões.", e);
+        }
     }
 
-    // Método estático para obter a instância única
+    /**
+     * Carrega as propriedades do arquivo database.properties.
+     * Este método é estático e thread-safe para garantir que as propriedades sejam carregadas apenas uma vez.
+     */
+    private static void loadProperties() {
+        if (properties == null) {
+            synchronized (DatabaseConfig.class) { // Garante que apenas uma thread carregue as propriedades
+                if (properties == null) {
+                    properties = new Properties();
+                    try (InputStream input = DatabaseConfig.class.getClassLoader().getResourceAsStream(DB_PROPERTIES_FILE)) {
+                        if (input == null) {
+                            LOGGER.log(Level.SEVERE, "Arquivo de propriedades do banco de dados '" + DB_PROPERTIES_FILE + "' não encontrado.");
+                            throw new IOException("Arquivo de propriedades do banco de dados não encontrado.");
+                        }
+                        properties.load(input);
+                        LOGGER.log(Level.INFO, "Propriedades do banco de dados carregadas com sucesso.");
+                    } catch (IOException ex) {
+                        LOGGER.log(Level.SEVERE, "Erro ao carregar propriedades do banco de dados: " + ex.getMessage(), ex);
+                        throw new RuntimeException("Não foi possível carregar as propriedades do banco de dados.", ex);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Retorna a instância Singleton de DatabaseConfig.
+     * @return A instância única de DatabaseConfig.
+     */
     public static synchronized DatabaseConfig getInstance() {
         if (instance == null) {
             instance = new DatabaseConfig();
@@ -35,101 +102,42 @@ public class DatabaseConfig {
         return instance;
     }
 
-    // Método para obter a conexão da instância Singleton
-    public Connection getConnection() throws SQLException {
-        if (this.connection == null || this.connection.isClosed()) {
-            try {
-                Class.forName(properties.getProperty("db.driver"));
-                this.connection = DriverManager.getConnection(
-                        properties.getProperty("db.url"),
-                        properties.getProperty("db.username"),
-                        properties.getProperty("db.password")
-                );
-                this.connection.setAutoCommit(false); // Gerenciamento manual de transações
-                LOGGER.log(Level.FINE, "Conexão com o banco de dados estabelecida com sucesso pela instância Singleton.");
-            } catch (ClassNotFoundException e) {
-                LOGGER.log(Level.SEVERE, "Driver do banco de dados não encontrado: " + e.getMessage(), e);
-                throw new SQLException("Driver do banco de dados não encontrado.", e);
-            } catch (SQLException e) {
-                LOGGER.log(Level.SEVERE, "Erro ao obter conexão com o banco de dados pela instância Singleton: " + e.getMessage(), e);
-                throw e;
-            }
-        }
-        return this.connection;
-    }
-
-    // Método para fechar a conexão da instância Singleton
-    public void closeConnection() {
-        if (this.connection != null) {
-            try {
-                this.connection.close();
-                LOGGER.log(Level.INFO, "Conexão com o banco de dados da instância Singleton fechada com sucesso.");
-            } catch (SQLException e) {
-                LOGGER.log(Level.SEVERE, "Erro ao fechar conexão com o banco de dados da instância Singleton: " + e.getMessage(), e);
-            } finally {
-                this.connection = null; // Garante que uma nova conexão será criada na próxima vez
-            }
-        }
-    }
-    // --- FIM: Implementação do padrão Singleton ---
-
-
-    private static void loadProperties() {
-        if (properties == null) {
-            properties = new Properties();
-            try (InputStream input = DatabaseConfig.class.getClassLoader().getResourceAsStream(DB_PROPERTIES_FILE)) {
-                if (input == null) {
-                    LOGGER.log(Level.SEVERE, "Arquivo de propriedades do banco de dados '" + DB_PROPERTIES_FILE + "' não encontrado.");
-                    throw new IOException("Arquivo de propriedades do banco de dados não encontrado.");
-                }
-                properties.load(input);
-            } catch (IOException ex) {
-                LOGGER.log(Level.SEVERE, "Erro ao carregar propriedades do banco de dados: " + ex.getMessage(), ex);
-                throw new RuntimeException("Não foi possível carregar as propriedades do banco de dados.", ex);
-            }
-        }
-    }
-
-    // --- Métodos estáticos originais (para compatibilidade ou uso direto) ---
-    // Note que estes métodos estáticos de conexão e fechamento são independentes da instância Singleton.
-    // Se o seu código de teste usa DatabaseConnection.getTestConnection(), ele não usará o Singleton.
-    // Se o seu código de teste usa DatabaseConfig.getInstance().getConnection(), ele usará o Singleton.
-    // É importante ser consistente.
-
     /**
-     * Obtém uma nova conexão com o banco de dados.
-     * Este método não usa o padrão Singleton e sempre retorna uma nova conexão.
-     * @return Uma nova conexão com o banco de dados.
-     * @throws SQLException Se ocorrer um erro ao obter a conexão.
+     * Obtém uma conexão do pool de conexões.
+     * Esta conexão é "lógica" e será devolvida ao pool quando connection.close() for chamado.
+     * @return Uma conexão com o banco de dados.
+     * @throws SQLException Se não for possível obter uma conexão.
      */
-    public static Connection getNewConnection() throws SQLException {
-        loadProperties();
-        try {
-            Class.forName(properties.getProperty("db.driver"));
-            Connection connection = DriverManager.getConnection(
-                    properties.getProperty("db.url"),
-                    properties.getProperty("db.username"),
-                    properties.getProperty("db.password")
-            );
-            connection.setAutoCommit(false); // Gerenciamento manual de transações
-            LOGGER.log(Level.FINE, "Conexão com o banco de dados estabelecida com sucesso.");
-            return connection;
-        } catch (ClassNotFoundException e) {
-            LOGGER.log(Level.SEVERE, "Driver do banco de dados não encontrado: " + e.getMessage(), e);
-            throw new SQLException("Driver do banco de dados não encontrado.", e);
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro ao obter conexão com o banco de dados: " + e.getMessage(), e);
-            throw e; // Relança a exceção para ser tratada por quem chamou
+    public Connection getConnection() throws SQLException {
+        return dataSource.getConnection();
+    }
+
+    /**
+     * Fecha o DataSource e libera todos os recursos do pool.
+     * Deve ser chamado quando a aplicação for encerrada para evitar vazamento de recursos.
+     */
+    public void shutdown() {
+        if (dataSource != null && !dataSource.isClosed()) {
+            dataSource.close();
+            LOGGER.log(Level.INFO, "HikariCP DataSource fechado com sucesso.");
         }
     }
 
     /**
-     * Fecha os recursos do banco de dados (Connection, Statement, ResultSet) de forma segura.
-     * @param conn A conexão a ser fechada.
+     * Verifica se o DataSource está fechado.
+     * @return true se o DataSource está fechado, false caso contrário.
+     */
+    public boolean isClosed() {
+        return dataSource == null || dataSource.isClosed();
+    }
+
+    /**
+     * Fecha os recursos do banco de dados (Statement, ResultSet) de forma segura.
+     * Com um pool de conexões, a Connection é devolvida ao pool e não deve ser fechada explicitamente aqui.
      * @param stmt O statement a ser fechado.
      * @param rs O result set a ser fechado.
      */
-    public static void closeResources(Connection conn, Statement stmt, ResultSet rs) {
+    public static void closeResources(Statement stmt, ResultSet rs) {
         try {
             if (rs != null) {
                 rs.close();
@@ -137,28 +145,16 @@ public class DatabaseConfig {
             if (stmt != null) {
                 stmt.close();
             }
-            if (conn != null) {
-                conn.close();
-            }
         } catch (SQLException ex) {
-            LOGGER.log(Level.SEVERE, "Erro ao fechar recursos do banco de dados.", ex);
+            LOGGER.log(Level.SEVERE, "Erro ao fechar recursos do banco de dados (Statement/ResultSet).", ex);
         }
     }
 
     /**
-     * Sobrecarga para fechar Connection e Statement.
-     * @param conn A conexão a ser fechada.
+     * Sobrecarga para fechar apenas Statement.
      * @param stmt O statement a ser fechado.
      */
-    public static void closeResources(Connection conn, Statement stmt) {
-        closeResources(conn, stmt, null);
-    }
-
-    /**
-     * Sobrecarga para fechar apenas a Connection.
-     * @param conn A conexão a ser fechada.
-     */
-    public static void closeResources(Connection conn) {
-        closeResources(conn, null, null);
+    public static void closeResources(Statement stmt) {
+        closeResources(stmt, null);
     }
 }
