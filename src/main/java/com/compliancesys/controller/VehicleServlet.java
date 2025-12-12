@@ -1,5 +1,9 @@
 package com.compliancesys.controller;
 
+<<<<<<< Updated upstream
+=======
+import com.compliancesys.config.DatabaseConfig;
+>>>>>>> Stashed changes
 import com.compliancesys.dao.VehicleDAO;
 import com.compliancesys.dao.impl.VehicleDAOImpl;
 import com.compliancesys.exception.BusinessException;
@@ -7,25 +11,46 @@ import com.compliancesys.model.Vehicle;
 import com.compliancesys.service.VehicleService;
 import com.compliancesys.service.impl.VehicleServiceImpl;
 import com.compliancesys.util.GsonUtil;
+<<<<<<< Updated upstream
 import com.compliancesys.util.Validator;
 import com.compliancesys.util.impl.GsonUtilImpl;
 import com.compliancesys.util.impl.ValidatorImpl;
+=======
+import com.compliancesys.util.Validator; // Adicionado para VehicleServiceImpl
+import com.compliancesys.util.impl.GsonUtilImpl;
+import com.compliancesys.util.impl.ValidatorImpl; // Adicionado para VehicleServiceImpl
+>>>>>>> Stashed changes
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+<<<<<<< Updated upstream
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
+=======
+import javax.sql.DataSource;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.sql.SQLException;
+import java.time.LocalDateTime; // Adicionado para ErrorResponse
+>>>>>>> Stashed changes
 import java.util.List;
 import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+<<<<<<< Updated upstream
+=======
+/**
+ * Servlet para gerenciar operações CRUD de veículos.
+ * Responde a requisições HTTP para /vehicles.
+ */
+>>>>>>> Stashed changes
 @WebServlet("/vehicles/*")
 public class VehicleServlet extends HttpServlet {
 
@@ -35,10 +60,23 @@ public class VehicleServlet extends HttpServlet {
 
     @Override
     public void init() throws ServletException {
+<<<<<<< Updated upstream
         VehicleDAO vehicleDAO = new VehicleDAOImpl();
         Validator validator = new ValidatorImpl();
         this.vehicleService = new VehicleServiceImpl(vehicleDAO, validator);
         this.gson = new GsonUtilImpl();
+=======
+        try {
+            DataSource dataSource = DatabaseConfig.getInstance().getDataSource();
+            VehicleDAO vehicleDAO = new VehicleDAOImpl(dataSource);
+            Validator validator = new ValidatorImpl(); // Instancia Validator
+            this.vehicleService = new VehicleServiceImpl(vehicleDAO, validator); // Injeta DAO e Validator no Service
+            this.gsonSerializer = new GsonUtilImpl();
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Erro ao inicializar VehicleServlet: " + e.getMessage(), e);
+            throw new ServletException("Erro ao inicializar VehicleServlet", e);
+        }
+>>>>>>> Stashed changes
     }
 
     @Override
@@ -51,12 +89,19 @@ public class VehicleServlet extends HttpServlet {
         try {
             if (pathInfo == null || pathInfo.equals("/")) {
                 List<Vehicle> vehicles = vehicleService.getAllVehicles();
+<<<<<<< Updated upstream
                 out.print(gson.serialize(vehicles));
             } else if (pathInfo.startsWith("/plate/")) {
                 // GET /vehicles/plate/{licensePlate}
                 String licensePlate = pathInfo.substring("/plate/".length());
                 // CORRIGIDO: Usando getVehicleByPlate
                 Optional<Vehicle> vehicle = vehicleService.getVehicleByPlate(licensePlate);
+=======
+                out.print(gsonSerializer.serialize(vehicles));
+            } else {
+                int vehicleId = Integer.parseInt(pathInfo.substring(1));
+                Optional<Vehicle> vehicle = vehicleService.getVehicleById(vehicleId);
+>>>>>>> Stashed changes
                 if (vehicle.isPresent()) {
                     out.print(gson.serialize(vehicle.get()));
                 } else {
@@ -75,6 +120,7 @@ public class VehicleServlet extends HttpServlet {
             }
         } catch (NumberFormatException e) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+<<<<<<< Updated upstream
             out.print(gson.serialize(new ErrorResponse("ID ou formato de URL inválido.")));
             LOGGER.log(Level.WARNING, "Erro de formato de número no GET de veículo: " + e.getMessage(), e);
         } catch (BusinessException e) {
@@ -88,6 +134,21 @@ public class VehicleServlet extends HttpServlet {
         } catch (Exception e) {
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
             out.print(gson.serialize(new ErrorResponse("Erro inesperado no GET de veículo: " + e.getMessage())));
+=======
+            out.print(gsonSerializer.serialize(new ErrorResponse("ID inválido no caminho da URL.")));
+            LOGGER.log(Level.WARNING, "ID inválido no caminho da URL para GET de veículo: " + e.getMessage(), e);
+        } catch (BusinessException e) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            out.print(gsonSerializer.serialize(new ErrorResponse(e.getMessage())));
+            LOGGER.log(Level.WARNING, "Erro de negócio no GET de veículo: " + e.getMessage(), e);
+        } catch (SQLException e) {
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.print(gsonSerializer.serialize(new ErrorResponse("Erro de banco de dados: " + e.getMessage())));
+            LOGGER.log(Level.SEVERE, "Erro de SQL no GET de veículo: " + e.getMessage(), e);
+        } catch (Exception e) {
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.print(gsonSerializer.serialize(new ErrorResponse("Erro inesperado no GET de veículo: " + e.getMessage())));
+>>>>>>> Stashed changes
             LOGGER.log(Level.SEVERE, "Erro inesperado no GET de veículo: " + e.getMessage(), e);
         } finally {
             out.flush();
@@ -102,6 +163,7 @@ public class VehicleServlet extends HttpServlet {
 
         try {
             String jsonBody = request.getReader().lines().collect(Collectors.joining());
+<<<<<<< Updated upstream
             Vehicle newVehicle = gson.deserialize(jsonBody, Vehicle.class);
             // CORRIGIDO: Usando registerVehicle
             Vehicle createdVehicle = vehicleService.registerVehicle(newVehicle);
@@ -118,6 +180,23 @@ public class VehicleServlet extends HttpServlet {
         } catch (Exception e) {
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
             out.print(gson.serialize(new ErrorResponse("Erro inesperado ao criar veículo: " + e.getMessage())));
+=======
+            Vehicle newVehicle = gsonSerializer.deserialize(jsonBody, Vehicle.class);
+            Vehicle createdVehicle = vehicleService.registerVehicle(newVehicle);
+            response.setStatus(HttpServletResponse.SC_CREATED);
+            out.print(gsonSerializer.serialize(createdVehicle));
+        } catch (BusinessException e) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            out.print(gsonSerializer.serialize(new ErrorResponse(e.getMessage())));
+            LOGGER.log(Level.WARNING, "Erro de negócio ao criar veículo: " + e.getMessage(), e);
+        } catch (SQLException e) {
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.print(gsonSerializer.serialize(new ErrorResponse("Erro de banco de dados: " + e.getMessage())));
+            LOGGER.log(Level.SEVERE, "Erro de SQL ao criar veículo: " + e.getMessage(), e);
+        } catch (Exception e) {
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.print(gsonSerializer.serialize(new ErrorResponse("Erro inesperado ao criar veículo: " + e.getMessage())));
+>>>>>>> Stashed changes
             LOGGER.log(Level.SEVERE, "Erro inesperado ao criar veículo: " + e.getMessage(), e);
         } finally {
             out.flush();
@@ -139,6 +218,7 @@ public class VehicleServlet extends HttpServlet {
         }
 
         try {
+<<<<<<< Updated upstream
             int id = Integer.parseInt(pathInfo.substring(1));
             String jsonBody = request.getReader().lines().collect(Collectors.joining());
             Vehicle updatedVehicle = gson.deserialize(jsonBody, Vehicle.class);
@@ -149,12 +229,24 @@ public class VehicleServlet extends HttpServlet {
             if (updated) {
                 response.setStatus(HttpServletResponse.SC_OK);
                 out.print(gson.serialize(updatedVehicle));
+=======
+            int vehicleId = Integer.parseInt(pathInfo.substring(1));
+            String jsonBody = request.getReader().lines().collect(Collectors.joining());
+            Vehicle updatedVehicle = gsonSerializer.deserialize(jsonBody, Vehicle.class);
+            updatedVehicle.setId(vehicleId); // Garante que o ID do path seja usado
+
+            boolean updated = vehicleService.updateVehicle(updatedVehicle);
+            if (updated) {
+                response.setStatus(HttpServletResponse.SC_OK);
+                out.print(gsonSerializer.serialize(updatedVehicle));
+>>>>>>> Stashed changes
             } else {
                 response.setStatus(HttpServletResponse.SC_NOT_FOUND);
                 out.print(gson.serialize(new ErrorResponse("Veículo não encontrado para atualização.")));
             }
         } catch (NumberFormatException e) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+<<<<<<< Updated upstream
             out.print(gson.serialize(new ErrorResponse("ID do veículo inválido.")));
             LOGGER.log(Level.WARNING, "Erro de formato de número ao atualizar veículo: " + e.getMessage(), e);
         } catch (BusinessException e) {
@@ -168,6 +260,21 @@ public class VehicleServlet extends HttpServlet {
         } catch (Exception e) {
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
             out.print(gson.serialize(new ErrorResponse("Erro inesperado ao atualizar veículo: " + e.getMessage())));
+=======
+            out.print(gsonSerializer.serialize(new ErrorResponse("ID do veículo inválido.")));
+            LOGGER.log(Level.WARNING, "Erro de formato de número ao atualizar veículo: " + e.getMessage(), e);
+        } catch (BusinessException e) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            out.print(gsonSerializer.serialize(new ErrorResponse(e.getMessage())));
+            LOGGER.log(Level.WARNING, "Erro de negócio ao atualizar veículo: " + e.getMessage(), e);
+        } catch (SQLException e) {
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.print(gsonSerializer.serialize(new ErrorResponse("Erro de banco de dados: " + e.getMessage())));
+            LOGGER.log(Level.SEVERE, "Erro de SQL ao atualizar veículo: " + e.getMessage(), e);
+        } catch (Exception e) {
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.print(gsonSerializer.serialize(new ErrorResponse("Erro inesperado ao atualizar veículo: " + e.getMessage())));
+>>>>>>> Stashed changes
             LOGGER.log(Level.SEVERE, "Erro inesperado ao atualizar veículo: " + e.getMessage(), e);
         } finally {
             out.flush();
@@ -189,16 +296,24 @@ public class VehicleServlet extends HttpServlet {
         }
 
         try {
+<<<<<<< Updated upstream
             int id = Integer.parseInt(pathInfo.substring(1));
             boolean deleted = vehicleService.deleteVehicle(id);
             if (deleted) {
                 response.setStatus(HttpServletResponse.SC_NO_CONTENT);
+=======
+            int vehicleId = Integer.parseInt(pathInfo.substring(1));
+            boolean deleted = vehicleService.deleteVehicle(vehicleId);
+            if (deleted) {
+                response.setStatus(HttpServletResponse.SC_NO_CONTENT); // 204 No Content para exclusão bem-sucedida
+>>>>>>> Stashed changes
             } else {
                 response.setStatus(HttpServletResponse.SC_NOT_FOUND);
                 out.print(gson.serialize(new ErrorResponse("Veículo não encontrado para exclusão.")));
             }
         } catch (NumberFormatException e) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+<<<<<<< Updated upstream
             out.print(gson.serialize(new ErrorResponse("ID do veículo inválido.")));
             LOGGER.log(Level.WARNING, "Erro de formato de número ao deletar veículo: " + e.getMessage(), e);
         } catch (BusinessException e) {
@@ -212,6 +327,21 @@ public class VehicleServlet extends HttpServlet {
         } catch (Exception e) {
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
             out.print(gson.serialize(new ErrorResponse("Erro inesperado ao deletar veículo: " + e.getMessage())));
+=======
+            out.print(gsonSerializer.serialize(new ErrorResponse("ID do veículo inválido.")));
+            LOGGER.log(Level.WARNING, "Erro de formato de número ao deletar veículo: " + e.getMessage(), e);
+        } catch (BusinessException e) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            out.print(gsonSerializer.serialize(new ErrorResponse(e.getMessage())));
+            LOGGER.log(Level.WARNING, "Erro de negócio ao deletar veículo: " + e.getMessage(), e);
+        } catch (SQLException e) {
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.print(gsonSerializer.serialize(new ErrorResponse("Erro de banco de dados: " + e.getMessage())));
+            LOGGER.log(Level.SEVERE, "Erro de SQL ao deletar veículo: " + e.getMessage(), e);
+        } catch (Exception e) {
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.print(gsonSerializer.serialize(new ErrorResponse("Erro inesperado ao deletar veículo: " + e.getMessage())));
+>>>>>>> Stashed changes
             LOGGER.log(Level.SEVERE, "Erro inesperado ao deletar veículo: " + e.getMessage(), e);
         } finally {
             out.flush();

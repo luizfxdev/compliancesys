@@ -1,25 +1,17 @@
 // build.gradle for ComplianceSys project
 // Configures project dependencies and build tasks.
-
 plugins {
-    // Aplica o plugin Java para funcionalidades de compilação e teste.
     id 'java'
-    // Aplica o plugin WAR para construir um arquivo .war para implantação em servidores de aplicação como o Tomcat.
     id 'war'
 }
-
-// Configurações gerais do grupo e versão do projeto.
 group 'com.compliancesys'
 version '1.0-SNAPSHOT'
-
-// Define o repositório Maven Central para buscar as dependências.
 repositories {
     mavenCentral()
 }
-
-// Configurações para o compilador Java.
 java {
     // Define a versão do Java a ser usada para compilação e execução.
+<<<<<<< Updated upstream
     // O projeto requer Java 8 ou superior.
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
@@ -32,6 +24,15 @@ java {
     }
     // =======================================================
 
+=======
+    // Migrando para Java 11 para compatibilidade com Jakarta EE 5.0.0
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+    // Configuração de toolchain para Java 11
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(11)
+    }
+>>>>>>> Stashed changes
     sourceSets {
         main {
             java {
@@ -51,6 +52,7 @@ java {
         }
     }
 }
+<<<<<<< Updated upstream
 
 // Configuração das dependências do projeto.
 dependencies {
@@ -100,8 +102,50 @@ test {
     // Usa a plataforma JUnit Jupiter para executar os testes.
     useJUnitPlatform()
     // Garante que os testes falhem se houver alguma falha.
+=======
+dependencies {
+    // === DEPENDÊNCIAS DE COMPILAÇÃO E TEMPO DE EXECUÇÃO ===
+    // Dependência para Gson (biblioteca de serialização/desserialização JSON).
+    // Versão 2.10.1 é compatível com Java 11, mas 2.11.0 é a mais recente.
+    implementation 'com.google.code.gson:gson:2.11.0'
+    // Dependência para HikariCP (pool de conexões JDBC de alta performance).
+    // Atualizado para versão 5.0.1 para melhor compatibilidade e recursos com Java 11+.
+    implementation 'com.zaxxer:HikariCP:5.0.1'
+    // Dependência para o driver JDBC do PostgreSQL.
+    // Versão 42.7.3 é a mais recente compatível com Java 11+.
+    implementation 'org.postgresql:postgresql:42.7.3'
+    // Dependência para SLF4J API (interface de logging).
+    // Versão 2.0.12 é compatível com Java 11, mas 2.0.12 é a mais recente.
+    implementation 'org.slf4j:slf4j-api:2.0.12'
+    // Dependência para Logback Classic (implementação de logging para SLF4J).
+    // Versão 1.4.14 é compatível com Java 11, mas 1.4.14 é a mais recente.
+    implementation 'ch.qos.logback:logback-classic:1.4.14'
+    // Dependência para a API de Servlet (para aplicações web).
+    // Usando Jakarta Servlet API 5.0.0, compatível com Java 11 e Jakarta EE 9.
+    // Este escopo indica que a dependência será fornecida pelo servidor de aplicação.
+    compileOnly 'jakarta.servlet:jakarta.servlet-api:5.0.0'
+
+    // === DEPENDÊNCIAS DE TESTE ===
+    // Dependência para JUnit Jupiter API (JUnit 5).
+    // Versão 5.10.1 é compatível com Java 11, mas 5.10.1 é a mais recente.
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.1'
+    // Dependência para JUnit Jupiter Engine (implementação de tempo de execução para JUnit 5).
+    // Versão 5.10.1 é compatível com Java 11, mas 5.10.1 é a mais recente.
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.1'
+    // Dependência para Mockito Core (framework de mocking).
+    // Versão 3.12.4 é compatível com Java 11, mas 5.10.0 é a mais recente.
+    testImplementation 'org.mockito:mockito-core:5.10.0'
+    // Dependência para Mockito JUnit Jupiter (integração Mockito com JUnit 5).
+    // Versão 3.12.4 é compatível com Java 11, mas 5.10.0 é a mais recente.
+    testImplementation 'org.mockito:mockito-junit-jupiter:5.10.0'
+    // Dependência para jBCrypt (para PasswordUtilTest).
+    // Versão 0.4 é compatível com Java 11, mas 0.4 é a mais recente.
+    testImplementation 'org.mindrot:jbcrypt:0.4'
+}
+test {
+    useJUnitPlatform()
+>>>>>>> Stashed changes
     failFast = true
-    // Exibe os resultados dos testes no console.
     testLogging {
         events "passed", "skipped", "failed"
     }

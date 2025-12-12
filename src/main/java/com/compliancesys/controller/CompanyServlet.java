@@ -1,5 +1,6 @@
 package com.compliancesys.controller;
 
+<<<<<<< Updated upstream
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.sql.SQLException;
@@ -9,6 +10,35 @@ import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+=======
+import com.compliancesys.config.DatabaseConfig; // Importa o DatabaseConfig
+import com.compliancesys.dao.CompanyDAO;
+import com.compliancesys.dao.impl.CompanyDAOImpl; // Assumindo que você terá essa implementação
+import com.compliancesys.exception.BusinessException; // Importa BusinessException
+import com.compliancesys.model.Company;
+import com.compliancesys.service.CompanyService;
+import com.compliancesys.service.impl.CompanyServiceImpl; // Assumindo que você terá essa implementação
+import com.compliancesys.util.GsonUtil;
+import com.compliancesys.util.Validator; // Importa Validator
+import com.compliancesys.util.impl.GsonUtilImpl; // Assumindo que você terá essa implementação
+import com.compliancesys.util.impl.ValidatorImpl; // Assumindo que você terá essa implementação
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+
+import javax.sql.DataSource; // Importa DataSource
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.sql.SQLException;
+import java.time.LocalDateTime; // Importa LocalDateTime para ErrorResponse
+import java.util.List;
+import java.util.Optional;
+import java.util.logging.Level; // Importa Level para logging
+import java.util.logging.Logger; // Importa Logger para logging
+import java.util.stream.Collectors; // Importa Collectors para ler o corpo da requisição
+>>>>>>> Stashed changes
 
 import com.compliancesys.dao.CompanyDAO;
 import com.compliancesys.dao.impl.CompanyDAOImpl;
@@ -30,6 +60,7 @@ import jakarta.servlet.http.HttpServletResponse;
 @WebServlet("/companies/*")
 public class CompanyServlet extends HttpServlet {
 
+<<<<<<< Updated upstream
     private static final Logger LOGGER = Logger.getLogger(CompanyServlet.class.getName());
     private CompanyService companyService;
     private GsonUtil gson;
@@ -40,6 +71,34 @@ public class CompanyServlet extends HttpServlet {
         Validator validator = new ValidatorImpl();
         this.companyService = new CompanyServiceImpl(companyDAO, validator);
         this.gson = new GsonUtilImpl();
+=======
+    private static final Logger LOGGER = Logger.getLogger(CompanyServlet.class.getName()); // Logger para a classe
+    private CompanyService companyService;
+    private GsonUtil gsonSerializer;
+    private Validator validator; // Adiciona o Validator
+
+    @Override
+    public void init() throws ServletException {
+        try {
+            // Obtém o DataSource do nosso Singleton DatabaseConfig
+            DataSource dataSource = DatabaseConfig.getInstance().getDataSource();
+
+            // Instancia as DAOs, passando o DataSource
+            CompanyDAO companyDAO = new CompanyDAOImpl(dataSource); // Construtor de CompanyDAOImpl deve aceitar DataSource
+
+            // Instancia o Validator
+            this.validator = new ValidatorImpl(); // Assumindo que ValidatorImpl não precisa de DataSource
+
+            // Instancia o Service, passando as DAOs e Validator
+            this.companyService = new CompanyServiceImpl(companyDAO, validator); // Construtor de CompanyServiceImpl deve aceitar CompanyDAO e Validator
+
+            // Instancia o GsonUtil
+            this.gsonSerializer = new GsonUtilImpl();
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Erro ao inicializar CompanyServlet: " + e.getMessage(), e);
+            throw new ServletException("Erro ao inicializar CompanyServlet", e);
+        }
+>>>>>>> Stashed changes
     }
 
     @Override
@@ -48,8 +107,12 @@ public class CompanyServlet extends HttpServlet {
         response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
 
+<<<<<<< Updated upstream
         String pathInfo = request.getPathInfo();
 
+=======
+        String pathInfo = request.getPathInfo(); // /companies/{id}
+>>>>>>> Stashed changes
         try {
             if (pathInfo == null || pathInfo.equals("/")) {
                 // GET /companies - Retorna todas as empresas
@@ -94,19 +157,38 @@ public class CompanyServlet extends HttpServlet {
         } catch (NumberFormatException e) {
             LOGGER.log(Level.WARNING, "ID de empresa inválido no GET: " + pathInfo + " - " + e.getMessage());
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+<<<<<<< Updated upstream
             out.print(gson.serialize(new ErrorResponse("ID de empresa inválido.")));
         } catch (BusinessException e) {
             LOGGER.log(Level.WARNING, "Erro de negócio no GET de empresa: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             out.print(gson.serialize(new ErrorResponse(e.getMessage())));
+=======
+            out.print(gsonSerializer.serialize(new ErrorResponse("ID inválido no caminho da URL.")));
+            LOGGER.log(Level.WARNING, "ID inválido no caminho da URL para GET Company: " + e.getMessage(), e);
+        } catch (BusinessException e) { // Captura BusinessException
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            out.print(gsonSerializer.serialize(new ErrorResponse(e.getMessage())));
+            LOGGER.log(Level.WARNING, "Erro de negócio no GET Company: " + e.getMessage(), e);
+>>>>>>> Stashed changes
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Erro de SQL no GET de empresa: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+<<<<<<< Updated upstream
             out.print(gson.serialize(new ErrorResponse("Erro de banco de dados: " + e.getMessage())));
+=======
+            out.print(gsonSerializer.serialize(new ErrorResponse("Erro de banco de dados: " + e.getMessage())));
+            LOGGER.log(Level.SEVERE, "Erro de SQL no GET Company: " + e.getMessage(), e);
+>>>>>>> Stashed changes
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Erro inesperado no GET de empresa: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+<<<<<<< Updated upstream
             out.print(gson.serialize(new ErrorResponse("Erro interno do servidor: " + e.getMessage())));
+=======
+            out.print(gsonSerializer.serialize(new ErrorResponse("Erro inesperado: " + e.getMessage())));
+            LOGGER.log(Level.SEVERE, "Erro inesperado no GET Company: " + e.getMessage(), e);
+>>>>>>> Stashed changes
         } finally {
             out.flush();
         }
@@ -119,6 +201,7 @@ public class CompanyServlet extends HttpServlet {
         PrintWriter out = response.getWriter();
 
         try {
+<<<<<<< Updated upstream
             String jsonBody = request.getReader().lines().collect(Collectors.joining());
             Company newCompany = gson.deserialize(jsonBody, Company.class);
             // CORRIGIDO: Usando registerCompany em vez de createCompany
@@ -129,14 +212,44 @@ public class CompanyServlet extends HttpServlet {
             LOGGER.log(Level.WARNING, "Erro de negócio ao criar empresa: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             out.print(gson.serialize(new ErrorResponse(e.getMessage())));
+=======
+            // Lê o corpo da requisição de forma robusta
+            String jsonBody = request.getReader().lines().collect(Collectors.joining());
+            Company company = gsonSerializer.deserialize(jsonBody, Company.class);
+
+            // Validação básica (se o Validator for usado aqui)
+            if (!validator.isValidCnpj(company.getCnpj())) {
+                throw new BusinessException("CNPJ inválido.");
+            }
+            if (!validator.isValidName(company.getLegalName())) {
+                throw new BusinessException("Nome legal inválido.");
+            }
+
+            Company createdCompany = companyService.registerCompany(company); // Assumindo que registerCompany retorna a Company criada
+            response.setStatus(HttpServletResponse.SC_CREATED);
+            out.print(gsonSerializer.serialize(createdCompany));
+        } catch (BusinessException e) { // Captura BusinessException
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            out.print(gsonSerializer.serialize(new ErrorResponse(e.getMessage())));
+            LOGGER.log(Level.WARNING, "Erro de negócio ao criar empresa: " + e.getMessage(), e);
+>>>>>>> Stashed changes
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Erro de SQL ao criar empresa: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+<<<<<<< Updated upstream
             out.print(gson.serialize(new ErrorResponse("Erro de banco de dados: " + e.getMessage())));
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Erro inesperado ao criar empresa: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
             out.print(gson.serialize(new ErrorResponse("Erro interno do servidor: " + e.getMessage())));
+=======
+            out.print(gsonSerializer.serialize(new ErrorResponse("Erro ao registrar empresa: " + e.getMessage())));
+            LOGGER.log(Level.SEVERE, "Erro de SQL ao criar empresa: " + e.getMessage(), e);
+        } catch (Exception e) {
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR); // Alterado para INTERNAL_SERVER_ERROR para erros inesperados
+            out.print(gsonSerializer.serialize(new ErrorResponse("Erro inesperado ao criar empresa: " + e.getMessage())));
+            LOGGER.log(Level.SEVERE, "Erro inesperado ao criar empresa: " + e.getMessage(), e);
+>>>>>>> Stashed changes
         } finally {
             out.flush();
         }
@@ -157,6 +270,7 @@ public class CompanyServlet extends HttpServlet {
         }
 
         try {
+<<<<<<< Updated upstream
             int id = Integer.parseInt(pathInfo.substring(1));
             String jsonBody = request.getReader().lines().collect(Collectors.joining());
             Company updatedCompany = gson.deserialize(jsonBody, Company.class);
@@ -172,14 +286,51 @@ public class CompanyServlet extends HttpServlet {
         } catch (BusinessException e) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             out.print(gson.serialize(new ErrorResponse(e.getMessage())));
+=======
+            int companyId = Integer.parseInt(pathInfo.substring(1));
+            String jsonBody = request.getReader().lines().collect(Collectors.joining());
+            Company company = gsonSerializer.deserialize(jsonBody, Company.class);
+            company.setId(companyId); // Garante que o ID do path seja usado
+
+            // Validação básica (se o Validator for usado aqui)
+            if (!validator.isValidCnpj(company.getCnpj())) {
+                throw new BusinessException("CNPJ inválido.");
+            }
+            if (!validator.isValidName(company.getLegalName())) {
+                throw new BusinessException("Nome legal inválido.");
+            }
+
+            if (companyService.updateCompany(company)) {
+                response.setStatus(HttpServletResponse.SC_OK);
+                out.print(gsonSerializer.serialize(company));
+            } else {
+                response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+                out.print(gsonSerializer.serialize(new ErrorResponse("Empresa não encontrada para atualização.")));
+            }
+        } catch (NumberFormatException e) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            out.print(gsonSerializer.serialize(new ErrorResponse("ID da empresa inválido.")));
+            LOGGER.log(Level.WARNING, "Erro de formato de número ao atualizar empresa: " + e.getMessage(), e);
+        } catch (BusinessException e) { // Captura BusinessException
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            out.print(gsonSerializer.serialize(new ErrorResponse(e.getMessage())));
+>>>>>>> Stashed changes
             LOGGER.log(Level.WARNING, "Erro de negócio ao atualizar empresa: " + e.getMessage(), e);
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Erro de SQL ao atualizar empresa: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+<<<<<<< Updated upstream
             out.print(gson.serialize(new ErrorResponse("Erro de banco de dados: " + e.getMessage())));
         } catch (Exception e) {
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
             out.print(gson.serialize(new ErrorResponse("Erro interno do servidor ao atualizar empresa: " + e.getMessage())));
+=======
+            out.print(gsonSerializer.serialize(new ErrorResponse("Erro ao atualizar empresa: " + e.getMessage())));
+            LOGGER.log(Level.SEVERE, "Erro de SQL ao atualizar empresa: " + e.getMessage(), e);
+        } catch (Exception e) {
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR); // Alterado para INTERNAL_SERVER_ERROR para erros inesperados
+            out.print(gsonSerializer.serialize(new ErrorResponse("Erro inesperado ao atualizar empresa: " + e.getMessage())));
+>>>>>>> Stashed changes
             LOGGER.log(Level.SEVERE, "Erro inesperado ao atualizar empresa: " + e.getMessage(), e);
         } finally {
             out.flush();
@@ -211,19 +362,35 @@ public class CompanyServlet extends HttpServlet {
             }
         } catch (NumberFormatException e) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+<<<<<<< Updated upstream
             out.print(gson.serialize(new ErrorResponse("ID da empresa inválido.")));
             LOGGER.log(Level.WARNING, "Erro de formato de número ao deletar empresa: " + e.getMessage(), e);
         } catch (BusinessException e) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             out.print(gson.serialize(new ErrorResponse(e.getMessage())));
+=======
+            out.print(gsonSerializer.serialize(new ErrorResponse("ID da empresa inválido.")));
+            LOGGER.log(Level.WARNING, "Erro de formato de número ao deletar empresa: " + e.getMessage(), e);
+        } catch (BusinessException e) { // Captura BusinessException
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            out.print(gsonSerializer.serialize(new ErrorResponse(e.getMessage())));
+>>>>>>> Stashed changes
             LOGGER.log(Level.WARNING, "Erro de negócio ao deletar empresa: " + e.getMessage(), e);
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Erro de SQL ao deletar empresa: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+<<<<<<< Updated upstream
             out.print(gson.serialize(new ErrorResponse("Erro de banco de dados: " + e.getMessage())));
         } catch (Exception e) {
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
             out.print(gson.serialize(new ErrorResponse("Erro inesperado ao deletar empresa: " + e.getMessage())));
+=======
+            out.print(gsonSerializer.serialize(new ErrorResponse("Erro ao deletar empresa: " + e.getMessage())));
+            LOGGER.log(Level.SEVERE, "Erro de SQL ao deletar empresa: " + e.getMessage(), e);
+        } catch (Exception e) {
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR); // Alterado para INTERNAL_SERVER_ERROR para erros inesperados
+            out.print(gsonSerializer.serialize(new ErrorResponse("Erro inesperado ao deletar empresa: " + e.getMessage())));
+>>>>>>> Stashed changes
             LOGGER.log(Level.SEVERE, "Erro inesperado ao deletar empresa: " + e.getMessage(), e);
         } finally {
             out.flush();
@@ -232,7 +399,11 @@ public class CompanyServlet extends HttpServlet {
 
     private static class ErrorResponse {
         private String message;
+<<<<<<< Updated upstream
         private LocalDateTime timestamp;
+=======
+        private LocalDateTime timestamp; // Adicionado timestamp
+>>>>>>> Stashed changes
 
         public ErrorResponse(String message) {
             this.message = message;
@@ -247,4 +418,8 @@ public class CompanyServlet extends HttpServlet {
             return timestamp;
         }
     }
+<<<<<<< Updated upstream
 }
+=======
+}
+>>>>>>> Stashed changes
