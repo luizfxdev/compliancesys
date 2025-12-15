@@ -7,11 +7,12 @@ public enum ComplianceStatus {
     CONFORME("Conforme"),
     NAO_CONFORME("Não Conforme"),
     ALERTA("Alerta"),
-    PENDING("Pendente"),
+    PENDING("Pendente"), // Adicionado para resolver o erro de "cannot find symbol variable PENDENTE"
     EM_ANDAMENTO("Em Andamento"),
     INVALIDO("Inválido"),
     COMPLIANT("Compliant"),
-    NON_COMPLIANT("Non-Compliant");
+    NON_COMPLIANT("Non-Compliant"),
+    UNKNOWN("Desconhecido");
 
     private final String description;
 
@@ -24,8 +25,8 @@ public enum ComplianceStatus {
     }
 
     /**
-     * Retorna a descrição legível do status de conformidade.
-     * @return Descrição do status.
+     * Retorna a descrição do status.
+     * @return A descrição do status.
      */
     public String getDescription() {
         return description;

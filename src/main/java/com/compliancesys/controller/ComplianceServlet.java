@@ -1,173 +1,326 @@
 package com.compliancesys.controller;
 
-import com.compliancesys.model.ComplianceAudit;
-import com.compliancesys.service.ComplianceService;
-import com.compliancesys.service.impl.ComplianceServiceImpl; // Assumindo uma implementação
-import com.compliancesys.util.GsonUtil;
-import com.compliancesys.util.impl.GsonUtilImpl; // Assumindo uma implementação
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
+import java.util.List;
+import java.util.Optional;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.sql.SQLException;
-import java.time.LocalDate;
-import java.time.format.DateTimeParseException;
-import java.util.List;
-import java.util.Optional;
 
-/**
- * Servlet para gerenciar operações de auditoria e relatórios de conformidade.
- * Responde a requisições HTTP para /compliance.
- */
-@WebServlet("/compliance/*") // Adicionado /* para permitir pathInfo
+import com.compliancesys.config.DatabaseConfig;
+import com.compliancesys.dao.impl.ComplianceAuditDAOImpl;
+import com.compliancesys.dao.impl.DriverDAOImpl;
+import com.compliancesys.dao.impl.JourneyDAOImpl;
+import com.compliancesys.dao.impl.MobileCommunicationDAOImpl;
+import com.compliancesys.dao.impl.TimeRecordDAOImpl;
+import com.compliancesys.exception.BusinessException;
+import com.compliancesys.model.ComplianceAudit;
+import com.compliancesys.model.Journey;
+import com.compliancesys.model.TimeRecord;
+import com.compliancesys.service.impl.ComplianceAuditServiceImpl;
+import com.compliancesys.util.impl.GsonUtilImpl;
+import com.compliancesys.util.impl.TimeUtilImpl;
+import com.compliancesys.util.impl.ValidatorImpl;
+
+@WebServlet("/compliance/*")
 public class ComplianceServlet extends HttpServlet {
 
-    private ComplianceService complianceService;
-    private GsonUtil gsonSerializer;
+    private static final Logger LOGGER = Logger.getLogger(ComplianceServlet.class.getName());
+    private ComplianceAuditServiceImpl complianceAuditService;
+    private JourneyDAOImpl journeyDAO;
+    private TimeRecordDAOImpl timeRecordDAO;
+    private GsonUtilImpl gson;
 
     @Override
     public void init() throws ServletException {
-        // Instanciando diretamente para o exemplo. Em um projeto real, use injeção de dependência.
-        this.complianceService = new ComplianceServiceImpl(); // Você precisará criar ComplianceServiceImpl
-        this.gsonSerializer = new GsonUtilImpl(); // Você precisará criar GsonUtilImpl
-    }
-
-    @Override
-    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        response.setContentType("application/json");
-        response.setCharacterEncoding("UTF-8");
-        PrintWriter out = response.getWriter();
-
-        String pathInfo = request.getPathInfo(); // Ex: /compliance/{auditId}, /compliance/journey/{journeyId}, /compliance/report/driver/{driverId}?start=...&end=...
-
         try {
-            if (pathInfo == null || pathInfo.equals("/")) {
-                // GET /compliance - Retorna todas as auditorias de conformidade
-                List<ComplianceAudit> audits = complianceService.getAllComplianceAudits();
-                out.print(gsonSerializer.serialize(audits));
-            } else if (pathInfo.startsWith("/journey/")) {
-                // GET /compliance/journey/{journeyId} - Retorna auditorias para uma jornada específica
-                int journeyId = Integer.parseInt(pathInfo.substring("/journey/".length()));
-                List<ComplianceAudit> audits = complianceService.getComplianceAuditsByJourneyId(journeyId);
-                out.print(gsonSerializer.serialize(audits));
-            } else if (pathInfo.startsWith("/report/driver/")) {
-                // GET /compliance/report/driver/{driverId}?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
-                int driverId = Integer.parseInt(pathInfo.substring("/report/driver/".length()));
-                String startDateParam = request.getParameter("startDate");
-                String endDateParam = request.getParameter("endDate");
-
-                if (startDateParam == null || endDateParam == null || startDateParam.isEmpty() || endDateParam.isEmpty()) {
-                    response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-                    out.print(gsonSerializer.serialize(new ErrorResponse("Parâmetros startDate e endDate são obrigatórios para o relatório de motorista.")));
-                    return;
-                }
-
-                LocalDate startDate = LocalDate.parse(startDateParam);
-                LocalDate endDate = LocalDate.parse(endDateParam);
-                List<ComplianceAudit> report = complianceService.generateDriverComplianceReport(driverId, startDate, endDate);
-                out.print(gsonSerializer.serialize(report));
-            } else if (pathInfo.startsWith("/report/overall")) {
-                // GET /compliance/report/overall?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
-                String startDateParam = request.getParameter("startDate");
-                String endDateParam = request.getParameter("endDate");
-
-                if (startDateParam == null || endDateParam == null || startDateParam.isEmpty() || endDateParam.isEmpty()) {
-                    response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-                    out.print(gsonSerializer.serialize(new ErrorResponse("Parâmetros startDate e endDate são obrigatórios para o relatório geral.")));
-                    return;
-                }
-
-                LocalDate startDate = LocalDate.parse(startDateParam);
-                LocalDate endDate = LocalDate.parse(endDateParam);
-                List<ComplianceAudit> report = complianceService.generateOverallComplianceReport(startDate, endDate);
-                out.print(gsonSerializer.serialize(report));
-            } else {
-                // GET /compliance/{auditId} - Retorna uma auditoria específica
-                int auditId = Integer.parseInt(pathInfo.substring(1)); // Remove a barra inicial
-                Optional<ComplianceAudit> audit = complianceService.getComplianceAuditById(auditId);
-                if (audit.isPresent()) {
-                    out.print(gsonSerializer.serialize(audit.get()));
-                } else {
-                    response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                    out.print(gsonSerializer.serialize(new ErrorResponse("Auditoria de conformidade não encontrada.")));
-                }
-            }
-        } catch (NumberFormatException e) {
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse("ID inválido no caminho da URL.")));
-        } catch (DateTimeParseException e) {
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Formato de data inválido. Use YYYY-MM-DD.")));
+            Connection connection = DatabaseConfig.getInstance().getConnection();
+            
+            ComplianceAuditDAOImpl complianceAuditDAO = new ComplianceAuditDAOImpl(connection);
+            JourneyDAOImpl journeyDAO = new JourneyDAOImpl(connection);
+            TimeRecordDAOImpl timeRecordDAO = new TimeRecordDAOImpl(connection);
+            MobileCommunicationDAOImpl mobileCommunicationDAO = new MobileCommunicationDAOImpl(connection);
+            DriverDAOImpl driverDAO = new DriverDAOImpl(connection);
+            
+            ValidatorImpl validator = new ValidatorImpl();
+            TimeUtilImpl timeUtil = new TimeUtilImpl();
+            
+            this.complianceAuditService = new ComplianceAuditServiceImpl(
+                complianceAuditDAO, journeyDAO, timeRecordDAO, mobileCommunicationDAO,
+                driverDAO, validator, timeUtil
+            );
+            this.journeyDAO = journeyDAO;
+            this.timeRecordDAO = timeRecordDAO;
+            this.gson = new GsonUtilImpl();
         } catch (SQLException e) {
-            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Erro de banco de dados: " + e.getMessage())));
-        } catch (Exception e) {
-            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Erro inesperado: " + e.getMessage())));
+            LOGGER.log(Level.SEVERE, "Erro ao inicializar ComplianceServlet: " + e.getMessage(), e);
+            throw new ServletException("Erro ao inicializar ComplianceServlet", e);
         }
-        out.flush();
     }
 
     @Override
-    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    protected void doGet(HttpServletRequest request, HttpServletResponse response) 
+            throws ServletException, IOException {
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
 
         String pathInfo = request.getPathInfo();
-        if (pathInfo == null || !pathInfo.equals("/audit")) {
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Requisição POST inválida. Use /compliance/audit para realizar uma auditoria.")));
-            out.flush();
-            return;
-        }
-
+        
         try {
-            // Espera um JSON com o ID da jornada para auditar
-            // Ex: {"journeyId": 123}
-            String requestBody = request.getReader().readLine();
-            // Melhor desserializar para um POJO específico para a requisição
-            AuditRequest auditRequest = gsonSerializer.deserialize(requestBody, AuditRequest.class);
-            int journeyId = auditRequest.getJourneyId();
+            if (pathInfo == null || pathInfo.equals("/")) {
+                // GET /compliance - Lista todas as auditorias
+                List<ComplianceAudit> audits = complianceAuditService.getAllAudits();
+                out.print(gson.serialize(audits));
+            } else if (pathInfo.startsWith("/journey/")) {
+                // GET /compliance/journey/{id} - Lista auditorias de uma jornada
+                int journeyId = Integer.parseInt(pathInfo.substring("/journey/".length()));
+                List<ComplianceAudit> audits = complianceAuditService.getAuditsByJourneyId(journeyId);
+                out.print(gson.serialize(audits));
+            } else if (pathInfo.startsWith("/driver/")) {
+                // GET /compliance/driver/{id} - Lista auditorias de um motorista
+                int driverId = Integer.parseInt(pathInfo.substring("/driver/".length()));
+                List<ComplianceAudit> audits = complianceAuditService.getAuditsByDriverId(driverId);
+                out.print(gson.serialize(audits));
+            } else if (pathInfo.equals("/date-range")) {
+                // GET /compliance/date-range?start=YYYY-MM-DD&end=YYYY-MM-DD
+                String startDateParam = request.getParameter("start");
+                String endDateParam = request.getParameter("end");
 
-            int newAuditId = complianceService.performComplianceAudit(journeyId);
-            response.setStatus(HttpServletResponse.SC_CREATED);
-            out.print(gsonSerializer.serialize(new SuccessResponse("Auditoria de conformidade realizada com sucesso. ID: " + newAuditId)));
+                if (startDateParam == null || endDateParam == null) {
+                    response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                    out.print(gson.serialize(new ErrorResponse("Parâmetros 'start' e 'end' são obrigatórios")));
+                    return;
+                }
+
+                LocalDate startDate = LocalDate.parse(startDateParam);
+                LocalDate endDate = LocalDate.parse(endDateParam);
+
+                List<ComplianceAudit> audits = complianceAuditService.getAuditsByDateRange(startDate, endDate);
+                out.print(gson.serialize(audits));
+            } else {
+                // GET /compliance/{id} - Busca auditoria por ID
+                int auditId = Integer.parseInt(pathInfo.substring(1));
+                Optional<ComplianceAudit> auditOpt = complianceAuditService.getAuditById(auditId);
+                
+                if (auditOpt.isPresent()) {
+                    out.print(gson.serialize(auditOpt.get()));
+                } else {
+                    response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+                    out.print(gson.serialize(new ErrorResponse("Auditoria não encontrada")));
+                }
+            }
         } catch (NumberFormatException e) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse("ID da jornada inválido no corpo da requisição.")));
-        } catch (IllegalArgumentException e) {
+            out.print(gson.serialize(new ErrorResponse("ID ou parâmetro numérico inválido")));
+            LOGGER.log(Level.WARNING, "ID inválido: " + e.getMessage(), e);
+        } catch (DateTimeParseException e) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse(e.getMessage())));
+            out.print(gson.serialize(new ErrorResponse("Formato de data inválido. Use YYYY-MM-DD")));
+            LOGGER.log(Level.WARNING, "Formato de data inválido: " + e.getMessage(), e);
+        } catch (BusinessException e) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            out.print(gson.serialize(new ErrorResponse(e.getMessage())));
+            LOGGER.log(Level.WARNING, "Erro de negócio: " + e.getMessage(), e);
         } catch (SQLException e) {
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Erro ao realizar auditoria de conformidade: " + e.getMessage())));
+            out.print(gson.serialize(new ErrorResponse("Erro de banco de dados")));
+            LOGGER.log(Level.SEVERE, "Erro de SQL: " + e.getMessage(), e);
         } catch (Exception e) {
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Dados de requisição inválidos: " + e.getMessage())));
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.print(gson.serialize(new ErrorResponse("Erro inesperado")));
+            LOGGER.log(Level.SEVERE, "Erro inesperado: " + e.getMessage(), e);
+        } finally {
+            out.flush();
         }
-        out.flush();
     }
 
-    // Classe auxiliar para padronizar respostas de erro
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response) 
+            throws ServletException, IOException {
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+        PrintWriter out = response.getWriter();
+
+        String pathInfo = request.getPathInfo();
+        
+        try {
+            if (pathInfo != null && pathInfo.startsWith("/audit/journey/")) {
+                // POST /compliance/audit/journey/{id} - Realizar auditoria de uma jornada
+                int journeyId = Integer.parseInt(pathInfo.substring("/audit/journey/".length()));
+                
+                // Buscar a jornada
+                Optional<Journey> journeyOpt = journeyDAO.findById(journeyId);
+                if (!journeyOpt.isPresent()) {
+                    response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+                    out.print(gson.serialize(new ErrorResponse("Jornada não encontrada")));
+                    return;
+                }
+                
+                Journey journey = journeyOpt.get();
+                
+                // Buscar registros de tempo da jornada
+                List<TimeRecord> timeRecords = timeRecordDAO.findByJourneyId(journeyId);
+                if (timeRecords.isEmpty()) {
+                    response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                    out.print(gson.serialize(new ErrorResponse("Jornada não possui registros de tempo para auditoria")));
+                    return;
+                }
+                
+                // Realizar auditoria
+                ComplianceAudit audit = complianceAuditService.performAudit(journey, timeRecords);
+                
+                response.setStatus(HttpServletResponse.SC_CREATED);
+                out.print(gson.serialize(audit));
+            } else {
+                response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                out.print(gson.serialize(new ErrorResponse("URL inválida para POST")));
+            }
+        } catch (NumberFormatException e) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            out.print(gson.serialize(new ErrorResponse("ID da jornada inválido")));
+            LOGGER.log(Level.WARNING, "ID inválido: " + e.getMessage(), e);
+        } catch (BusinessException e) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            out.print(gson.serialize(new ErrorResponse(e.getMessage())));
+            LOGGER.log(Level.WARNING, "Erro de negócio: " + e.getMessage(), e);
+        } catch (SQLException e) {
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.print(gson.serialize(new ErrorResponse("Erro ao auditar jornada")));
+            LOGGER.log(Level.SEVERE, "Erro de SQL: " + e.getMessage(), e);
+        } catch (Exception e) {
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.print(gson.serialize(new ErrorResponse("Erro inesperado")));
+            LOGGER.log(Level.SEVERE, "Erro inesperado: " + e.getMessage(), e);
+        } finally {
+            out.flush();
+        }
+    }
+
+    @Override
+    protected void doPut(HttpServletRequest request, HttpServletResponse response) 
+            throws ServletException, IOException {
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+        PrintWriter out = response.getWriter();
+
+        String pathInfo = request.getPathInfo();
+        
+        try {
+            if (pathInfo != null && pathInfo.matches("/\\d+")) {
+                // PUT /compliance/{id} - Atualizar auditoria
+                int auditId = Integer.parseInt(pathInfo.substring(1));
+                
+                // Ler o corpo da requisição
+                ComplianceAudit audit = gson.deserialize(request.getReader(), ComplianceAudit.class);
+                audit.setId(auditId);
+                
+                boolean updated = complianceAuditService.updateAudit(audit);
+                
+                if (updated) {
+                    out.print(gson.serialize(audit));
+                } else {
+                    response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+                    out.print(gson.serialize(new ErrorResponse("Auditoria não encontrada")));
+                }
+            } else {
+                response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                out.print(gson.serialize(new ErrorResponse("URL inválida para PUT")));
+            }
+        } catch (NumberFormatException e) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            out.print(gson.serialize(new ErrorResponse("ID da auditoria inválido")));
+            LOGGER.log(Level.WARNING, "ID inválido: " + e.getMessage(), e);
+        } catch (BusinessException e) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            out.print(gson.serialize(new ErrorResponse(e.getMessage())));
+            LOGGER.log(Level.WARNING, "Erro de negócio: " + e.getMessage(), e);
+        } catch (SQLException e) {
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.print(gson.serialize(new ErrorResponse("Erro ao atualizar auditoria")));
+            LOGGER.log(Level.SEVERE, "Erro de SQL: " + e.getMessage(), e);
+        } catch (Exception e) {
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.print(gson.serialize(new ErrorResponse("Erro inesperado")));
+            LOGGER.log(Level.SEVERE, "Erro inesperado: " + e.getMessage(), e);
+        } finally {
+            out.flush();
+        }
+    }
+
+    @Override
+    protected void doDelete(HttpServletRequest request, HttpServletResponse response) 
+            throws ServletException, IOException {
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+        PrintWriter out = response.getWriter();
+
+        String pathInfo = request.getPathInfo();
+        
+        try {
+            if (pathInfo != null && pathInfo.matches("/\\d+")) {
+                // DELETE /compliance/{id} - Deletar auditoria
+                int auditId = Integer.parseInt(pathInfo.substring(1));
+                
+                boolean deleted = complianceAuditService.deleteAudit(auditId);
+                
+                if (deleted) {
+                    response.setStatus(HttpServletResponse.SC_NO_CONTENT);
+                } else {
+                    response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+                    out.print(gson.serialize(new ErrorResponse("Auditoria não encontrada")));
+                }
+            } else {
+                response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                out.print(gson.serialize(new ErrorResponse("URL inválida para DELETE")));
+            }
+        } catch (NumberFormatException e) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            out.print(gson.serialize(new ErrorResponse("ID da auditoria inválido")));
+            LOGGER.log(Level.WARNING, "ID inválido: " + e.getMessage(), e);
+        } catch (BusinessException e) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            out.print(gson.serialize(new ErrorResponse(e.getMessage())));
+            LOGGER.log(Level.WARNING, "Erro de negócio: " + e.getMessage(), e);
+        } catch (SQLException e) {
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.print(gson.serialize(new ErrorResponse("Erro ao deletar auditoria")));
+            LOGGER.log(Level.SEVERE, "Erro de SQL: " + e.getMessage(), e);
+        } catch (Exception e) {
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.print(gson.serialize(new ErrorResponse("Erro inesperado")));
+            LOGGER.log(Level.SEVERE, "Erro inesperado: " + e.getMessage(), e);
+        } finally {
+            out.flush();
+        }
+    }
+
     private static class ErrorResponse {
         private String message;
-        public ErrorResponse(String message) { this.message = message; }
-    }
+        private LocalDateTime timestamp;
 
-    // Classe auxiliar para padronizar respostas de sucesso (se necessário)
-    private static class SuccessResponse {
-        private String message;
-        public SuccessResponse(String message) { this.message = message; }
-    }
+        public ErrorResponse(String message) {
+            this.message = message;
+            this.timestamp = LocalDateTime.now();
+        }
 
-    // POJO para desserializar a requisição de auditoria
-    private static class AuditRequest {
-        private int journeyId;
-        public int getJourneyId() { return journeyId; }
-        public void setJourneyId(int journeyId) { this.journeyId = journeyId; }
+        public String getMessage() {
+            return message;
+        }
+
+        public LocalDateTime getTimestamp() {
+            return timestamp;
+        }
     }
 }

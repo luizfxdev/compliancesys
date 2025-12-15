@@ -1,22 +1,25 @@
+// src/main/java/com/compliancesys/model/MobileCommunication.java
 package com.compliancesys.model;
 
-import java.time.LocalDateTime;
+import java.time.LocalDateTime; // Importar o enum EventType
 import java.util.Objects;
 
+import com.compliancesys.model.enums.EventType;
+
 /**
- * Representa um registro de comunicação móvel de um motorista.
+ * Representa um registro de comunicação móvel (localização, evento) de um motorista.
  * Corresponde à tabela 'mobile_communications' no banco de dados.
  */
 public class MobileCommunication {
     private int id;
     private int driverId;
-    private int recordId; // ID do registro de ponto associado
+    private int journeyId; // ADICIONADO: Campo journeyId
     private LocalDateTime timestamp;
     private Double latitude;
     private Double longitude;
-    private LocalDateTime sendTimestamp; // ADICIONADO: Timestamp do envio da comunicação
-    private boolean sendSuccess; // ADICIONADO: Indica se o envio foi bem-sucedido
-    private String errorMessage; // ADICIONADO: Mensagem de erro, se houver
+    private EventType eventType; // ADICIONADO: Campo eventType (enum)
+    private String eventTypeString; // Para compatibilidade com o banco de dados (VARCHAR)
+    private String deviceId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -24,28 +27,26 @@ public class MobileCommunication {
     }
 
     // Construtor completo
-    public MobileCommunication(int id, int driverId, int recordId, LocalDateTime timestamp, Double latitude, Double longitude, LocalDateTime sendTimestamp, boolean sendSuccess, String errorMessage, LocalDateTime createdAt, LocalDateTime updatedAt) {
+    public MobileCommunication(int id, int driverId, int journeyId, LocalDateTime timestamp,
+                               Double latitude, Double longitude, EventType eventType,
+                               String deviceId, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.driverId = driverId;
-        this.recordId = recordId;
+        this.journeyId = journeyId;
         this.timestamp = timestamp;
         this.latitude = latitude;
         this.longitude = longitude;
-        this.sendTimestamp = sendTimestamp; // Inicializa sendTimestamp
-        this.sendSuccess = sendSuccess;     // Inicializa sendSuccess
-        this.errorMessage = errorMessage;   // Inicializa errorMessage
+        this.eventType = eventType;
+        this.eventTypeString = eventType != null ? eventType.name() : null; // Sincroniza com a string
+        this.deviceId = deviceId;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
 
     // Construtor para inserção (sem ID, createdAt, updatedAt)
-    public MobileCommunication(int driverId, int recordId, LocalDateTime timestamp, Double latitude, Double longitude, LocalDateTime sendTimestamp, boolean sendSuccess, String errorMessage) {
-        this(0, driverId, recordId, timestamp, latitude, longitude, sendTimestamp, sendSuccess, errorMessage, null, null);
-    }
-
-    // Construtor para atualização (com ID, sem createdAt, updatedAt)
-    public MobileCommunication(int id, int driverId, int recordId, LocalDateTime timestamp, Double latitude, Double longitude, LocalDateTime sendTimestamp, boolean sendSuccess, String errorMessage) {
-        this(id, driverId, recordId, timestamp, latitude, longitude, sendTimestamp, sendSuccess, errorMessage, null, null);
+    public MobileCommunication(int driverId, int journeyId, LocalDateTime timestamp,
+                               Double latitude, Double longitude, EventType eventType, String deviceId) {
+        this(0, driverId, journeyId, timestamp, latitude, longitude, eventType, deviceId, null, null);
     }
 
     // Getters e Setters
@@ -65,12 +66,13 @@ public class MobileCommunication {
         this.driverId = driverId;
     }
 
-    public int getRecordId() {
-        return recordId;
+    // ADICIONADO: Getter e Setter para journeyId
+    public int getJourneyId() {
+        return journeyId;
     }
 
-    public void setRecordId(int recordId) {
-        this.recordId = recordId;
+    public void setJourneyId(int journeyId) {
+        this.journeyId = journeyId;
     }
 
     public LocalDateTime getTimestamp() {
@@ -97,28 +99,37 @@ public class MobileCommunication {
         this.longitude = longitude;
     }
 
-    public LocalDateTime getSendTimestamp() { // ADICIONADO: Getter para sendTimestamp
-        return sendTimestamp;
+    // ADICIONADO: Getter e Setter para eventType (enum)
+    public EventType getEventType() {
+        return eventType;
     }
 
-    public void setSendTimestamp(LocalDateTime sendTimestamp) { // ADICIONADO: Setter para sendTimestamp
-        this.sendTimestamp = sendTimestamp;
+    public void setEventType(EventType eventType) {
+        this.eventType = eventType;
+        this.eventTypeString = eventType != null ? eventType.name() : null; // Sincroniza com a string
     }
 
-    public boolean isSendSuccess() { // ADICIONADO: Getter para sendSuccess
-        return sendSuccess;
+    // ADICIONADO: Getter e Setter para eventTypeString (para persistência)
+    public String getEventTypeString() {
+        return eventTypeString;
     }
 
-    public void setSendSuccess(boolean sendSuccess) { // ADICIONADO: Setter para sendSuccess
-        this.sendSuccess = sendSuccess;
+    public void setEventTypeString(String eventTypeString) {
+        this.eventTypeString = eventTypeString;
+        try {
+            this.eventType = eventTypeString != null ? EventType.valueOf(eventTypeString) : null;
+        } catch (IllegalArgumentException e) {
+            // Logar ou tratar o erro se a string não corresponder a um enum válido
+            this.eventType = null; // Ou um valor padrão, como UNKNOWN
+        }
     }
 
-    public String getErrorMessage() { // ADICIONADO: Getter para errorMessage
-        return errorMessage;
+    public String getDeviceId() {
+        return deviceId;
     }
 
-    public void setErrorMessage(String errorMessage) { // ADICIONADO: Setter para errorMessage
-        this.errorMessage = errorMessage;
+    public void setDeviceId(String deviceId) {
+        this.deviceId = deviceId;
     }
 
     public LocalDateTime getCreatedAt() {
@@ -138,40 +149,41 @@ public class MobileCommunication {
     }
 
     @Override
-    public String toString() {
-        return "MobileCommunication{" +
-                "id=" + id +
-                ", driverId=" + driverId +
-                ", recordId=" + recordId +
-                ", timestamp=" + timestamp +
-                ", latitude=" + latitude +
-                ", longitude=" + longitude +
-                ", sendTimestamp=" + sendTimestamp + // Incluído no toString
-                ", sendSuccess=" + sendSuccess +     // Incluído no toString
-                ", errorMessage='" + errorMessage + '\'' + // Incluído no toString
-                ", createdAt=" + createdAt +
-                ", updatedAt=" + updatedAt +
-                '}';
-    }
-
-    @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         MobileCommunication that = (MobileCommunication) o;
         return id == that.id &&
-                driverId == that.driverId &&
-                recordId == that.recordId &&
-                sendSuccess == that.sendSuccess && // Incluído no equals
-                Objects.equals(timestamp, that.timestamp) &&
-                Objects.equals(latitude, that.latitude) &&
-                Objects.equals(longitude, that.longitude) &&
-                Objects.equals(sendTimestamp, that.sendTimestamp) && // Incluído no equals
-                Objects.equals(errorMessage, that.errorMessage); // Incluído no equals
+               driverId == that.driverId &&
+               journeyId == that.journeyId && // Incluir journeyId no equals
+               Objects.equals(timestamp, that.timestamp) &&
+               Objects.equals(latitude, that.latitude) &&
+               Objects.equals(longitude, that.longitude) &&
+               eventType == that.eventType && // Comparar enums diretamente
+               Objects.equals(deviceId, that.deviceId) &&
+               Objects.equals(createdAt, that.createdAt) &&
+               Objects.equals(updatedAt, that.updatedAt);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, driverId, recordId, timestamp, latitude, longitude, sendTimestamp, sendSuccess, errorMessage); // Incluído no hashCode
+        return Objects.hash(id, driverId, journeyId, timestamp, latitude, longitude, eventType,
+                            deviceId, createdAt, updatedAt);
+    }
+
+    @Override
+    public String toString() {
+        return "MobileCommunication{" +
+               "id=" + id +
+               ", driverId=" + driverId +
+               ", journeyId=" + journeyId +
+               ", timestamp=" + timestamp +
+               ", latitude=" + latitude +
+               ", longitude=" + longitude +
+               ", eventType=" + eventType +
+               ", deviceId='" + deviceId + '\'' +
+               ", createdAt=" + createdAt +
+               ", updatedAt=" + updatedAt +
+               '}';
     }
 }
