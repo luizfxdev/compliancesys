@@ -1,3 +1,4 @@
+// src/main/java/com/compliancesys/model/Driver.java
 package com.compliancesys.model;
 
 import java.time.LocalDate;
@@ -10,35 +11,22 @@ import java.util.Objects;
  */
 public class Driver {
     private int id;
-    private int companyId;
+    private int companyId; // Mantido, assumindo que é usado na lógica de negócio ou em outras tabelas.
     private String name;
     private String cpf;
     private String licenseNumber;
     private String licenseCategory;
-    private LocalDate licenseExpiration;
-    private LocalDate birthDate; // ADICIONADO: Campo faltante
+    private LocalDate licenseExpiration; // Nome do campo já está correto
+    private LocalDate birthDate;
     private String phone;
-    private String email;
+    private String email; // Campo já está correto
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
     public Driver() {
     }
 
-    // Construtor completo (8 parâmetros)
-    public Driver(int id, int companyId, String name, String cpf, String licenseNumber,
-                  LocalDate birthDate, LocalDateTime createdAt, LocalDateTime updatedAt) {
-        this.id = id;
-        this.companyId = companyId;
-        this.name = name;
-        this.cpf = cpf;
-        this.licenseNumber = licenseNumber;
-        this.birthDate = birthDate;
-        this.createdAt = createdAt;
-        this.updatedAt = updatedAt;
-    }
-
-    // Construtor estendido com todos os campos (12 parâmetros)
+    // Construtor completo com todos os campos (12 parâmetros)
     public Driver(int id, int companyId, String name, String cpf, String licenseNumber, String licenseCategory,
                   LocalDate licenseExpiration, LocalDate birthDate, String phone, String email,
                   LocalDateTime createdAt, LocalDateTime updatedAt) {
@@ -71,6 +59,8 @@ public class Driver {
     }
 
     // Construtor para compatibilidade com testes (sem companyId) (11 parâmetros)
+    // Este construtor é um pouco problemático se companyId é um campo obrigatório na lógica.
+    // Se for apenas para testes, tudo bem, mas é bom ter em mente.
     public Driver(int id, String name, String cpf, String licenseNumber, String licenseCategory,
                   LocalDate licenseExpiration, LocalDate birthDate, String phone, String email,
                   LocalDateTime createdAt, LocalDateTime updatedAt) {
@@ -135,6 +125,7 @@ public class Driver {
         this.licenseCategory = licenseCategory;
     }
 
+    // Getter e Setter para licenseExpiration (já estavam corretos)
     public LocalDate getLicenseExpiration() {
         return licenseExpiration;
     }
@@ -143,7 +134,7 @@ public class Driver {
         this.licenseExpiration = licenseExpiration;
     }
 
-    // ADICIONADO: Getter e Setter para birthDate
+    // Getter e Setter para birthDate (já estavam corretos)
     public LocalDate getBirthDate() {
         return birthDate;
     }
@@ -160,6 +151,7 @@ public class Driver {
         this.phone = phone;
     }
 
+    // Getter e Setter para email (já estavam corretos)
     public String getEmail() {
         return email;
     }
@@ -198,12 +190,15 @@ public class Driver {
                Objects.equals(licenseExpiration, driver.licenseExpiration) &&
                Objects.equals(birthDate, driver.birthDate) &&
                Objects.equals(phone, driver.phone) &&
-               Objects.equals(email, driver.email);
+               Objects.equals(email, driver.email) &&
+               Objects.equals(createdAt, driver.createdAt) &&
+               Objects.equals(updatedAt, driver.updatedAt);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, companyId, name, cpf, licenseNumber, licenseCategory, licenseExpiration, birthDate, phone, email);
+        return Objects.hash(id, companyId, name, cpf, licenseNumber, licenseCategory,
+                            licenseExpiration, birthDate, phone, email, createdAt, updatedAt);
     }
 
     @Override

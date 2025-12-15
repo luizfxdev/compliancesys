@@ -4,64 +4,51 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 
-import com.compliancesys.model.TimeRecord; // Importar TimeRecord
+import com.compliancesys.model.TimeRecord;
 
 /**
- * Interface para validações específicas de objetos java.time.
- * Contém métodos para validar períodos de tempo e sequências de eventos.
+ * Interface para utilitários de manipulação de tempo e cálculos de jornada,
+ * especialmente para as regras da Lei do Caminhoneiro (Lei 13.103/2015).
  */
 public interface TimeUtil {
+    /**
+     * Calcula a duração total de trabalho a partir de uma lista de registros de ponto.
+     */
+    Duration calculateTotalWorkDuration(List<TimeRecord> timeRecords);
 
     /**
-     * Valida se um período de tempo (Duration) é positivo.
-     * @param duration O período de tempo a ser validado.
-     * @return true se a duração é positiva, false caso contrário.
+     * Calcula a duração total de descanso a partir de uma lista de registros de ponto.
      */
-    boolean isPositiveDuration(Duration duration);
+    Duration calculateTotalRestDuration(List<TimeRecord> timeRecords);
 
     /**
-     * Valida se uma lista de LocalDateTime está em ordem cronológica.
-     * @param timestamps A lista de timestamps a ser validada.
-     * @return true se a lista está em ordem cronológica, false caso contrário.
+     * Verifica se a duração de trabalho contínuo excede o limite permitido.
+     * Retorna true se exceder, false caso contrário.
      */
-    boolean isChronological(List<LocalDateTime> timestamps);
+    boolean exceedsMaxContinuousDriving(List<TimeRecord> timeRecords, Duration maxContinuousDriving);
 
     /**
-     * Valida se um LocalDateTime é válido (não nulo e não no futuro).
-     * @param dateTime O LocalDateTime a ser validado.
-     * @return true se o LocalDateTime é válido, false caso contrário.
+     * Verifica se o motorista teve o tempo mínimo de descanso interjornada.
      */
-    boolean isValidDateTime(LocalDateTime dateTime);
+    boolean hasInsufficientInterJourneyRest(LocalDateTime lastExit, LocalDateTime nextEntry, Duration minInterJourneyRest);
 
     /**
-     * Verifica se uma duração está dentro de uma duração máxima permitida.
-     * @param duration A duração a ser verificada.
-     * @param maxDuration A duração máxima permitida.
-     * @return true se a duração é menor ou igual à duração máxima, false caso contrário.
+     * Verifica se o motorista teve o tempo mínimo de descanso intrajornada.
      */
-    boolean isWithinMaxDuration(Duration duration, Duration maxDuration);
+    boolean hasInsufficientIntraJourneyRest(List<TimeRecord> timeRecords, Duration minIntraJourneyRest, Duration maxDrivingBeforeRest);
 
     /**
-     * Verifica se uma duração está acima de uma duração mínima permitida.
-     * @param duration A duração a ser verificada.
-     * @param minDuration A duração mínima permitida.
-     * @return true se a duração é maior ou igual à duração mínima, false caso contrário.
+     * Calcula a duração de um período entre dois LocalDateTime.
      */
-    boolean isAboveMinDuration(Duration duration, Duration minDuration);
+    Duration calculateDuration(LocalDateTime start, LocalDateTime end);
 
     /**
-     * Calcula o tempo total de condução a partir de uma lista de registros de ponto.
-     * Assume que os registros de ponto são pares de entrada/saída.
-     * @param timeRecords Lista de registros de ponto.
-     * @return O tempo total de condução em minutos.
+     * Calcula a duração máxima de direção contínua nos registros fornecidos.
      */
-    long calculateTotalDrivingTime(List<TimeRecord> timeRecords);
+    Duration calculateMaxContinuousDriving(List<TimeRecord> timeRecords);
 
     /**
-     * Calcula o tempo total de descanso a partir de uma lista de registros de ponto.
-     * Assume que os registros de ponto são pares de entrada/saída.
-     * @param timeRecords Lista de registros de ponto.
-     * @return O tempo total de descanso em minutos.
+     * Verifica se há período de descanso adequado após direção.
      */
-    long calculateTotalRestTime(List<TimeRecord> timeRecords);
+    boolean hasRestPeriodAfterDriving(List<TimeRecord> timeRecords, Duration maxDrivingDuration);
 }

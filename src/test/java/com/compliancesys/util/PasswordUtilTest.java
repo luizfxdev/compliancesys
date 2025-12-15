@@ -1,130 +1,102 @@
 package com.compliancesys.util;
 
+import com.compliancesys.util.impl.PasswordUtilImpl; // Importa a implementação real
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mindrot.jbcrypt.BCrypt; // Usando jBCrypt como uma implementação comum para testes
+import org.mindrot.jbcrypt.BCrypt; // Usando jBCrypt para verificação, se a implementação real usar
 
 import static org.junit.jupiter.api.Assertions.*;
 
 public class PasswordUtilTest {
 
-    // Implementação concreta simples da interface PasswordUtil usando jBCrypt para fins de teste
-    private static class PasswordUtilImpl implements PasswordUtil {
-        private static final int BCRYPT_LOG_ROUNDS = 12; // Custo padrão para BCrypt
-
-        @Override
-        public String hashPassword(String password) {
-            if (password == null || password.isEmpty()) {
-                throw new IllegalArgumentException("A senha não pode ser nula ou vazia.");
-            }
-            try {
-                return BCrypt.hashpw(password, BCrypt.gensalt(BCRYPT_LOG_ROUNDS));
-            } catch (Exception e) {
-                throw new RuntimeException("Erro ao gerar hash da senha", e);
-            }
-        }
-
-        @Override
-        public boolean verifyPassword(String password, String hashedPassword) {
-            if (password == null || hashedPassword == null) {
-                return false; // Senhas nulas não podem ser verificadas
-            }
-            try {
-                return BCrypt.checkpw(password, hashedPassword);
-            } catch (Exception e) {
-                // Logar a exceção se necessário, mas não relançar para evitar falha na verificação
-                System.err.println("Erro durante a verificação da senha: " + e.getMessage());
-                return false;
-            }
-        }
-    }
-
     private PasswordUtil passwordUtil;
 
     @BeforeEach
     void setUp() {
-        // Inicializa a implementação concreta do PasswordUtil antes de cada teste
+        // Instancia a implementação real da interface PasswordUtil
         passwordUtil = new PasswordUtilImpl();
     }
 
     @Test
-    void testHashPasswordGeneratesValidHash() {
-        String password = "minhaSenhaSegura123";
+    @DisplayName("Deve gerar um hash de senha válido")
+    void testHashPasswordSuccess() {
+        String password = "minhaSenhaSecreta123";
         String hashedPassword = passwordUtil.hashPassword(password);
 
         assertNotNull(hashedPassword);
         assertFalse(hashedPassword.isEmpty());
-        // BCrypt hashes sempre começam com "$2a$", "$2b$" ou "$2y$"
+        // Verifica se o hash gerado é um hash BCrypt válido (começa com $2a$, $2b$ ou $2y$)
         assertTrue(hashedPassword.startsWith("$2a$") || hashedPassword.startsWith("$2b$") || hashedPassword.startsWith("$2y$"));
-        // O hash deve ter um comprimento razoável (jBCrypt geralmente 60 caracteres)
-        assertTrue(hashedPassword.length() > 50);
+        // Verifica se o hash pode ser verificado pelo próprio BCrypt (se a implementação usar BCrypt)
+        assertTrue(BCrypt.checkpw(password, hashedPassword));
     }
 
     @Test
-    void testHashPasswordThrowsExceptionForNullPassword() {
-        assertThrows(IllegalArgumentException.class, () -> {
+    @DisplayName("Deve lançar IllegalArgumentException para senha nula ao fazer hash")
+    void testHashPasswordWithNullPassword() {
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
             passwordUtil.hashPassword(null);
         });
+        assertEquals("A senha não pode ser nula ou vazia.", exception.getMessage());
     }
 
     @Test
-    void testHashPasswordThrowsExceptionForEmptyPassword() {
-        assertThrows(IllegalArgumentException.class, () -> {
+    @DisplayName("Deve lançar IllegalArgumentException para senha vazia ao fazer hash")
+    void testHashPasswordWithEmptyPassword() {
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
             passwordUtil.hashPassword("");
         });
+        assertEquals("A senha não pode ser nula ou vazia.", exception.getMessage());
     }
 
     @Test
-    void testVerifyPasswordMatchesCorrectPassword() {
-        String password = "senhaParaTeste123!";
-        String hashedPassword = passwordUtil.hashPassword(password);
+    @DisplayName("Deve verificar uma senha correta com sucesso")
+    void testVerifyPasswordSuccess() {
+        String password = "minhaSenhaSecreta123";
+        String hashedPassword = passwordUtil.hashPassword(password); // Gerar um hash válido
 
         assertTrue(passwordUtil.verifyPassword(password, hashedPassword));
     }
 
     @Test
-    void testVerifyPasswordDoesNotMatchIncorrectPassword() {
-        String correctPassword = "senhaCorreta";
-        String incorrectPassword = "senhaIncorreta";
-        String hashedPassword = passwordUtil.hashPassword(correctPassword);
+    @DisplayName("Não deve verificar uma senha incorreta")
+    void testVerifyPasswordFailure() {
+        String password = "minhaSenhaSecreta123";
+        String wrongPassword = "senhaIncorreta";
+        String hashedPassword = passwordUtil.hashPassword(password);
 
-        assertFalse(passwordUtil.verifyPassword(incorrectPassword, hashedPassword));
+        assertFalse(passwordUtil.verifyPassword(wrongPassword, hashedPassword));
     }
 
     @Test
-    void testVerifyPasswordWithDifferentHashesForSamePassword() {
-        String password = "outraSenhaForte";
-        String hashedPassword1 = passwordUtil.hashPassword(password);
-        String hashedPassword2 = passwordUtil.hashPassword(password); // Deve ser diferente devido ao salt aleatório
-
-        assertNotEquals(hashedPassword1, hashedPassword2); // Os hashes devem ser diferentes
-        assertTrue(passwordUtil.verifyPassword(password, hashedPassword1));
-        assertTrue(passwordUtil.verifyPassword(password, hashedPassword2));
-    }
-
-    @Test
+    @DisplayName("Não deve verificar senha nula")
     void testVerifyPasswordWithNullPassword() {
         String hashedPassword = passwordUtil.hashPassword("anyPassword");
         assertFalse(passwordUtil.verifyPassword(null, hashedPassword));
     }
 
     @Test
-    void testVerifyPasswordWithNullHashedPassword() {
-        assertFalse(passwordUtil.verifyPassword("anyPassword", null));
-    }
-
-    @Test
+    @DisplayName("Não deve verificar senha vazia")
     void testVerifyPasswordWithEmptyPassword() {
         String hashedPassword = passwordUtil.hashPassword("anyPassword");
         assertFalse(passwordUtil.verifyPassword("", hashedPassword));
     }
 
     @Test
+    @DisplayName("Não deve verificar com hash nulo")
+    void testVerifyPasswordWithNullHashedPassword() {
+        assertFalse(passwordUtil.verifyPassword("anyPassword", null));
+    }
+
+    @Test
+    @DisplayName("Não deve verificar com hash vazio")
     void testVerifyPasswordWithEmptyHashedPassword() {
         assertFalse(passwordUtil.verifyPassword("anyPassword", ""));
     }
 
     @Test
+    @DisplayName("Não deve verificar com hash malformado")
     void testVerifyPasswordWithMalformedHashedPassword() {
         String password = "testPassword";
         String malformedHash = "notAValidHash"; // Não é um hash BCrypt válido

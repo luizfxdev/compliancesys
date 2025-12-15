@@ -1,232 +1,253 @@
 package com.compliancesys.dao;
 
+import com.compliancesys.config.DatabaseConfig;
 import com.compliancesys.dao.impl.ComplianceAuditDAOImpl;
+import com.compliancesys.dao.impl.CompanyDAOImpl;
 import com.compliancesys.dao.impl.DriverDAOImpl;
 import com.compliancesys.dao.impl.JourneyDAOImpl;
+import com.compliancesys.dao.impl.VehicleDAOImpl;
+import com.compliancesys.model.Company;
 import com.compliancesys.model.ComplianceAudit;
 import com.compliancesys.model.Driver;
 import com.compliancesys.model.Journey;
-// import com.compliancesys.model.enums.ComplianceStatus; // Removido, pois ComplianceAudit agora usa String
+import com.compliancesys.model.Vehicle;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class ComplianceAuditDAOTest {
-
-    private ComplianceAuditDAO complianceAuditDAO;
-    private DriverDAO driverDAO;
-    private JourneyDAO journeyDAO;
     private Connection connection;
+    private ComplianceAuditDAO complianceAuditDAO;
+    private CompanyDAO companyDAO;
+    private DriverDAO driverDAO;
+    private VehicleDAO vehicleDAO;
+    private JourneyDAO journeyDAO;
 
-    private static final String DB_URL = "jdbc:h2:mem:testdb_compliance_audit;DB_CLOSE_DELAY=-1";
-    private static final String DB_USER = "sa";
-    private static final String DB_PASSWORD = "";
+    private int companyId;
+    private int driverId;
+    private int vehicleId;
+    private int journeyId;
 
     @BeforeEach
     void setUp() throws SQLException {
-        connection = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
-        createSchema(connection);
-        complianceAuditDAO = new ComplianceAuditDAOImpl(connection);
+        connection = DatabaseConfig.getInstance().getConnection();
+        connection.setAutoCommit(false); // Inicia transação para rollback
+
+        // Carrega o schema do banco de dados para garantir que as tabelas existam
+        loadSchema(connection);
+
+        // Limpa as tabelas antes de cada teste para garantir isolamento
+        try (Statement stmt = connection.createStatement()) {
+            stmt.execute("DELETE FROM compliance_audits");
+            stmt.execute("DELETE FROM journeys");
+            stmt.execute("DELETE FROM drivers");
+            stmt.execute("DELETE FROM vehicles");
+            stmt.execute("DELETE FROM companies");
+        }
+
+        companyDAO = new CompanyDAOImpl(connection);
         driverDAO = new DriverDAOImpl(connection);
+        vehicleDAO = new VehicleDAOImpl(connection);
         journeyDAO = new JourneyDAOImpl(connection);
+        complianceAuditDAO = new ComplianceAuditDAOImpl(connection);
+
+        // Cria dados de teste para chaves estrangeiras
+        Company company = new Company(0, "Audit Company", "11111111000111", "Audit Address", "11111111111", "audit@company.com", LocalDateTime.now(), LocalDateTime.now());
+        companyId = companyDAO.create(company);
+
+        Driver driver = new Driver(0, companyId, "Audit Driver", "12345678901", "12345678901", LocalDate.of(2028, 1, 1), "B", LocalDate.of(1980, 5, 10), "audit.driver@example.com", "99999999999", "Rua Audit, 100", LocalDateTime.now(), LocalDateTime.now());
+        driverId = driverDAO.create(driver);
+
+        Vehicle vehicle = new Vehicle(0, "AUD1234", "Audit Model", 2020, companyId, LocalDateTime.now(), LocalDateTime.now());
+        vehicleId = vehicleDAO.create(vehicle);
+
+        Journey journey = new Journey(0, driverId, vehicleId, companyId, LocalDateTime.now().minusHours(5), LocalDateTime.now().minusHours(1), "Origem Audit", "Destino Audit", 100.0, "Concluída", LocalDateTime.now(), LocalDateTime.now());
+        journeyId = journeyDAO.create(journey);
     }
 
-    private void createSchema(Connection conn) throws SQLException {
-        try (Statement stmt = conn.createStatement()) {
-            stmt.execute("DROP TABLE IF EXISTS compliance_audits;");
-            stmt.execute("DROP TABLE IF EXISTS journeys;");
-            stmt.execute("DROP TABLE IF EXISTS drivers;");
-            stmt.execute("DROP TABLE IF EXISTS vehicles;"); // Adicionado para consistência
+    @AfterEach
+    void tearDown() throws SQLException {
+        connection.rollback(); // Desfaz todas as operações do teste
+        connection.close();
+    }
 
-            // Recriando a tabela drivers com company_id
-            stmt.execute("CREATE TABLE drivers (" +
-                    "id INT AUTO_INCREMENT PRIMARY KEY," +
-                    "company_id INT NOT NULL," + // Adicionado company_id
-                    "name VARCHAR(255) NOT NULL," +
-                    "cpf VARCHAR(14) UNIQUE NOT NULL," +
-                    "license_number VARCHAR(20) UNIQUE NOT NULL," +
-                    "license_category VARCHAR(5) NOT NULL," +
-                    "license_expiration DATE NOT NULL," +
-                    "birth_date DATE NOT NULL," +
-                    "phone VARCHAR(20)," +
-                    "email VARCHAR(255)," +
-                    "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP," +
-                    "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP" +
-                    ");");
-
-            // Recriando a tabela vehicles
-            stmt.execute("CREATE TABLE vehicles (" +
-                    "id INT AUTO_INCREMENT PRIMARY KEY," +
-                    "plate VARCHAR(10) UNIQUE NOT NULL," +
-                    "manufacturer VARCHAR(255)," +
-                    "model VARCHAR(255)," +
-                    "year INT," +
-                    "company_id INT NOT NULL," +
-                    "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP," +
-                    "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP" +
-                    ");");
-
-            // Recriando a tabela journeys (ALINHADO COM O SCHEMA.SQL FORNECIDO)
-            stmt.execute("CREATE TABLE journeys (" +
-                    "id INT AUTO_INCREMENT PRIMARY KEY," +
-                    "driver_id INT NOT NULL," +
-                    "journey_date DATE NOT NULL," +
-                    "total_driving_time_minutes INT NOT NULL DEFAULT 0," +
-                    "total_rest_time_minutes INT NOT NULL DEFAULT 0," +
-                    "compliance_status VARCHAR(50) NOT NULL DEFAULT 'PENDING'," +
-                    "daily_limit_exceeded BOOLEAN NOT NULL DEFAULT FALSE," +
-                    "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP," +
-                    "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP," +
-                    "FOREIGN KEY (driver_id) REFERENCES drivers(id)" +
-                    ");");
-
-            // Recriando a tabela compliance_audits (ALINHADO COM O SCHEMA.SQL FORNECIDO)
-            stmt.execute("CREATE TABLE compliance_audits (" +
-                    "id INT AUTO_INCREMENT PRIMARY KEY," +
-                    "journey_id INT NOT NULL," +
-                    "audit_date TIMESTAMP NOT NULL," +
-                    "status VARCHAR(50) NOT NULL," + // Usando 'status' como no schema.sql
-                    "auditor_name VARCHAR(255)," +
-                    "notes TEXT," +
-                    "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP," +
-                    "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP," +
-                    "FOREIGN KEY (journey_id) REFERENCES journeys(id)" +
-                    ");");
+    /**
+     * Carrega e executa o script SQL do schema para o banco de dados de teste.
+     * Assume que 'schema.sql' está na pasta 'src/main/resources'.
+     */
+    private void loadSchema(Connection conn) throws SQLException {
+        try (InputStream is = getClass().getClassLoader().getResourceAsStream("schema.sql");
+             BufferedReader reader = new BufferedReader(new InputStreamReader(is))) {
+            String schemaSql = reader.lines().collect(Collectors.joining("\n"));
+            for (String command : schemaSql.split(";")) {
+                if (!command.trim().isEmpty()) {
+                    try (Statement stmt = conn.createStatement()) {
+                        stmt.execute(command);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            throw new SQLException("Erro ao carregar o schema.sql para o banco de dados de teste.", e);
         }
     }
 
     @Test
-    void testCreateAndFindComplianceAudit() throws SQLException {
-        // Driver agora precisa de companyId
-        Driver testDriver = new Driver(1, 1, "Test Driver", "11122233344", "LIC123", "B", LocalDate.now().plusYears(1), LocalDate.of(1990, 1, 1), "11987654321", "test@driver.com");
-        int testDriverId = driverDAO.create(testDriver);
+    void testCreateComplianceAudit() throws SQLException {
+        ComplianceAudit audit = new ComplianceAudit(0, journeyId, driverId, companyId,
+                LocalDateTime.now().minusMinutes(30), LocalDateTime.now(),
+                "VIOLATION_DRIVING_HOURS", "Motorista excedeu horas de direção contínua.",
+                "Pendente", LocalDateTime.now(), LocalDateTime.now());
+        int id = complianceAuditDAO.create(audit);
+        assertTrue(id > 0);
 
-        // Journey agora usa o novo construtor alinhado com o schema.sql
-        Journey testJourney = new Journey(testDriverId, LocalDate.now(), 480, 60, "PENDING", false);
-        int testJourneyId = journeyDAO.create(testJourney);
-
-        // ComplianceAudit agora usa String para o status
-        ComplianceAudit audit = new ComplianceAudit(testJourneyId, LocalDateTime.now(), "CONFORME", "Auditor A", "Notas do auditor");
-        int auditId = complianceAuditDAO.create(audit);
-
-        assertTrue(auditId > 0);
-
-        Optional<ComplianceAudit> foundAudit = complianceAuditDAO.findById(auditId);
+        Optional<ComplianceAudit> foundAudit = complianceAuditDAO.findById(id);
         assertTrue(foundAudit.isPresent());
-        assertEquals(auditId, foundAudit.get().getId());
-        assertEquals(testJourneyId, foundAudit.get().getJourneyId());
-        assertEquals("CONFORME", foundAudit.get().getComplianceStatus()); // Comparando String
-        assertEquals("Auditor A", foundAudit.get().getAuditorName());
-        assertEquals("Notas do auditor", foundAudit.get().getNotes());
+        assertEquals(audit.getViolationType(), foundAudit.get().getViolationType());
+        assertEquals(audit.getDescription(), foundAudit.get().getDescription());
     }
 
     @Test
-    void testFindAllComplianceAudits() throws SQLException {
-        // Driver agora precisa de companyId
-        Driver testDriver = new Driver(1, 1, "Test Driver", "11122233344", "LIC123", "B", LocalDate.now().plusYears(1), LocalDate.of(1990, 1, 1), "11987654321", "test@driver.com");
-        int testDriverId = driverDAO.create(testDriver);
+    void testFindById() throws SQLException {
+        ComplianceAudit audit = new ComplianceAudit(0, journeyId, driverId, companyId,
+                LocalDateTime.now().minusMinutes(30), LocalDateTime.now(),
+                "VIOLATION_BREAK_TIME", "Motorista não fez pausa suficiente.",
+                "Pendente", LocalDateTime.now(), LocalDateTime.now());
+        int id = complianceAuditDAO.create(audit);
 
-        // Journeys agora usam o novo construtor alinhado com o schema.sql
-        Journey testJourney1 = new Journey(testDriverId, LocalDate.now(), 480, 60, "COMPLETED", false);
-        int testJourneyId1 = journeyDAO.create(testJourney1);
+        Optional<ComplianceAudit> foundAudit = complianceAuditDAO.findById(id);
+        assertTrue(foundAudit.isPresent());
+        assertEquals(id, foundAudit.get().getId());
+    }
 
-        Journey testJourney2 = new Journey(testDriverId, LocalDate.now().plusDays(1), 500, 70, "COMPLETED", true);
-        int testJourneyId2 = journeyDAO.create(testJourney2);
-
-        // ComplianceAudit agora usa String para o status
-        complianceAuditDAO.create(new ComplianceAudit(testJourneyId1, LocalDateTime.now(), "CONFORME", "Auditor A", "Notas A"));
-        complianceAuditDAO.create(new ComplianceAudit(testJourneyId2, LocalDateTime.now().plusDays(1), "NAO_CONFORME", "Auditor B", "Notas B"));
+    @Test
+    void testFindAll() throws SQLException {
+        complianceAuditDAO.create(new ComplianceAudit(0, journeyId, driverId, companyId, LocalDateTime.now().minusHours(1), LocalDateTime.now(), "TYPE1", "Desc1", "Status1", LocalDateTime.now(), LocalDateTime.now()));
+        complianceAuditDAO.create(new ComplianceAudit(0, journeyId, driverId, companyId, LocalDateTime.now().minusHours(2), LocalDateTime.now().minusHours(1), "TYPE2", "Desc2", "Status2", LocalDateTime.now(), LocalDateTime.now()));
 
         List<ComplianceAudit> audits = complianceAuditDAO.findAll();
-        assertNotNull(audits);
+        assertFalse(audits.isEmpty());
         assertEquals(2, audits.size());
     }
 
     @Test
     void testUpdateComplianceAudit() throws SQLException {
-        // Driver agora precisa de companyId
-        Driver testDriver = new Driver(1, 1, "Test Driver", "11122233344", "LIC123", "B", LocalDate.now().plusYears(1), LocalDate.of(1990, 1, 1), "11987654321", "test@driver.com");
-        int testDriverId = driverDAO.create(testDriver);
+        ComplianceAudit audit = new ComplianceAudit(0, journeyId, driverId, companyId,
+                LocalDateTime.now().minusMinutes(30), LocalDateTime.now(),
+                "VIOLATION_DRIVING_HOURS", "Motorista excedeu horas de direção contínua.",
+                "Pendente", LocalDateTime.now(), LocalDateTime.now());
+        int id = complianceAuditDAO.create(audit);
 
-        // Journey agora usa o novo construtor alinhado com o schema.sql
-        Journey testJourney = new Journey(testDriverId, LocalDate.now(), 480, 60, "COMPLETED", false);
-        int testJourneyId = journeyDAO.create(testJourney);
+        audit.setId(id);
+        audit.setStatus("Resolvido");
+        audit.setUpdatedAt(LocalDateTime.now());
 
-        // ComplianceAudit agora usa String para o status
-        ComplianceAudit audit = new ComplianceAudit(testJourneyId, LocalDateTime.now(), "PENDING", "Auditor X", "Notas X");
-        int auditId = complianceAuditDAO.create(audit);
-
-        Optional<ComplianceAudit> createdAudit = complianceAuditDAO.findById(auditId);
-        assertTrue(createdAudit.isPresent());
-
-        ComplianceAudit auditToUpdate = createdAudit.get();
-        auditToUpdate.setComplianceStatus("CONFORME"); // Setando String
-        auditToUpdate.setAuditorName("Auditor Y");
-        auditToUpdate.setNotes("Notas Y atualizadas");
-
-        boolean updated = complianceAuditDAO.update(auditToUpdate);
+        boolean updated = complianceAuditDAO.update(audit);
         assertTrue(updated);
 
-        Optional<ComplianceAudit> foundUpdatedAudit = complianceAuditDAO.findById(auditId);
-        assertTrue(foundUpdatedAudit.isPresent());
-        assertEquals("CONFORME", foundUpdatedAudit.get().getComplianceStatus()); // Comparando String
-        assertEquals("Auditor Y", foundUpdatedAudit.get().getAuditorName());
-        assertEquals("Notas Y atualizadas", foundUpdatedAudit.get().getNotes());
+        Optional<ComplianceAudit> foundAudit = complianceAuditDAO.findById(id);
+        assertTrue(foundAudit.isPresent());
+        assertEquals("Resolvido", foundAudit.get().getStatus());
+        assertTrue(foundAudit.get().getUpdatedAt().isAfter(audit.getCreatedAt()));
     }
 
     @Test
     void testDeleteComplianceAudit() throws SQLException {
-        // Driver agora precisa de companyId
-        Driver testDriver = new Driver(1, 1, "Test Driver", "11122233344", "LIC123", "B", LocalDate.now().plusYears(1), LocalDate.of(1990, 1, 1), "11987654321", "test@driver.com");
-        int testDriverId = driverDAO.create(testDriver);
+        ComplianceAudit audit = new ComplianceAudit(0, journeyId, driverId, companyId,
+                LocalDateTime.now().minusMinutes(30), LocalDateTime.now(),
+                "VIOLATION_TEST", "Auditoria para deletar.",
+                "Pendente", LocalDateTime.now(), LocalDateTime.now());
+        int id = complianceAuditDAO.create(audit);
 
-        // Journey agora usa o novo construtor alinhado com o schema.sql
-        Journey testJourney = new Journey(testDriverId, LocalDate.now(), 480, 60, "COMPLETED", false);
-        int testJourneyId = journeyDAO.create(testJourney);
-
-        // ComplianceAudit agora usa String para o status
-        ComplianceAudit audit = new ComplianceAudit(testJourneyId, LocalDateTime.now(), "CONFORME", "Auditor Z", "Notas Z");
-        int auditId = complianceAuditDAO.create(audit);
-
-        assertTrue(complianceAuditDAO.findById(auditId).isPresent());
-
-        boolean deleted = complianceAuditDAO.delete(auditId);
+        boolean deleted = complianceAuditDAO.delete(id);
         assertTrue(deleted);
 
-        assertFalse(complianceAuditDAO.findById(auditId).isPresent());
+        Optional<ComplianceAudit> foundAudit = complianceAuditDAO.findById(id);
+        assertFalse(foundAudit.isPresent());
     }
 
     @Test
     void testFindByJourneyId() throws SQLException {
-        // Driver agora precisa de companyId
-        Driver testDriver = new Driver(1, 1, "Test Driver", "11122233344", "LIC123", "B", LocalDate.now().plusYears(1), LocalDate.of(1990, 1, 1), "11987654321", "test@driver.com");
-        int testDriverId = driverDAO.create(testDriver);
+        complianceAuditDAO.create(new ComplianceAudit(0, journeyId, driverId, companyId, LocalDateTime.now().minusHours(1), LocalDateTime.now(), "TYPE_J1", "Desc J1", "Status J1", LocalDateTime.now(), LocalDateTime.now()));
+        complianceAuditDAO.create(new ComplianceAudit(0, journeyId, driverId, companyId, LocalDateTime.now().minusHours(2), LocalDateTime.now().minusHours(1), "TYPE_J2", "Desc J2", "Status J2", LocalDateTime.now(), LocalDateTime.now()));
 
-        // Journeys agora usam o novo construtor alinhado com o schema.sql
-        Journey testJourney1 = new Journey(testDriverId, LocalDate.now(), 480, 60, "COMPLETED", false);
-        int testJourneyId1 = journeyDAO.create(testJourney1);
-
-        Journey testJourney2 = new Journey(testDriverId, LocalDate.now().plusDays(1), 500, 70, "COMPLETED", true);
-        int testJourneyId2 = journeyDAO.create(testJourney2);
-
-        // ComplianceAudit agora usa String para o status
-        complianceAuditDAO.create(new ComplianceAudit(testJourneyId1, LocalDateTime.now(), "CONFORME", "Auditor A", "Notas A"));
-        complianceAuditDAO.create(new ComplianceAudit(testJourneyId1, LocalDateTime.now().plusHours(1), "NAO_CONFORME", "Auditor A", "Notas A2"));
-        complianceAuditDAO.create(new ComplianceAudit(testJourneyId2, LocalDateTime.now().plusDays(1), "PENDING", "Auditor B", "Notas B"));
-
-        List<ComplianceAudit> audits = complianceAuditDAO.findByJourneyId(testJourneyId1);
-        assertNotNull(audits);
+        List<ComplianceAudit> audits = complianceAuditDAO.findByJourneyId(journeyId);
+        assertFalse(audits.isEmpty());
         assertEquals(2, audits.size());
-        assertTrue(audits.stream().allMatch(a -> a.getJourneyId() == testJourneyId1));
+        assertTrue(audits.stream().allMatch(a -> a.getJourneyId() == journeyId));
+    }
+
+    @Test
+    void testFindByDriverId() throws SQLException {
+        complianceAuditDAO.create(new ComplianceAudit(0, journeyId, driverId, companyId, LocalDateTime.now().minusHours(1), LocalDateTime.now(), "TYPE_D1", "Desc D1", "Status D1", LocalDateTime.now(), LocalDateTime.now()));
+        complianceAuditDAO.create(new ComplianceAudit(0, journeyId, driverId, companyId, LocalDateTime.now().minusHours(2), LocalDateTime.now().minusHours(1), "TYPE_D2", "Desc D2", "Status D2", LocalDateTime.now(), LocalDateTime.now()));
+
+        List<ComplianceAudit> audits = complianceAuditDAO.findByDriverId(driverId);
+        assertFalse(audits.isEmpty());
+        assertEquals(2, audits.size());
+        assertTrue(audits.stream().allMatch(a -> a.getDriverId() == driverId));
+    }
+
+    @Test
+    void testFindByCompanyId() throws SQLException {
+        complianceAuditDAO.create(new ComplianceAudit(0, journeyId, driverId, companyId, LocalDateTime.now().minusHours(1), LocalDateTime.now(), "TYPE_C1", "Desc C1", "Status C1", LocalDateTime.now(), LocalDateTime.now()));
+        complianceAuditDAO.create(new ComplianceAudit(0, journeyId, driverId, companyId, LocalDateTime.now().minusHours(2), LocalDateTime.now().minusHours(1), "TYPE_C2", "Desc C2", "Status C2", LocalDateTime.now(), LocalDateTime.now()));
+
+        List<ComplianceAudit> audits = complianceAuditDAO.findByCompanyId(companyId);
+        assertFalse(audits.isEmpty());
+        assertEquals(2, audits.size());
+        assertTrue(audits.stream().allMatch(a -> a.getCompanyId() == companyId));
+    }
+
+    @Test
+    void testFindByViolationType() throws SQLException {
+        String violationType = "VIOLATION_DRIVING_HOURS";
+        complianceAuditDAO.create(new ComplianceAudit(0, journeyId, driverId, companyId, LocalDateTime.now().minusHours(1), LocalDateTime.now(), violationType, "Desc V1", "Status V1", LocalDateTime.now(), LocalDateTime.now()));
+        complianceAuditDAO.create(new ComplianceAudit(0, journeyId, driverId, companyId, LocalDateTime.now().minusHours(2), LocalDateTime.now().minusHours(1), "OTHER_TYPE", "Desc V2", "Status V2", LocalDateTime.now(), LocalDateTime.now()));
+
+        List<ComplianceAudit> audits = complianceAuditDAO.findByViolationType(violationType);
+        assertFalse(audits.isEmpty());
+        assertEquals(1, audits.size());
+        assertEquals(violationType, audits.get(0).getViolationType());
+    }
+
+    @Test
+    void testFindByStatus() throws SQLException {
+        String status = "Pendente";
+        complianceAuditDAO.create(new ComplianceAudit(0, journeyId, driverId, companyId, LocalDateTime.now().minusHours(1), LocalDateTime.now(), "TYPE_S1", "Desc S1", status, LocalDateTime.now(), LocalDateTime.now()));
+        complianceAuditDAO.create(new ComplianceAudit(0, journeyId, driverId, companyId, LocalDateTime.now().minusHours(2), LocalDateTime.now().minusHours(1), "TYPE_S2", "Desc S2", "Resolvido", LocalDateTime.now(), LocalDateTime.now()));
+
+        List<ComplianceAudit> audits = complianceAuditDAO.findByStatus(status);
+        assertFalse(audits.isEmpty());
+        assertEquals(1, audits.size());
+        assertEquals(status, audits.get(0).getStatus());
+    }
+
+    @Test
+    void testFindByAuditDateBetween() throws SQLException {
+        LocalDate startDate = LocalDate.now().minusDays(1);
+        LocalDate endDate = LocalDate.now().plusDays(1);
+
+        complianceAuditDAO.create(new ComplianceAudit(0, journeyId, driverId, companyId, LocalDateTime.now().minusHours(1), LocalDateTime.now(), "TYPE_D1", "Desc D1", "Status D1", LocalDateTime.now(), LocalDateTime.now()));
+        complianceAuditDAO.create(new ComplianceAudit(0, journeyId, driverId, companyId, LocalDateTime.now().minusDays(2), LocalDateTime.now().minusDays(2), "TYPE_D2", "Desc D2", "Status D2", LocalDateTime.now(), LocalDateTime.now())); // Fora do range
+
+        List<ComplianceAudit> audits = complianceAuditDAO.findByAuditDateBetween(startDate, endDate);
+        assertFalse(audits.isEmpty());
+        assertEquals(1, audits.size());
+        assertTrue(audits.get(0).getAuditStart().toLocalDate().isAfter(startDate.minusDays(1)));
+        assertTrue(audits.get(0).getAuditEnd().toLocalDate().isBefore(endDate.plusDays(1)));
     }
 }

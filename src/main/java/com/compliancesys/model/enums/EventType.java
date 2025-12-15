@@ -1,6 +1,17 @@
 package com.compliancesys.model.enums;
 
 public enum EventType {
+    // Eventos principais usados no código
+    START_DRIVE("Início de Direção"),
+    END_DRIVE("Fim de Direção"),
+    START_WORK("Início de Trabalho"),
+    END_WORK("Fim de Trabalho"),
+    ENTRY("Entrada"),
+    EXIT("Saída"),
+    REST("Descanso"),
+    PAUSE("Pausa"),
+    
+    // Eventos adicionais
     START_JOURNEY("Início de Jornada"),
     END_JOURNEY("Fim de Jornada"),
     START_BREAK("Início de Descanso"),
@@ -11,11 +22,9 @@ public enum EventType {
     RESUME_DRIVING("Retomada de Direção"),
     END_DRIVING("Fim de Direção"),
     START_REST("Início de Descanso"),
-    // Adicionando os estados que estavam faltando ou com nomes diferentes no JourneyServiceImpl
-    DRIVING("Dirigindo"), // Estado genérico de direção
-    REST("Descanso"),    // Estado genérico de descanso
-    IDLE("Ocioso"),      // Estado de ociosidade
-    OFF_DUTY("Fora de Serviço"); // Estado fora de serviço
+    DRIVING("Dirigindo"),
+    IDLE("Ocioso"),
+    OFF_DUTY("Fora de Serviço");
 
     private final String description;
 

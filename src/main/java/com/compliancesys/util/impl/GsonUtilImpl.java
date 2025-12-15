@@ -1,88 +1,79 @@
+// src/main/java/com/compliancesys/util/impl/GsonUtilImpl.java
 package com.compliancesys.util.impl;
 
-import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.Reader;
 import java.lang.reflect.Type;
-import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
-import com.compliancesys.util.GsonUtil;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonDeserializationContext;
+import com.compliancesys.util.GsonUtil; // Import adicionado
+import com.google.gson.Gson;    // Import adicionado
+import com.google.gson.GsonBuilder;         // Import adicionado
 import com.google.gson.JsonDeserializer;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonParseException;
 import com.google.gson.JsonPrimitive;
-import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 
+/**
+ * Implementação de GsonUtil para serialização e desserialização de objetos Java para JSON
+ * e vice-versa, com suporte a tipos do Java 8 Date and Time API (java.time).
+ */
 public class GsonUtilImpl implements GsonUtil {
-
     private final Gson gson;
-    private static final DateTimeFormatter ISO_LOCAL_DATE_TIME_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
-    private static final DateTimeFormatter ISO_LOCAL_DATE_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE;
 
     public GsonUtilImpl() {
+        // Configura o Gson para lidar com LocalDateTime e LocalDate
         GsonBuilder gsonBuilder = new GsonBuilder()
-                .registerTypeAdapter(LocalDateTime.class, new LocalDateTimeAdapter())
-                .registerTypeAdapter(LocalDate.class, new LocalDateAdapter())
-                .registerTypeAdapter(Duration.class, new DurationAdapter())
-                .setPrettyPrinting();
-
+                .setPrettyPrinting() // Para JSON formatado, útil para depuração
+                .registerTypeAdapter(LocalDateTime.class, (JsonSerializer<LocalDateTime>) (src, typeOfSrc, context) ->
+                        new JsonPrimitive(src.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)))
+                .registerTypeAdapter(LocalDateTime.class, (JsonDeserializer<LocalDateTime>) (json, typeOfT, context) ->
+                        LocalDateTime.parse(json.getAsString(), DateTimeFormatter.ISO_LOCAL_DATE_TIME))
+                .registerTypeAdapter(LocalDate.class, (JsonSerializer<LocalDate>) (src, typeOfSrc, context) ->
+                        new JsonPrimitive(src.format(DateTimeFormatter.ISO_LOCAL_DATE)))
+                .registerTypeAdapter(LocalDate.class, (JsonDeserializer<LocalDate>) (json, typeOfT, context) ->
+                        LocalDate.parse(json.getAsString(), DateTimeFormatter.ISO_LOCAL_DATE));
         this.gson = gsonBuilder.create();
     }
 
     @Override
-    public <T> String serialize(T object) {
-        return gson.toJson(object);
+    public String serialize(Object src) {
+        return gson.toJson(src);
     }
 
     @Override
-    public <T> T deserialize(String json, Class<T> type) {
-        return gson.fromJson(json, type);
+    public <T> T deserialize(String json, Class<T> classOfT) {
+        return gson.fromJson(json, classOfT);
     }
 
     @Override
-    public <T> T deserialize(BufferedReader reader, Class<T> type) throws IOException {
-        return gson.fromJson(reader, type);
+    public <T> T deserialize(String json, Type typeOfT) {
+        return gson.fromJson(json, typeOfT);
     }
 
-    private static class LocalDateTimeAdapter implements JsonSerializer<LocalDateTime>, JsonDeserializer<LocalDateTime> {
-        @Override
-        public JsonElement serialize(LocalDateTime src, Type typeOfSrc, JsonSerializationContext context) {
-            return new JsonPrimitive(src.format(ISO_LOCAL_DATE_TIME_FORMATTER));
-        }
-
-        @Override
-        public LocalDateTime deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
-            return LocalDateTime.parse(json.getAsString(), ISO_LOCAL_DATE_TIME_FORMATTER);
-        }
+    /**
+     * Desserializa um objeto JSON a partir de um Reader.
+     * @param reader O Reader contendo o JSON.
+     * @param classOfT A classe do objeto a ser desserializado.
+     * @param <T> O tipo do objeto.
+     * @return O objeto desserializado.
+     * @throws IOException Se ocorrer um erro de leitura.
+     */
+    public <T> T deserialize(Reader reader, Class<T> classOfT) throws IOException {
+        // Gson pode ler diretamente de um Reader, não precisa de BufferedReader explicitamente
+        return gson.fromJson(reader, classOfT);
     }
 
-    private static class LocalDateAdapter implements JsonSerializer<LocalDate>, JsonDeserializer<LocalDate> {
-        @Override
-        public JsonElement serialize(LocalDate src, Type typeOfSrc, JsonSerializationContext context) {
-            return new JsonPrimitive(src.format(ISO_LOCAL_DATE_FORMATTER));
-        }
-
-        @Override
-        public LocalDate deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
-            return LocalDate.parse(json.getAsString(), ISO_LOCAL_DATE_FORMATTER);
-        }
-    }
-
-    private static class DurationAdapter implements JsonSerializer<Duration>, JsonDeserializer<Duration> {
-        @Override
-        public JsonElement serialize(Duration src, Type typeOfSrc, JsonSerializationContext context) {
-            return new JsonPrimitive(src.toString());
-        }
-
-        @Override
-        public Duration deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
-            return Duration.parse(json.getAsString());
-        }
+    /**
+     * Desserializa um objeto JSON a partir de um Reader, usando um Type para tipos genéricos.
+     * @param reader O Reader contendo o JSON.
+     * @param typeOfT O Type do objeto a ser desserializado (útil para List<T>, Map<K,V>, etc.).
+     * @param <T> O tipo do objeto.
+     * @return O objeto desserializado.
+     * @throws IOException Se ocorrer um erro de leitura.
+     */
+    public <T> T deserialize(Reader reader, Type typeOfT) throws IOException {
+        return gson.fromJson(reader, typeOfT);
     }
 }

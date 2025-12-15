@@ -1,3 +1,4 @@
+// src/main/java/com/compliancesys/model/Journey.java
 package com.compliancesys.model;
 
 import java.time.LocalDate;
@@ -7,12 +8,15 @@ import java.util.Objects;
 /**
  * Representa uma jornada de trabalho de um motorista.
  * Corresponde à tabela 'journeys' no banco de dados.
- * Alinhado com o schema.sql fornecido.
+ * Alinhado com o schema.sql fornecido e estendido para suportar chamadas existentes no código.
  */
 public class Journey {
     private int id;
     private int driverId;
+    private int vehicleId; // Adicionado para satisfazer chamadas como journey.getVehicleId()
+    private int companyId; // Adicionado para satisfazer chamadas como journey.getCompanyId()
     private LocalDate journeyDate;
+    private String startLocation; // Adicionado para satisfazer chamadas como journey.getStartLocation()
     private int totalDrivingTimeMinutes; // Alinhado com schema.sql
     private int totalRestTimeMinutes;    // Alinhado com schema.sql
     private String complianceStatus;     // Alinhado com schema.sql (VARCHAR)
@@ -24,12 +28,15 @@ public class Journey {
     }
 
     // Construtor completo
-    public Journey(int id, int driverId, LocalDate journeyDate, int totalDrivingTimeMinutes,
-                   int totalRestTimeMinutes, String complianceStatus, boolean dailyLimitExceeded,
-                   LocalDateTime createdAt, LocalDateTime updatedAt) {
+    public Journey(int id, int driverId, int vehicleId, int companyId, LocalDate journeyDate, String startLocation,
+                   int totalDrivingTimeMinutes, int totalRestTimeMinutes, String complianceStatus,
+                   boolean dailyLimitExceeded, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.driverId = driverId;
+        this.vehicleId = vehicleId;
+        this.companyId = companyId;
         this.journeyDate = journeyDate;
+        this.startLocation = startLocation;
         this.totalDrivingTimeMinutes = totalDrivingTimeMinutes;
         this.totalRestTimeMinutes = totalRestTimeMinutes;
         this.complianceStatus = complianceStatus;
@@ -39,17 +46,12 @@ public class Journey {
     }
 
     // Construtor para inserção (sem ID, createdAt, updatedAt)
-    public Journey(int driverId, LocalDate journeyDate, int totalDrivingTimeMinutes,
-                   int totalRestTimeMinutes, String complianceStatus, boolean dailyLimitExceeded) {
-        this(0, driverId, journeyDate, totalDrivingTimeMinutes, totalRestTimeMinutes,
-             complianceStatus, dailyLimitExceeded, null, null);
-    }
-
-    // Construtor para atualização (com ID, sem createdAt, updatedAt)
-    public Journey(int id, int driverId, LocalDate journeyDate, int totalDrivingTimeMinutes,
-                   int totalRestTimeMinutes, String complianceStatus, boolean dailyLimitExceeded) {
-        this(id, driverId, journeyDate, totalDrivingTimeMinutes, totalRestTimeMinutes,
-             complianceStatus, dailyLimitExceeded, null, null);
+    public Journey(int driverId, int vehicleId, int companyId, LocalDate journeyDate, String startLocation,
+                   int totalDrivingTimeMinutes, int totalRestTimeMinutes, String complianceStatus,
+                   boolean dailyLimitExceeded) {
+        this(0, driverId, vehicleId, companyId, journeyDate, startLocation,
+             totalDrivingTimeMinutes, totalRestTimeMinutes, complianceStatus,
+             dailyLimitExceeded, null, null);
     }
 
     // Getters e Setters
@@ -61,6 +63,15 @@ public class Journey {
         this.id = id;
     }
 
+    // Adicionado para satisfazer chamadas que esperam getJourneyId()
+    public int getJourneyId() {
+        return id;
+    }
+
+    public void setJourneyId(int journeyId) {
+        this.id = journeyId;
+    }
+
     public int getDriverId() {
         return driverId;
     }
@@ -69,12 +80,45 @@ public class Journey {
         this.driverId = driverId;
     }
 
+    public int getVehicleId() {
+        return vehicleId;
+    }
+
+    public void setVehicleId(int vehicleId) {
+        this.vehicleId = vehicleId;
+    }
+
+    public int getCompanyId() {
+        return companyId;
+    }
+
+    public void setCompanyId(int companyId) {
+        this.companyId = companyId;
+    }
+
     public LocalDate getJourneyDate() {
         return journeyDate;
     }
 
     public void setJourneyDate(LocalDate journeyDate) {
         this.journeyDate = journeyDate;
+    }
+
+    // getStartDate() pode ser um alias para getJourneyDate()
+    public LocalDate getStartDate() {
+        return journeyDate;
+    }
+
+    public void setStartDate(LocalDate startDate) {
+        this.journeyDate = startDate;
+    }
+
+    public String getStartLocation() {
+        return startLocation;
+    }
+
+    public void setStartLocation(String startLocation) {
+        this.startLocation = startLocation;
     }
 
     public int getTotalDrivingTimeMinutes() {
@@ -130,7 +174,10 @@ public class Journey {
         return "Journey{" +
                 "id=" + id +
                 ", driverId=" + driverId +
+                ", vehicleId=" + vehicleId +
+                ", companyId=" + companyId +
                 ", journeyDate=" + journeyDate +
+                ", startLocation='" + startLocation + '\'' +
                 ", totalDrivingTimeMinutes=" + totalDrivingTimeMinutes +
                 ", totalRestTimeMinutes=" + totalRestTimeMinutes +
                 ", complianceStatus='" + complianceStatus + '\'' +
@@ -147,16 +194,20 @@ public class Journey {
         Journey journey = (Journey) o;
         return id == journey.id &&
                 driverId == journey.driverId &&
+                vehicleId == journey.vehicleId &&
+                companyId == journey.companyId &&
                 totalDrivingTimeMinutes == journey.totalDrivingTimeMinutes &&
                 totalRestTimeMinutes == journey.totalRestTimeMinutes &&
                 dailyLimitExceeded == journey.dailyLimitExceeded &&
                 Objects.equals(journeyDate, journey.journeyDate) &&
+                Objects.equals(startLocation, journey.startLocation) &&
                 Objects.equals(complianceStatus, journey.complianceStatus);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, driverId, journeyDate, totalDrivingTimeMinutes,
-                            totalRestTimeMinutes, complianceStatus, dailyLimitExceeded);
+        return Objects.hash(id, driverId, vehicleId, companyId, journeyDate, startLocation,
+                totalDrivingTimeMinutes, totalRestTimeMinutes, complianceStatus,
+                dailyLimitExceeded);
     }
 }
