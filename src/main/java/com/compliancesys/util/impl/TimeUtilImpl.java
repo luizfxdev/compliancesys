@@ -8,7 +8,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
-import com.compliancesys.model.TimeRecord;
+import com.compliancesys.model.TimeRecord; // Garanta que esta importação está correta
 import com.compliancesys.model.enums.EventType;
 import com.compliancesys.util.TimeUtil;
 
@@ -25,60 +25,167 @@ public class TimeUtilImpl implements TimeUtil {
             return Duration.ZERO;
         }
         List<TimeRecord> sortedRecords = timeRecords.stream()
-                .sorted(Comparator.comparing(TimeRecord::getTimestamp))
+                .sorted(Comparator.comparing(TimeRecord::getRecordTime)) // CORREÇÃO: Usando getRecordTime()
                 .collect(Collectors.toList());
+
         Duration totalWork = Duration.ZERO;
-        LocalDateTime entryTime = null;
+        LocalDateTime startWork = null;
+
         for (TimeRecord record : sortedRecords) {
-            EventType eventType = record.getEventType();
-            if (eventType == EventType.ENTRY || eventType == EventType.START_DRIVE) {
-                if (entryTime == null) {
-                    entryTime = record.getTimestamp();
+            if (record.getEventType() == EventType.START_WORK || record.getEventType() == EventType.START_DRIVE) {
+                if (startWork == null) {
+                    startWork = record.getRecordTime(); // CORREÇÃO: Usando getRecordTime()
                 }
-            } else if ((eventType == EventType.EXIT || eventType == EventType.END_DRIVE) && entryTime != null) {
-                totalWork = totalWork.plus(Duration.between(entryTime, record.getTimestamp()));
-                entryTime = null;
+            } else if (record.getEventType() == EventType.END_WORK || record.getEventType() == EventType.END_DRIVE) {
+                if (startWork != null) {
+                    totalWork = totalWork.plus(Duration.between(startWork, record.getRecordTime())); // CORREÇÃO: Usando getRecordTime()
+                    startWork = null; // Reset para o próximo período de trabalho
+                }
             }
         }
-        LOGGER.log(Level.FINE, "Duração total de trabalho calculada: {0}", totalWork);
+        // Se o trabalho começou mas não terminou, consideramos até o último registro
+        if (startWork != null && !sortedRecords.isEmpty()) {
+            totalWork = totalWork.plus(Duration.between(startWork, sortedRecords.get(sortedRecords.size() - 1).getRecordTime())); // CORREÇÃO: Usando getRecordTime()
+        }
         return totalWork;
     }
 
     @Override
     public Duration calculateTotalRestDuration(List<TimeRecord> timeRecords) {
-        if (timeRecords == null || timeRecords.size() < 2) {
+        if (timeRecords == null || timeRecords.isEmpty()) {
             return Duration.ZERO;
         }
         List<TimeRecord> sortedRecords = timeRecords.stream()
-                .sorted(Comparator.comparing(TimeRecord::getTimestamp))
+                .sorted(Comparator.comparing(TimeRecord::getRecordTime)) // CORREÇÃO: Usando getRecordTime()
                 .collect(Collectors.toList());
+
         Duration totalRest = Duration.ZERO;
-        LocalDateTime lastExitTime = null;
-        for (TimeRecord currentRecord : sortedRecords) {
-            EventType eventType = currentRecord.getEventType();
-            if (eventType == EventType.EXIT || eventType == EventType.END_DRIVE) {
-                lastExitTime = currentRecord.getTimestamp();
-            } else if ((eventType == EventType.ENTRY || eventType == EventType.START_DRIVE) && lastExitTime != null) {
-                totalRest = totalRest.plus(Duration.between(lastExitTime, currentRecord.getTimestamp()));
-                lastExitTime = null;
+        LocalDateTime startRest = null;
+
+        for (TimeRecord record : sortedRecords) {
+            if (record.getEventType() == EventType.START_REST) {
+                if (startRest == null) {
+                    startRest = record.getRecordTime(); // CORREÇÃO: Usando getRecordTime()
+                }
+            } else if (record.getEventType() == EventType.END_REST) {
+                if (startRest != null) {
+                    totalRest = totalRest.plus(Duration.between(startRest, record.getRecordTime())); // CORREÇÃO: Usando getRecordTime()
+                    startRest = null; // Reset para o próximo período de descanso
+                }
             }
         }
-        LOGGER.log(Level.FINE, "Duração total de descanso calculada: {0}", totalRest);
+        // Se o descanso começou mas não terminou, consideramos até o último registro
+        if (startRest != null && !sortedRecords.isEmpty()) {
+            totalRest = totalRest.plus(Duration.between(startRest, sortedRecords.get(sortedRecords.size() - 1).getRecordTime())); // CORREÇÃO: Usando getRecordTime()
+        }
         return totalRest;
     }
 
     @Override
     public boolean exceedsMaxContinuousDriving(List<TimeRecord> timeRecords, Duration maxContinuousDriving) {
-        if (timeRecords == null || timeRecords.isEmpty() || maxContinuousDriving == null || maxContinuousDriving.isNegative()) {
+        if (timeRecords == null || timeRecords.isEmpty()) {
             return false;
         }
-        Duration maxFound = calculateMaxContinuousDriving(timeRecords);
-        boolean exceeds = maxFound.compareTo(maxContinuousDriving) > 0;
-        if (exceeds) {
-            LOGGER.log(Level.WARNING, "Excedeu o tempo máximo de direção contínua: {0} (limite: {1})",
-                    new Object[]{maxFound, maxContinuousDriving});
+
+        List<TimeRecord> sortedRecords = timeRecords.stream()
+                .sorted(Comparator.comparing(TimeRecord::getRecordTime)) // CORREÇÃO: Usando getRecordTime()
+                .collect(Collectors.toList());
+
+        Duration currentDrivingSegment = Duration.ZERO;
+        LocalDateTime lastEntry = null; // Último recordTime de um evento de direção
+        EventType lastEventType = null;
+
+        for (TimeRecord record : sortedRecords) {
+            if (record.getEventType() == EventType.START_DRIVE) {
+                lastEntry = record.getRecordTime(); // CORREÇÃO: Usando getRecordTime()
+                lastEventType = EventType.START_DRIVE;
+            } else if (record.getEventType() == EventType.END_DRIVE) {
+                if (lastEntry != null && lastEventType == EventType.START_DRIVE) {
+                    currentDrivingSegment = currentDrivingSegment.plus(Duration.between(lastEntry, record.getRecordTime())); // CORREÇÃO: Usando getRecordTime()
+                    if (currentDrivingSegment.compareTo(maxContinuousDriving) > 0) {
+                        return true;
+                    }
+                    lastEntry = null; // Reinicia o segmento de direção
+                    lastEventType = null;
+                }
+            } else if (record.getEventType() == EventType.START_REST || record.getEventType() == EventType.END_REST || record.getEventType() == EventType.START_WORK || record.getEventType() == EventType.END_WORK) {
+                // Qualquer evento que não seja de direção, reseta o contador de direção contínua
+                currentDrivingSegment = Duration.ZERO;
+                lastEntry = null;
+                lastEventType = null;
+            }
         }
-        return exceeds;
+        // Se a direção começou mas não terminou, e o último evento foi START_DRIVE,
+        // e não houve um END_DRIVE correspondente, o segmento de direção continua até o final da lista
+        if (lastEntry != null && lastEventType == EventType.START_DRIVE && !sortedRecords.isEmpty()) {
+            currentDrivingSegment = currentDrivingSegment.plus(Duration.between(lastEntry, sortedRecords.get(sortedRecords.size() - 1).getRecordTime())); // CORREÇÃO: Usando getRecordTime()
+            if (currentDrivingSegment.compareTo(maxContinuousDriving) > 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+
+    @Override
+    public boolean hasInsufficientInterJourneyRest(LocalDateTime lastExit, LocalDateTime nextEntry, Duration minInterJourneyRest) {
+        if (lastExit == null || nextEntry == null) {
+            return false; // Não é possível verificar se faltam dados
+        }
+        Duration restDuration = Duration.between(lastExit, nextEntry);
+        return restDuration.compareTo(minInterJourneyRest) < 0;
+    }
+
+    @Override
+    public boolean hasInsufficientIntraJourneyRest(List<TimeRecord> timeRecords, Duration minIntraJourneyRest, Duration maxDrivingBeforeRest) {
+        if (timeRecords == null || timeRecords.isEmpty()) {
+            return false;
+        }
+
+        List<TimeRecord> sortedRecords = timeRecords.stream()
+                .sorted(Comparator.comparing(TimeRecord::getRecordTime)) // CORREÇÃO: Usando getRecordTime()
+                .collect(Collectors.toList());
+
+        Duration drivingSinceLastRest = Duration.ZERO;
+        LocalDateTime lastDrivingStart = null;
+        LocalDateTime lastRestEnd = null;
+
+        for (TimeRecord record : sortedRecords) {
+            if (record.getEventType() == EventType.START_DRIVE) {
+                lastDrivingStart = record.getRecordTime(); // CORREÇÃO: Usando getRecordTime()
+            } else if (record.getEventType() == EventType.END_DRIVE) {
+                if (lastDrivingStart != null) {
+                    drivingSinceLastRest = drivingSinceLastRest.plus(Duration.between(lastDrivingStart, record.getRecordTime())); // CORREÇÃO: Usando getRecordTime()
+                    lastDrivingStart = null; // Reset
+                }
+            } else if (record.getEventType() == EventType.START_REST) {
+                // Se um descanso começa, zera o contador de direção
+                drivingSinceLastRest = Duration.ZERO;
+                lastRestEnd = null; // O descanso ainda não terminou
+            } else if (record.getEventType() == EventType.END_REST) {
+                lastRestEnd = record.getRecordTime(); // CORREÇÃO: Usando getRecordTime()
+            }
+
+            // Verifica se a direção acumulada excede o máximo sem descanso
+            if (drivingSinceLastRest.compareTo(maxDrivingBeforeRest) > 0) {
+                // Se excedeu, precisamos verificar se houve um descanso adequado
+                // Isso é uma simplificação, a lógica real pode ser mais complexa
+                // Por exemplo, verificar se o descanso foi de pelo menos minIntraJourneyRest
+                if (lastRestEnd == null || Duration.between(lastRestEnd, record.getRecordTime()).compareTo(minIntraJourneyRest) < 0) { // CORREÇÃO: Usando getRecordTime()
+                    return true; // Direção excessiva sem descanso adequado
+                }
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public Duration calculateDuration(LocalDateTime start, LocalDateTime end) {
+        if (start == null || end == null || end.isBefore(start)) {
+            return Duration.ZERO;
+        }
+        return Duration.between(start, end);
     }
 
     @Override
@@ -86,162 +193,93 @@ public class TimeUtilImpl implements TimeUtil {
         if (timeRecords == null || timeRecords.isEmpty()) {
             return Duration.ZERO;
         }
+
         List<TimeRecord> sortedRecords = timeRecords.stream()
-                .sorted(Comparator.comparing(TimeRecord::getTimestamp))
+                .sorted(Comparator.comparing(TimeRecord::getRecordTime)) // CORREÇÃO: Usando getRecordTime()
                 .collect(Collectors.toList());
+
         Duration maxContinuous = Duration.ZERO;
         Duration currentContinuous = Duration.ZERO;
-        LocalDateTime lastEntry = null;
+        LocalDateTime lastDrivingStart = null;
+        LocalDateTime lastEventRecordTime = null; // CORREÇÃO: Renomeado para lastEventRecordTime
+
         for (TimeRecord record : sortedRecords) {
-            EventType eventType = record.getEventType();
-            if (eventType == EventType.START_DRIVE || eventType == EventType.ENTRY) {
-                if (lastEntry == null) {
-                    lastEntry = record.getTimestamp();
+            if (lastEventRecordTime != null) { // CORREÇÃO: Usando lastEventRecordTime
+                // Se houve um gap entre eventos, e o último foi START_DRIVE,
+                // e o gap não foi um descanso, então a direção contínua pode ter sido interrompida
+                // ou continuado implicitamente. Para simplificar, consideramos interrupção.
+                if (record.getRecordTime().isAfter(lastEventRecordTime) && // CORREÇÃO: Usando getRecordTime() e lastEventRecordTime
+                    (record.getEventType() == EventType.START_REST || record.getEventType() == EventType.END_REST ||
+                     record.getEventType() == EventType.START_WORK || record.getEventType() == EventType.END_WORK)) {
+                    // Se o evento atual é um descanso ou trabalho, zera a contagem de direção contínua
+                    currentContinuous = Duration.ZERO;
+                    lastDrivingStart = null;
                 }
-            } else if ((eventType == EventType.END_DRIVE || eventType == EventType.EXIT) && lastEntry != null) {
-                Duration segment = Duration.between(lastEntry, record.getTimestamp());
-                currentContinuous = currentContinuous.plus(segment);
-                if (currentContinuous.compareTo(maxContinuous) > 0) {
-                    maxContinuous = currentContinuous;
+            }
+
+            if (record.getEventType() == EventType.START_DRIVE) {
+                lastDrivingStart = record.getRecordTime(); // CORREÇÃO: Usando getRecordTime()
+            } else if (record.getEventType() == EventType.END_DRIVE) {
+                if (lastDrivingStart != null) {
+                    currentContinuous = currentContinuous.plus(Duration.between(lastDrivingStart, record.getRecordTime())); // CORREÇÃO: Usando getRecordTime()
+                    if (currentContinuous.compareTo(maxContinuous) > 0) {
+                        maxContinuous = currentContinuous;
+                    }
+                    currentContinuous = Duration.ZERO; // Reinicia após um END_DRIVE
+                    lastDrivingStart = null;
                 }
-                lastEntry = null;
-                currentContinuous = Duration.ZERO;
+            }
+            lastEventRecordTime = record.getRecordTime(); // CORREÇÃO: Usando getRecordTime()
+        }
+
+        // Se a direção começou mas não terminou (último evento foi START_DRIVE)
+        if (lastDrivingStart != null && !sortedRecords.isEmpty()) {
+            currentContinuous = currentContinuous.plus(Duration.between(lastDrivingStart, sortedRecords.get(sortedRecords.size() - 1).getRecordTime())); // CORREÇÃO: Usando getRecordTime()
+            if (currentContinuous.compareTo(maxContinuous) > 0) {
+                maxContinuous = currentContinuous;
             }
         }
-        LOGGER.log(Level.FINE, "Duração máxima de direção contínua: {0}", maxContinuous);
+
         return maxContinuous;
     }
 
     @Override
     public boolean hasRestPeriodAfterDriving(List<TimeRecord> timeRecords, Duration maxDrivingDuration) {
         if (timeRecords == null || timeRecords.isEmpty()) {
-            return false;
+            return true; // Não há direção, então não há problema
         }
+
         List<TimeRecord> sortedRecords = timeRecords.stream()
-                .sorted(Comparator.comparing(TimeRecord::getTimestamp))
+                .sorted(Comparator.comparing(TimeRecord::getRecordTime)) // CORREÇÃO: Usando getRecordTime()
                 .collect(Collectors.toList());
+
         Duration currentDriving = Duration.ZERO;
-        LocalDateTime lastEntry = null;
-        boolean foundRestAfterMaxDriving = false;
-        for (int i = 0; i < sortedRecords.size(); i++) {
-            TimeRecord record = sortedRecords.get(i);
-            EventType eventType = record.getEventType();
-            if (eventType == EventType.START_DRIVE || eventType == EventType.ENTRY) {
-                if (lastEntry == null) {
-                    lastEntry = record.getTimestamp();
+        LocalDateTime lastDrivingStart = null;
+        LocalDateTime lastDrivingEnd = null; // Último END_DRIVE
+        LocalDateTime lastRestEnd = null; // Último END_REST
+
+        for (TimeRecord record : sortedRecords) {
+            if (record.getEventType() == EventType.START_DRIVE) {
+                lastDrivingStart = record.getRecordTime(); // CORREÇÃO: Usando getRecordTime()
+            } else if (record.getEventType() == EventType.END_DRIVE) {
+                if (lastDrivingStart != null) {
+                    currentDriving = currentDriving.plus(Duration.between(lastDrivingStart, record.getRecordTime())); // CORREÇÃO: Usando getRecordTime()
+                    lastDrivingEnd = record.getRecordTime(); // CORREÇÃO: Usando getRecordTime()
+                    lastDrivingStart = null;
                 }
-            } else if ((eventType == EventType.END_DRIVE || eventType == EventType.EXIT) && lastEntry != null) {
-                Duration segment = Duration.between(lastEntry, record.getTimestamp());
-                currentDriving = currentDriving.plus(segment);
-                if (currentDriving.compareTo(maxDrivingDuration) > 0) {
-                    if (i + 1 < sortedRecords.size()) {
-                        TimeRecord nextRecord = sortedRecords.get(i + 1);
-                        if (nextRecord.getEventType() == EventType.REST || nextRecord.getEventType() == EventType.PAUSE) {
-                            Duration restPeriod = Duration.between(record.getTimestamp(), nextRecord.getTimestamp());
-                            if (restPeriod.toMinutes() >= 30) {
-                                foundRestAfterMaxDriving = true;
-                            }
-                        }
-                    }
+            } else if (record.getEventType() == EventType.END_REST) {
+                lastRestEnd = record.getRecordTime(); // CORREÇÃO: Usando getRecordTime()
+                currentDriving = Duration.ZERO; // Descanso zera a contagem de direção
+            }
+
+            // Se a direção acumulada excede o máximo e não houve descanso adequado depois
+            if (currentDriving.compareTo(maxDrivingDuration) > 0) {
+                // Se não houve um descanso após o último período de direção que excedeu o limite
+                if (lastDrivingEnd != null && (lastRestEnd == null || lastRestEnd.isBefore(lastDrivingEnd))) {
+                    return false; // Direção excessiva sem descanso adequado
                 }
-                lastEntry = null;
-                currentDriving = Duration.ZERO;
             }
         }
-        LOGGER.log(Level.FINE, "Verificação de período de descanso após direção: {0}", foundRestAfterMaxDriving);
-        return foundRestAfterMaxDriving;
-    }
-
-    @Override
-    public boolean hasInsufficientInterJourneyRest(LocalDateTime lastExit, LocalDateTime nextEntry, Duration minInterJourneyRest) {
-        if (lastExit == null || nextEntry == null || minInterJourneyRest == null || minInterJourneyRest.isNegative()) {
-            LOGGER.log(Level.WARNING, "Parâmetros inválidos para verificação de descanso interjornada.");
-            return false;
-        }
-        if (nextEntry.isBefore(lastExit)) {
-            LOGGER.log(Level.WARNING, "Próxima entrada ({0}) é anterior à última saída ({1}). Dados inconsistentes.",
-                    new Object[]{nextEntry, lastExit});
-            return false;
-        }
-        Duration restDuration = Duration.between(lastExit, nextEntry);
-        boolean insufficient = restDuration.compareTo(minInterJourneyRest) < 0;
-        if (insufficient) {
-            LOGGER.log(Level.WARNING, "Descanso interjornada insuficiente: {0} (mínimo: {1})",
-                    new Object[]{restDuration, minInterJourneyRest});
-        } else {
-            LOGGER.log(Level.FINE, "Descanso interjornada suficiente: {0} (mínimo: {1})",
-                    new Object[]{restDuration, minInterJourneyRest});
-        }
-        return insufficient;
-    }
-
-    @Override
-    public boolean hasInsufficientIntraJourneyRest(List<TimeRecord> timeRecords, Duration minIntraJourneyRest, Duration maxDrivingBeforeRest) {
-        if (timeRecords == null || timeRecords.isEmpty() || minIntraJourneyRest == null ||
-                minIntraJourneyRest.isNegative() || maxDrivingBeforeRest == null || maxDrivingBeforeRest.isNegative()) {
-            LOGGER.log(Level.WARNING, "Parâmetros inválidos para verificação de descanso intrajornada.");
-            return false;
-        }
-        List<TimeRecord> sortedRecords = timeRecords.stream()
-                .sorted(Comparator.comparing(TimeRecord::getTimestamp))
-                .collect(Collectors.toList());
-        Duration currentDrivingSegment = Duration.ZERO;
-        LocalDateTime lastEntry = null;
-        LocalDateTime lastDrivingEnd = null;
-        for (int i = 0; i < sortedRecords.size(); i++) {
-            TimeRecord current = sortedRecords.get(i);
-            EventType eventType = current.getEventType();
-
-            if (eventType == EventType.START_DRIVE || eventType == EventType.ENTRY) {
-                if (lastEntry == null) {
-                    lastEntry = current.getTimestamp();
-                }
-            } else if ((eventType == EventType.END_DRIVE || eventType == EventType.EXIT) && lastEntry != null) {
-                currentDrivingSegment = currentDrivingSegment.plus(Duration.between(lastEntry, current.getTimestamp()));
-                lastDrivingEnd = current.getTimestamp();
-                lastEntry = null;
-
-                if (currentDrivingSegment.compareTo(maxDrivingBeforeRest) > 0) {
-                    boolean foundSufficientRest = false;
-                    for (int j = i + 1; j < sortedRecords.size(); j++) {
-                        TimeRecord next = sortedRecords.get(j);
-                        if (next.getEventType() == EventType.START_DRIVE || next.getEventType() == EventType.ENTRY) {
-                            Duration restBetweenDriving = Duration.between(lastDrivingEnd, next.getTimestamp());
-                            if (restBetweenDriving.compareTo(minIntraJourneyRest) >= 0) {
-                                foundSufficientRest = true;
-                                break;
-                            } else {
-                                LOGGER.log(Level.WARNING, "Descanso intrajornada insuficiente após segmento de direção excedido: {0} (mínimo: {1})",
-                                        new Object[]{restBetweenDriving, minIntraJourneyRest});
-                                return true;
-                            }
-                        }
-                    }
-                    if (!foundSufficientRest && i == sortedRecords.size() - 1) {
-                        LOGGER.log(Level.WARNING, "Segmento de direção excedeu o limite e não houve descanso intrajornada suficiente até o final da jornada.");
-                        return true;
-                    }
-                }
-                currentDrivingSegment = Duration.ZERO;
-            }
-        }
-
-        Duration totalIntraJourneyRest = calculateTotalRestDuration(timeRecords);
-        if (totalIntraJourneyRest.compareTo(minIntraJourneyRest) < 0) {
-            LOGGER.log(Level.WARNING, "Descanso intrajornada total insuficiente: {0} (mínimo: {1})",
-                    new Object[]{totalIntraJourneyRest, minIntraJourneyRest});
-            return true;
-        }
-
-        LOGGER.log(Level.FINE, "Descanso intrajornada suficiente.");
-        return false;
-    }
-
-    @Override
-    public Duration calculateDuration(LocalDateTime start, LocalDateTime end) {
-        if (start == null || end == null || start.isAfter(end)) {
-            return Duration.ZERO;
-        }
-        return Duration.between(start, end);
+        return true;
     }
 }

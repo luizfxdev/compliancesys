@@ -1,4 +1,3 @@
-// src/main/java/com/compliancesys/dao/JourneyDAO.java (Interface)
 package com.compliancesys.dao;
 
 import java.sql.SQLException;
@@ -15,10 +14,9 @@ public interface JourneyDAO {
     boolean update(Journey journey) throws SQLException;
     boolean delete(int id) throws SQLException;
 
-    // Métodos adicionados/confirmados com base nas necessidades do sistema
     List<Journey> findByDriverId(int driverId) throws SQLException;
     List<Journey> findByVehicleId(int vehicleId) throws SQLException;
-    List<Journey> findByCompanyId(int companyId) throws SQLException; // Necessário pelo log
-    List<Journey> findByDateRange(LocalDate startDate, LocalDate endDate) throws SQLException; // Necessário pelo log
-    Optional<Journey> findByDriverIdAndDate(int driverId, LocalDate journeyDate) throws SQLException; // Necessário pelo log
+    List<Journey> findByCompanyId(int companyId) throws SQLException;
+    List<Journey> findByDateRange(LocalDate startDate, LocalDate endDate) throws SQLException;
+    Optional<Journey> findByDriverIdAndDate(int driverId, LocalDate journeyDate) throws SQLException;
 }

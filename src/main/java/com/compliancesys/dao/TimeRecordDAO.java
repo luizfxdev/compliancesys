@@ -1,8 +1,7 @@
-// src/main/java/com/compliancesys/dao/TimeRecordDAO.java (Interface)
 package com.compliancesys.dao;
 
 import java.sql.SQLException;
-import java.time.LocalDate; // Importar o enum
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -16,11 +15,9 @@ public interface TimeRecordDAO {
     boolean update(TimeRecord timeRecord) throws SQLException;
     boolean delete(int id) throws SQLException;
 
-    // Métodos adicionados/confirmados com base nas necessidades do sistema
     List<TimeRecord> findByJourneyId(int journeyId) throws SQLException;
     List<TimeRecord> findByDriverId(int driverId) throws SQLException;
-    List<TimeRecord> findByEventType(EventType eventType) throws SQLException; // Necessário pelo log
-    List<TimeRecord> findByDriverAndDateRange(int driverId, LocalDate startDate, LocalDate endDate) throws SQLException; // Necessário pelo log
-    List<TimeRecord> findByJourneyIdOrderedByTimestamp(int journeyId) throws SQLException; // Necessário pelo log
-    List<TimeRecord> findByDriverIdAndDate(int driverId, LocalDate date) throws SQLException; // Adicionado para consistência
+    List<TimeRecord> findByEventType(EventType eventType) throws SQLException;
+    List<TimeRecord> findByRecordTimeRange(LocalDateTime start, LocalDateTime end) throws SQLException;
+    Optional<TimeRecord> findLatestByDriverIdAndJourneyId(int driverId, int journeyId) throws SQLException;
 }

@@ -1,4 +1,3 @@
-// src/main/java/com/compliancesys/dao/CompanyDAO.java (Revisão, se necessário)
 package com.compliancesys.dao;
 
 import java.sql.SQLException;
@@ -11,10 +10,8 @@ public interface CompanyDAO {
     int create(Company company) throws SQLException;
     Optional<Company> findById(int id) throws SQLException;
     Optional<Company> findByCnpj(String cnpj) throws SQLException;
-    Optional<Company> findByLegalName(String legalName) throws SQLException; // Já adicionado
-    Optional<Company> findByTradingName(String tradingName) throws SQLException; // Já adicionado
-    Optional<Company> findByEmail(String email) throws SQLException; // Já adicionado
-    Optional<Company> findByPhone(String phone) throws SQLException; // ADICIONADO
+    Optional<Company> findByLegalName(String legalName) throws SQLException;
+    Optional<Company> findByTradingName(String tradingName) throws SQLException;
     List<Company> findAll() throws SQLException;
     boolean update(Company company) throws SQLException;
     boolean delete(int id) throws SQLException;

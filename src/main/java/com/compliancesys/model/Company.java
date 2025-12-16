@@ -1,25 +1,19 @@
-// src/main/java/com/compliancesys/model/Company.java
 package com.compliancesys.model;
 
 import java.time.LocalDateTime;
 import java.util.Objects;
 
-/**
- * Representa uma empresa no sistema.
- * Corresponde à tabela 'companies' no banco de dados.
- */
 public class Company {
     private int id;
     private String cnpj;
-    private String legalName; // ADICIONADO: Campo legalName
-    private String tradingName; // ADICIONADO: Campo tradingName
+    private String legalName;
+    private String tradingName;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
     public Company() {
     }
 
-    // Construtor completo
     public Company(int id, String cnpj, String legalName, String tradingName,
                    LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
@@ -30,17 +24,14 @@ public class Company {
         this.updatedAt = updatedAt;
     }
 
-    // Construtor para inserção (sem ID, createdAt, updatedAt)
     public Company(String cnpj, String legalName, String tradingName) {
         this(0, cnpj, legalName, tradingName, null, null);
     }
 
-    // Construtor para atualização (com ID, sem createdAt, updatedAt)
     public Company(int id, String cnpj, String legalName, String tradingName) {
         this(id, cnpj, legalName, tradingName, null, null);
     }
 
-    // Getters e Setters
     public int getId() {
         return id;
     }
@@ -57,7 +48,6 @@ public class Company {
         this.cnpj = cnpj;
     }
 
-    // ADICIONADO: Getter e Setter para legalName
     public String getLegalName() {
         return legalName;
     }
@@ -66,7 +56,6 @@ public class Company {
         this.legalName = legalName;
     }
 
-    // ADICIONADO: Getter e Setter para tradingName
     public String getTradingName() {
         return tradingName;
     }
@@ -99,14 +88,12 @@ public class Company {
         return id == company.id &&
                Objects.equals(cnpj, company.cnpj) &&
                Objects.equals(legalName, company.legalName) &&
-               Objects.equals(tradingName, company.tradingName) &&
-               Objects.equals(createdAt, company.createdAt) &&
-               Objects.equals(updatedAt, company.updatedAt);
+               Objects.equals(tradingName, company.tradingName);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, cnpj, legalName, tradingName, createdAt, updatedAt);
+        return Objects.hash(id, cnpj, legalName, tradingName);
     }
 
     @Override

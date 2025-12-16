@@ -1,32 +1,26 @@
-// src/main/java/com/compliancesys/model/Driver.java
 package com.compliancesys.model;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Objects;
 
-/**
- * Representa um motorista no sistema.
- * Corresponde à tabela 'drivers' no banco de dados.
- */
 public class Driver {
     private int id;
-    private int companyId; // Mantido, assumindo que é usado na lógica de negócio ou em outras tabelas.
+    private int companyId;
     private String name;
     private String cpf;
     private String licenseNumber;
     private String licenseCategory;
-    private LocalDate licenseExpiration; // Nome do campo já está correto
+    private LocalDate licenseExpiration;
     private LocalDate birthDate;
     private String phone;
-    private String email; // Campo já está correto
+    private String email;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
     public Driver() {
     }
 
-    // Construtor completo com todos os campos (12 parâmetros)
     public Driver(int id, int companyId, String name, String cpf, String licenseNumber, String licenseCategory,
                   LocalDate licenseExpiration, LocalDate birthDate, String phone, String email,
                   LocalDateTime createdAt, LocalDateTime updatedAt) {
@@ -44,23 +38,18 @@ public class Driver {
         this.updatedAt = updatedAt;
     }
 
-    // Construtor para inserção (sem ID, createdAt, updatedAt) (10 parâmetros)
     public Driver(int companyId, String name, String cpf, String licenseNumber, String licenseCategory,
                   LocalDate licenseExpiration, LocalDate birthDate, String phone, String email) {
         this(0, companyId, name, cpf, licenseNumber, licenseCategory, licenseExpiration,
              birthDate, phone, email, null, null);
     }
 
-    // Construtor para atualização (com ID, sem createdAt, updatedAt) (10 parâmetros)
     public Driver(int id, int companyId, String name, String cpf, String licenseNumber, String licenseCategory,
                   LocalDate licenseExpiration, LocalDate birthDate, String phone, String email) {
         this(id, companyId, name, cpf, licenseNumber, licenseCategory, licenseExpiration,
              birthDate, phone, email, null, null);
     }
 
-    // Construtor para compatibilidade com testes (sem companyId) (11 parâmetros)
-    // Este construtor é um pouco problemático se companyId é um campo obrigatório na lógica.
-    // Se for apenas para testes, tudo bem, mas é bom ter em mente.
     public Driver(int id, String name, String cpf, String licenseNumber, String licenseCategory,
                   LocalDate licenseExpiration, LocalDate birthDate, String phone, String email,
                   LocalDateTime createdAt, LocalDateTime updatedAt) {
@@ -68,15 +57,12 @@ public class Driver {
              birthDate, phone, email, createdAt, updatedAt);
     }
 
-    // NOVO CONSTRUTOR ADICIONADO PARA FACILITAR TESTES E ALINHAR COM O USO COMUM
-    // Este construtor cobre os campos essenciais para a maioria das instâncias de teste
     public Driver(int id, int companyId, String name, String cpf, String licenseNumber, String licenseCategory,
                   LocalDate licenseExpiration, LocalDate birthDate) {
         this(id, companyId, name, cpf, licenseNumber, licenseCategory, licenseExpiration,
-             birthDate, null, null, null, null); // Phone, email, createdAt, updatedAt como null
+             birthDate, null, null, null, null);
     }
 
-    // Getters e Setters
     public int getId() {
         return id;
     }
@@ -125,7 +111,6 @@ public class Driver {
         this.licenseCategory = licenseCategory;
     }
 
-    // Getter e Setter para licenseExpiration (já estavam corretos)
     public LocalDate getLicenseExpiration() {
         return licenseExpiration;
     }
@@ -134,7 +119,6 @@ public class Driver {
         this.licenseExpiration = licenseExpiration;
     }
 
-    // Getter e Setter para birthDate (já estavam corretos)
     public LocalDate getBirthDate() {
         return birthDate;
     }
@@ -151,7 +135,6 @@ public class Driver {
         this.phone = phone;
     }
 
-    // Getter e Setter para email (já estavam corretos)
     public String getEmail() {
         return email;
     }

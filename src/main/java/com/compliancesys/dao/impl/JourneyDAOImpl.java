@@ -1,4 +1,3 @@
-// src/main/java/com/compliancesys/dao/impl/JourneyDAOImpl.java
 package com.compliancesys.dao.impl;
 
 import java.sql.Connection;
@@ -138,7 +137,7 @@ public class JourneyDAOImpl implements JourneyDAO {
                 }
             }
         } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro ao buscar jornadas por Driver ID: " + e.getMessage(), e);
+            LOGGER.log(Level.SEVERE, "Erro ao buscar jornadas por driverId: " + e.getMessage(), e);
             throw e;
         }
         return journeys;
@@ -156,7 +155,7 @@ public class JourneyDAOImpl implements JourneyDAO {
                 }
             }
         } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro ao buscar jornadas por Vehicle ID: " + e.getMessage(), e);
+            LOGGER.log(Level.SEVERE, "Erro ao buscar jornadas por vehicleId: " + e.getMessage(), e);
             throw e;
         }
         return journeys;
@@ -174,7 +173,7 @@ public class JourneyDAOImpl implements JourneyDAO {
                 }
             }
         } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro ao buscar jornadas por Company ID: " + e.getMessage(), e);
+            LOGGER.log(Level.SEVERE, "Erro ao buscar jornadas por companyId: " + e.getMessage(), e);
             throw e;
         }
         return journeys;
@@ -211,7 +210,7 @@ public class JourneyDAOImpl implements JourneyDAO {
                 }
             }
         } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro ao buscar jornada por Driver ID e Data: " + e.getMessage(), e);
+            LOGGER.log(Level.SEVERE, "Erro ao buscar jornada por driverId e data: " + e.getMessage(), e);
             throw e;
         }
         return Optional.empty();
@@ -219,18 +218,18 @@ public class JourneyDAOImpl implements JourneyDAO {
 
     private Journey mapResultSetToJourney(ResultSet rs) throws SQLException {
         return new Journey(
-                rs.getInt("id"),
-                rs.getInt("driver_id"),
-                rs.getInt("vehicle_id"),
-                rs.getInt("company_id"),
-                rs.getObject("journey_date", LocalDate.class),
-                rs.getString("start_location"),
-                rs.getInt("total_driving_time_minutes"),
-                rs.getInt("total_rest_time_minutes"),
-                rs.getString("compliance_status"),
-                rs.getBoolean("daily_limit_exceeded"),
-                rs.getObject("created_at", LocalDateTime.class),
-                rs.getObject("updated_at", LocalDateTime.class)
+            rs.getInt("id"),
+            rs.getInt("driver_id"),
+            rs.getInt("vehicle_id"),
+            rs.getInt("company_id"),
+            rs.getObject("journey_date", LocalDate.class),
+            rs.getString("start_location"),
+            rs.getInt("total_driving_time_minutes"),
+            rs.getInt("total_rest_time_minutes"),
+            rs.getString("compliance_status"),
+            rs.getBoolean("daily_limit_exceeded"),
+            rs.getObject("created_at", LocalDateTime.class),
+            rs.getObject("updated_at", LocalDateTime.class)
         );
     }
 }

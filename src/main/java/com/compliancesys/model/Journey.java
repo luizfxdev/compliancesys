@@ -1,25 +1,19 @@
-// src/main/java/com/compliancesys/model/Journey.java
 package com.compliancesys.model;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Objects;
 
-/**
- * Representa uma jornada de trabalho de um motorista.
- * Corresponde à tabela 'journeys' no banco de dados.
- * Alinhado com o schema.sql fornecido e estendido para suportar chamadas existentes no código.
- */
 public class Journey {
     private int id;
     private int driverId;
-    private int vehicleId; // Adicionado para satisfazer chamadas como journey.getVehicleId()
-    private int companyId; // Adicionado para satisfazer chamadas como journey.getCompanyId()
+    private int vehicleId;
+    private int companyId;
     private LocalDate journeyDate;
-    private String startLocation; // Adicionado para satisfazer chamadas como journey.getStartLocation()
-    private int totalDrivingTimeMinutes; // Alinhado com schema.sql
-    private int totalRestTimeMinutes;    // Alinhado com schema.sql
-    private String complianceStatus;     // Alinhado com schema.sql (VARCHAR)
+    private String startLocation;
+    private int totalDrivingTimeMinutes;
+    private int totalRestTimeMinutes;
+    private String complianceStatus;
     private boolean dailyLimitExceeded;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -27,7 +21,6 @@ public class Journey {
     public Journey() {
     }
 
-    // Construtor completo
     public Journey(int id, int driverId, int vehicleId, int companyId, LocalDate journeyDate, String startLocation,
                    int totalDrivingTimeMinutes, int totalRestTimeMinutes, String complianceStatus,
                    boolean dailyLimitExceeded, LocalDateTime createdAt, LocalDateTime updatedAt) {
@@ -45,7 +38,6 @@ public class Journey {
         this.updatedAt = updatedAt;
     }
 
-    // Construtor para inserção (sem ID, createdAt, updatedAt)
     public Journey(int driverId, int vehicleId, int companyId, LocalDate journeyDate, String startLocation,
                    int totalDrivingTimeMinutes, int totalRestTimeMinutes, String complianceStatus,
                    boolean dailyLimitExceeded) {
@@ -54,7 +46,6 @@ public class Journey {
              dailyLimitExceeded, null, null);
     }
 
-    // Getters e Setters
     public int getId() {
         return id;
     }
@@ -63,7 +54,6 @@ public class Journey {
         this.id = id;
     }
 
-    // Adicionado para satisfazer chamadas que esperam getJourneyId()
     public int getJourneyId() {
         return id;
     }
@@ -104,7 +94,6 @@ public class Journey {
         this.journeyDate = journeyDate;
     }
 
-    // getStartDate() pode ser um alias para getJourneyDate()
     public LocalDate getStartDate() {
         return journeyDate;
     }

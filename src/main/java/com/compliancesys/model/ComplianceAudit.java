@@ -1,4 +1,3 @@
-// src/main/java/com/compliancesys/model/ComplianceAudit.java
 package com.compliancesys.model;
 
 import java.time.Duration;
@@ -8,19 +7,14 @@ import java.util.Objects;
 
 import com.compliancesys.model.enums.ComplianceStatus;
 
-/**
- * Representa um registro de auditoria de conformidade para uma jornada.
- * Corresponde à tabela 'compliance_audits' no banco de dados.
- * Alinhado com o schema.sql fornecido e estendido para suportar regras da Lei do Caminhoneiro.
- */
 public class ComplianceAudit {
     private int id;
     private int journeyId;
-    private int driverId; // Adicionado para consistência, embora não esteja diretamente no schema.sql para esta tabela, é comum em auditorias.
+    private int driverId;
     private LocalDate auditDate;
     private LocalDateTime auditTimestamp;
-    private ComplianceStatus status; // Alterado para enum ComplianceStatus
-    private String complianceStatus; // Mantido para compatibilidade com schema.sql (representação em String do enum)
+    private ComplianceStatus status;
+    private String complianceStatus;
     private String violations;
     private Duration totalWorkDuration;
     private Duration maxContinuousDriving;
@@ -32,7 +26,6 @@ public class ComplianceAudit {
     public ComplianceAudit() {
     }
 
-    // Construtor completo
     public ComplianceAudit(int id, int journeyId, int driverId, LocalDate auditDate,
                            LocalDateTime auditTimestamp, ComplianceStatus status,
                            String violations, Duration totalWorkDuration,
@@ -44,7 +37,7 @@ public class ComplianceAudit {
         this.auditDate = auditDate;
         this.auditTimestamp = auditTimestamp;
         this.status = status;
-        this.complianceStatus = status != null ? status.name() : null; // Garante que a string seja atualizada
+        this.complianceStatus = status != null ? status.name() : null;
         this.violations = violations;
         this.totalWorkDuration = totalWorkDuration;
         this.maxContinuousDriving = maxContinuousDriving;
@@ -54,21 +47,18 @@ public class ComplianceAudit {
         this.updatedAt = updatedAt;
     }
 
-    // Construtor para inserção (sem ID, createdAt, updatedAt, e com campos de Duration e violations nulos inicialmente)
     public ComplianceAudit(int journeyId, int driverId, LocalDate auditDate,
                            ComplianceStatus status, String auditorName, String notes) {
         this(0, journeyId, driverId, auditDate, null, status, null, null, null,
              auditorName, notes, null, null);
     }
 
-    // Construtor com timestamp e violations (útil para criação inicial de auditoria)
     public ComplianceAudit(int journeyId, int driverId, LocalDateTime auditTimestamp,
                            ComplianceStatus status, String violations) {
         this(0, journeyId, driverId, auditTimestamp != null ? auditTimestamp.toLocalDate() : null,
              auditTimestamp, status, violations, null, null, null, null, null, null);
     }
 
-    // Getters e Setters
     public int getId() {
         return id;
     }
@@ -118,7 +108,7 @@ public class ComplianceAudit {
 
     public void setStatus(ComplianceStatus status) {
         this.status = status;
-        this.complianceStatus = status != null ? status.name() : null; // Garante que a string seja atualizada
+        this.complianceStatus = status != null ? status.name() : null;
     }
 
     public String getComplianceStatus() {
@@ -130,8 +120,7 @@ public class ComplianceAudit {
         try {
             this.status = complianceStatus != null ? ComplianceStatus.valueOf(complianceStatus) : null;
         } catch (IllegalArgumentException e) {
-            // Logar ou tratar o erro se a string não corresponder a um enum válido
-            this.status = null; // Ou um valor padrão, como UNKNOWN
+            this.status = null;
         }
     }
 
@@ -200,6 +189,7 @@ public class ComplianceAudit {
                 ", auditDate=" + auditDate +
                 ", auditTimestamp=" + auditTimestamp +
                 ", status=" + status +
+                ", complianceStatus='" + complianceStatus + '\'' +
                 ", violations='" + violations + '\'' +
                 ", totalWorkDuration=" + totalWorkDuration +
                 ", maxContinuousDriving=" + maxContinuousDriving +
@@ -215,23 +205,21 @@ public class ComplianceAudit {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         ComplianceAudit that = (ComplianceAudit) o;
-        return id == that.id &&
-                journeyId == that.journeyId &&
-                driverId == that.driverId &&
-                Objects.equals(auditDate, that.auditDate) &&
-                Objects.equals(auditTimestamp, that.auditTimestamp) &&
-                status == that.status &&
-                Objects.equals(violations, that.violations) &&
-                Objects.equals(totalWorkDuration, that.totalWorkDuration) &&
-                Objects.equals(maxContinuousDriving, that.maxContinuousDriving) &&
-                Objects.equals(auditorName, that.auditorName) &&
-                Objects.equals(notes, that.notes);
+        return id == that.id && journeyId == that.journeyId && driverId == that.driverId &&
+               Objects.equals(auditDate, that.auditDate) &&
+               Objects.equals(auditTimestamp, that.auditTimestamp) && status == that.status &&
+               Objects.equals(complianceStatus, that.complianceStatus) &&
+               Objects.equals(violations, that.violations) &&
+               Objects.equals(totalWorkDuration, that.totalWorkDuration) &&
+               Objects.equals(maxContinuousDriving, that.maxContinuousDriving) &&
+               Objects.equals(auditorName, that.auditorName) && Objects.equals(notes, that.notes) &&
+               Objects.equals(createdAt, that.createdAt) && Objects.equals(updatedAt, that.updatedAt);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, journeyId, driverId, auditDate, auditTimestamp, status,
-                violations, totalWorkDuration, maxContinuousDriving,
-                auditorName, notes);
+        return Objects.hash(id, journeyId, driverId, auditDate, auditTimestamp, status, complianceStatus,
+                            violations, totalWorkDuration, maxContinuousDriving, auditorName, notes,
+                            createdAt, updatedAt);
     }
 }

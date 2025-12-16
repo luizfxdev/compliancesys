@@ -1,4 +1,3 @@
-// src/main/java/com/compliancesys/service/DriverService.java
 package com.compliancesys.service;
 
 import java.sql.SQLException;
@@ -9,13 +8,13 @@ import com.compliancesys.exception.BusinessException;
 import com.compliancesys.model.Driver;
 
 public interface DriverService {
-    Driver registerDriver(Driver driver) throws BusinessException, SQLException;
-    Optional<Driver> getDriverById(int driverId) throws BusinessException, SQLException;
-    Optional<Driver> getDriverByCpf(String cpf) throws BusinessException, SQLException;
-    Optional<Driver> getDriverByLicenseNumber(String licenseNumber) throws BusinessException, SQLException;
-    List<Driver> getDriversByCompanyId(int companyId) throws BusinessException, SQLException;
-    Optional<Driver> getDriverByEmail(String email) throws BusinessException, SQLException; // Adicionado
-    List<Driver> getAllDrivers() throws BusinessException, SQLException;
-    Driver updateDriver(Driver driver) throws BusinessException, SQLException;
-    boolean deleteDriver(int driverId) throws BusinessException, SQLException;
+    Driver registerDriver(Driver driver) throws SQLException, BusinessException;
+    Driver updateDriver(Driver driver) throws SQLException, BusinessException;
+    boolean deleteDriver(int id) throws SQLException, BusinessException;
+    Optional<Driver> getDriverById(int id) throws SQLException;
+    List<Driver> getAllDrivers() throws SQLException;
+    Optional<Driver> getDriverByCpf(String cpf) throws SQLException;
+    Optional<Driver> getDriverByLicenseNumber(String licenseNumber) throws SQLException;
+    List<Driver> getDriversByCompanyId(int companyId) throws SQLException;
+    Optional<Driver> getDriverByEmail(String email) throws SQLException;
 }

@@ -1,5 +1,8 @@
+// src/main/java/com/compliancesys/util/GsonUtil.java
 package com.compliancesys.util;
 
+import java.io.IOException;
+import java.io.Reader;
 import java.lang.reflect.Type;
 
 /**
@@ -10,30 +13,47 @@ public interface GsonUtil {
 
     /**
      * Serializa um objeto para uma string JSON.
-     *
+     * @param <T> O tipo do objeto.
      * @param src O objeto a ser serializado.
-     * @return Uma string JSON representando o objeto.
+     * @return A representação JSON do objeto.
      */
-    String serialize(Object src);
+    public <T> String serialize(T src);
 
     /**
      * Desserializa uma string JSON para um objeto do tipo especificado.
-     *
-     * @param json A string JSON a ser desserializada.
-     * @param classOfT A classe do objeto para o qual o JSON deve ser desserializado.
      * @param <T> O tipo do objeto.
-     * @return Uma instância do tipo T a partir do JSON.
+     * @param json A string JSON a ser desserializada.
+     * @param classOfT A classe do objeto.
+     * @return O objeto desserializado.
      */
-    <T> T deserialize(String json, Class<T> classOfT);
+    public <T> T deserialize(String json, Class<T> classOfT);
 
     /**
-     * Desserializa uma string JSON para um objeto de um tipo genérico especificado.
-     * Útil para tipos complexos como List<MyObject>.
-     *
-     * @param json A string JSON a ser desserializada.
-     * @param typeOfT O tipo genérico do objeto para o qual o JSON deve ser desserializado.
+     * Desserializa uma string JSON para um objeto de um tipo complexo (ex: List<MyObject>).
      * @param <T> O tipo do objeto.
-     * @return Uma instância do tipo T a partir do JSON.
+     * @param json A string JSON a ser desserializada.
+     * @param typeOfT O tipo complexo do objeto (ex: new TypeToken<List<MyObject>>(){}.getType()).
+     * @return O objeto desserializado.
      */
-    <T> T deserialize(String json, Type typeOfT);
+    public <T> T deserialize(String json, Type typeOfT);
+
+    /**
+     * Desserializa um Reader (ex: request.getReader()) para um objeto do tipo especificado.
+     * @param <T> O tipo do objeto.
+     * @param reader O Reader contendo a string JSON.
+     * @param classOfT A classe do objeto.
+     * @return O objeto desserializado.
+     * @throws IOException Se ocorrer um erro de leitura.
+     */
+    public <T> T deserialize(Reader reader, Class<T> classOfT) throws IOException; // Adicionado
+
+    /**
+     * Desserializa um Reader (ex: request.getReader()) para um objeto de um tipo complexo.
+     * @param <T> O tipo do objeto.
+     * @param reader O Reader contendo a string JSON.
+     * @param typeOfT O tipo complexo do objeto.
+     * @return O objeto desserializado.
+     * @throws IOException Se ocorrer um erro de leitura.
+     */
+    public <T> T deserialize(Reader reader, Type typeOfT) throws IOException; // Adicionado
 }

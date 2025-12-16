@@ -1,4 +1,3 @@
-// src/main/java/com/compliancesys/service/impl/MobileCommunicationServiceImpl.java
 package com.compliancesys.service.impl;
 
 import java.sql.SQLException;
@@ -8,25 +7,23 @@ import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import com.compliancesys.dao.DriverDAO; // Adicionado para validação
-import com.compliancesys.dao.JourneyDAO; // Adicionado para validação
+import com.compliancesys.dao.DriverDAO;
+import com.compliancesys.dao.JourneyDAO;
 import com.compliancesys.dao.MobileCommunicationDAO;
 import com.compliancesys.exception.BusinessException;
 import com.compliancesys.model.MobileCommunication;
 import com.compliancesys.model.enums.EventType;
 import com.compliancesys.service.MobileCommunicationService;
 import com.compliancesys.util.Validator;
-// import com.compliancesys.util.impl.ValidatorImpl; // Não é necessário importar a implementação
 
 public class MobileCommunicationServiceImpl implements MobileCommunicationService {
     private static final Logger LOGGER = Logger.getLogger(MobileCommunicationServiceImpl.class.getName());
 
     private final MobileCommunicationDAO mobileCommunicationDAO;
-    private final JourneyDAO journeyDAO; // Adicionado para validar a jornada
-    private final DriverDAO driverDAO; // Adicionado para validar o motorista
+    private final JourneyDAO journeyDAO;
+    private final DriverDAO driverDAO;
     private final Validator validator;
 
-    // Construtor ajustado para corresponder às dependências esperadas
     public MobileCommunicationServiceImpl(MobileCommunicationDAO mobileCommunicationDAO,
                                           JourneyDAO journeyDAO, DriverDAO driverDAO, Validator validator) {
         this.mobileCommunicationDAO = mobileCommunicationDAO;
@@ -35,14 +32,8 @@ public class MobileCommunicationServiceImpl implements MobileCommunicationServic
         this.validator = validator;
     }
 
-    // REMOVIDO: Construtor padrão que instanciaria DAOs sem Connection
-    // public MobileCommunicationServiceImpl() {
-    //     this.mobileCommunicationDAO = new MobileCommunicationDAOImpl();
-    //     this.validator = new ValidatorImpl();
-    // }
-
     @Override
-    public MobileCommunication registerMobileCommunication(MobileCommunication communication) throws BusinessException, SQLException {
+    public MobileCommunication createMobileCommunication(MobileCommunication communication) throws BusinessException, SQLException {
         if (communication == null) {
             throw new BusinessException("Dados da comunicação móvel não podem ser nulos.");
         }
@@ -64,9 +55,15 @@ public class MobileCommunicationServiceImpl implements MobileCommunicationServic
         if (communication.getLongitude() == null || !validator.isValidLongitude(communication.getLongitude())) {
             throw new BusinessException("Longitude inválida.");
         }
+        // Validações para signalStrength e batteryLevel, se houver regras de negócio específicas
+        if (communication.getSignalStrength() < 0 || communication.getSignalStrength() > 100) {
+            throw new BusinessException("Força do sinal deve estar entre 0 e 100.");
+        }
+        if (communication.getBatteryLevel() < 0 || communication.getBatteryLevel() > 100) {
+            throw new BusinessException("Nível da bateria deve estar entre 0 e 100.");
+        }
 
         try {
-            // Validar se a jornada e o motorista existem
             if (!journeyDAO.findById(communication.getJourneyId()).isPresent()) {
                 throw new BusinessException("Jornada com ID " + communication.getJourneyId() + " não encontrada.");
             }
@@ -77,12 +74,8 @@ public class MobileCommunicationServiceImpl implements MobileCommunicationServic
             communication.setCreatedAt(LocalDateTime.now());
             communication.setUpdatedAt(LocalDateTime.now());
             int id = mobileCommunicationDAO.create(communication);
-            if (id <= 0) {
-                throw new BusinessException("Falha ao registrar comunicação móvel. Tente novamente.");
-            }
             communication.setId(id);
-            LOGGER.log(Level.INFO, "Comunicação móvel registrada com sucesso: ID {0} para jornada {1}",
-                    new Object[]{communication.getId(), communication.getJourneyId()});
+            LOGGER.log(Level.INFO, "Comunicação móvel registrada com sucesso: ID {0}", id);
             return communication;
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Erro de SQL ao registrar comunicação móvel: " + e.getMessage(), e);
@@ -136,6 +129,13 @@ public class MobileCommunicationServiceImpl implements MobileCommunicationServic
         if (communication.getLongitude() == null || !validator.isValidLongitude(communication.getLongitude())) {
             throw new BusinessException("Longitude inválida.");
         }
+        // Validações para signalStrength e batteryLevel, se houver regras de negócio específicas
+        if (communication.getSignalStrength() < 0 || communication.getSignalStrength() > 100) {
+            throw new BusinessException("Força do sinal deve estar entre 0 e 100.");
+        }
+        if (communication.getBatteryLevel() < 0 || communication.getBatteryLevel() > 100) {
+            throw new BusinessException("Nível da bateria deve estar entre 0 e 100.");
+        }
 
         try {
             Optional<MobileCommunication> existingCommunication = mobileCommunicationDAO.findById(communication.getId());
@@ -143,7 +143,6 @@ public class MobileCommunicationServiceImpl implements MobileCommunicationServic
                 throw new BusinessException("Comunicação móvel com ID " + communication.getId() + " não encontrada para atualização.");
             }
 
-            // Validar se a jornada e o motorista existem
             if (!journeyDAO.findById(communication.getJourneyId()).isPresent()) {
                 throw new BusinessException("Jornada com ID " + communication.getJourneyId() + " não encontrada.");
             }
@@ -151,7 +150,7 @@ public class MobileCommunicationServiceImpl implements MobileCommunicationServic
                 throw new BusinessException("Motorista com ID " + communication.getDriverId() + " não encontrado.");
             }
 
-            communication.setCreatedAt(existingCommunication.get().getCreatedAt()); // Mantém a data de criação original
+            communication.setCreatedAt(existingCommunication.get().getCreatedAt());
             communication.setUpdatedAt(LocalDateTime.now());
             boolean updated = mobileCommunicationDAO.update(communication);
             if (!updated) {

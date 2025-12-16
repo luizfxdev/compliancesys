@@ -1,8 +1,7 @@
-// src/main/java/com/compliancesys/dao/MobileCommunicationDAO.java (Interface)
 package com.compliancesys.dao;
 
 import java.sql.SQLException;
-import java.time.LocalDateTime; // Importar o enum
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -16,9 +15,8 @@ public interface MobileCommunicationDAO {
     boolean update(MobileCommunication communication) throws SQLException;
     boolean delete(int id) throws SQLException;
 
-    // Métodos adicionados/confirmados com base nas necessidades do sistema
     List<MobileCommunication> findByJourneyId(int journeyId) throws SQLException;
     List<MobileCommunication> findByDriverId(int driverId) throws SQLException;
-    List<MobileCommunication> findByEventType(EventType eventType) throws SQLException; // Necessário pelo log
-    List<MobileCommunication> findByDateTimeRange(LocalDateTime startDateTime, LocalDateTime endDateTime) throws SQLException; // Necessário pelo log
+    List<MobileCommunication> findByEventType(EventType eventType) throws SQLException;
+    List<MobileCommunication> findByDateTimeRange(LocalDateTime startDateTime, LocalDateTime endDateTime) throws SQLException;
 }

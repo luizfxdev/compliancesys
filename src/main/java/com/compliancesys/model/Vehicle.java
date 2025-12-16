@@ -3,24 +3,19 @@ package com.compliancesys.model;
 import java.time.LocalDateTime;
 import java.util.Objects;
 
-/**
- * Representa um veículo no sistema.
- * Corresponde à tabela 'vehicles' no banco de dados.
- */
 public class Vehicle {
     private int id;
     private String plate;
-    private String manufacturer; // Adicionado: Fabricante do veículo
+    private String manufacturer;
     private String model;
     private int year;
-    private int companyId; // Mantido para alinhar com o schema corrigido
+    private int companyId;
     private LocalDateTime createdAt;
-    private LocalDateTime updatedAt; // Adicionado para consistência com o schema e DAOs
+    private LocalDateTime updatedAt;
 
     public Vehicle() {
     }
 
-    // Construtor completo
     public Vehicle(int id, String plate, String manufacturer, String model, int year, int companyId, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.plate = plate;
@@ -32,17 +27,14 @@ public class Vehicle {
         this.updatedAt = updatedAt;
     }
 
-    // Construtor para inserção (sem ID, createdAt, updatedAt)
     public Vehicle(String plate, String manufacturer, String model, int year, int companyId) {
         this(0, plate, manufacturer, model, year, companyId, null, null);
     }
 
-    // Construtor para atualização (com ID, sem createdAt, updatedAt)
     public Vehicle(int id, String plate, String manufacturer, String model, int year, int companyId) {
         this(id, plate, manufacturer, model, year, companyId, null, null);
     }
 
-    // Getters e Setters
     public int getId() {
         return id;
     }
@@ -59,11 +51,11 @@ public class Vehicle {
         this.plate = plate;
     }
 
-    public String getManufacturer() { // Getter adicionado
+    public String getManufacturer() {
         return manufacturer;
     }
 
-    public void setManufacturer(String manufacturer) { // Setter adicionado
+    public void setManufacturer(String manufacturer) {
         this.manufacturer = manufacturer;
     }
 

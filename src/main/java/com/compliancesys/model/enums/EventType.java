@@ -8,19 +8,19 @@ public enum EventType {
     END_WORK("Fim de Trabalho"),
     ENTRY("Entrada"),
     EXIT("Saída"),
-    REST("Descanso"),
+    REST("Descanso"), // Considerar se este é realmente necessário se tiver START_REST/END_REST
     PAUSE("Pausa"),
-    
-    // Eventos adicionais
+
+    // Eventos adicionais - Sugestão: Consolidar com os principais se houver redundância
     START_JOURNEY("Início de Jornada"),
     END_JOURNEY("Fim de Jornada"),
-    START_BREAK("Início de Descanso"),
-    END_BREAK("Fim de Descanso"),
+    START_BREAK("Início de Descanso"), // Pode ser consolidado com START_REST
+    END_BREAK("Fim de Descanso"),     // Pode ser consolidado com END_REST
     START_MEAL("Início de Refeição"),
     END_MEAL("Fim de Refeição"),
-    START_DRIVING("Início de Direção"),
+    START_DRIVING("Início de Direção"), // Pode ser consolidado com START_DRIVE
     RESUME_DRIVING("Retomada de Direção"),
-    END_DRIVING("Fim de Direção"),
+    END_DRIVING("Fim de Direção"),     // Pode ser consolidado com END_DRIVE
     START_REST("Início de Descanso"),
     DRIVING("Dirigindo"),
     IDLE("Ocioso"),

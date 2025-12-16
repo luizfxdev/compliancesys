@@ -1,4 +1,3 @@
-// src/main/java/com/compliancesys/model/TimeRecord.java
 package com.compliancesys.model;
 
 import java.time.LocalDateTime;
@@ -6,26 +5,21 @@ import java.util.Objects;
 
 import com.compliancesys.model.enums.EventType;
 
-/**
- * Representa um registro de tempo para uma jornada de motorista.
- * Corresponde à tabela 'time_records' no banco de dados.
- */
 public class TimeRecord {
     private int id;
     private int driverId;
     private int journeyId;
-    private LocalDateTime recordTime; // Renomeado de 'timestamp' para 'recordTime' para melhor clareza e alinhamento com o schema
+    private LocalDateTime recordTime;
     private EventType eventType;
     private String location;
-    private Double latitude; // Adicionado
-    private Double longitude; // Adicionado
+    private Double latitude;
+    private Double longitude;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
     public TimeRecord() {
     }
 
-    // Construtor completo com todos os campos, incluindo latitude e longitude
     public TimeRecord(int id, int driverId, int journeyId, LocalDateTime recordTime, EventType eventType,
                       String location, Double latitude, Double longitude,
                       LocalDateTime createdAt, LocalDateTime updatedAt) {
@@ -41,19 +35,15 @@ public class TimeRecord {
         this.updatedAt = updatedAt;
     }
 
-    // Construtor para criação (sem ID, createdAt, updatedAt, latitude, longitude)
-    // Este construtor é mais simples para a camada de serviço/controller ao criar um novo registro
     public TimeRecord(int driverId, int journeyId, LocalDateTime recordTime, EventType eventType, String location) {
         this(0, driverId, journeyId, recordTime, eventType, location, null, null, null, null);
     }
 
-    // Construtor para criação (sem ID, createdAt, updatedAt, mas com latitude e longitude)
     public TimeRecord(int driverId, int journeyId, LocalDateTime recordTime, EventType eventType, String location,
                       Double latitude, Double longitude) {
         this(0, driverId, journeyId, recordTime, eventType, location, latitude, longitude, null, null);
     }
 
-    // Getters e Setters
     public int getId() {
         return id;
     }
@@ -78,11 +68,11 @@ public class TimeRecord {
         this.journeyId = journeyId;
     }
 
-    public LocalDateTime getRecordTime() { // Renomeado de getTimestamp()
+    public LocalDateTime getRecordTime() {
         return recordTime;
     }
 
-    public void setRecordTime(LocalDateTime recordTime) { // Renomeado de setTimestamp()
+    public void setRecordTime(LocalDateTime recordTime) {
         this.recordTime = recordTime;
     }
 
@@ -102,19 +92,19 @@ public class TimeRecord {
         this.location = location;
     }
 
-    public Double getLatitude() { // Adicionado
+    public Double getLatitude() {
         return latitude;
     }
 
-    public void setLatitude(Double latitude) { // Adicionado
+    public void setLatitude(Double latitude) {
         this.latitude = latitude;
     }
 
-    public Double getLongitude() { // Adicionado
+    public Double getLongitude() {
         return longitude;
     }
 
-    public void setLongitude(Double longitude) { // Adicionado
+    public void setLongitude(Double longitude) {
         this.longitude = longitude;
     }
 

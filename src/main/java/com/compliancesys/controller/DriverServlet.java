@@ -1,11 +1,18 @@
 package com.compliancesys.controller;
 
-import com.compliancesys.config.DatabaseConfig;
+import com.compliancesys.dao.CompanyDAO;
+import com.compliancesys.dao.DriverDAO;
+import com.compliancesys.dao.impl.CompanyDAOImpl;
 import com.compliancesys.dao.impl.DriverDAOImpl;
 import com.compliancesys.exception.BusinessException;
 import com.compliancesys.model.Driver;
+import com.compliancesys.service.DriverService;
 import com.compliancesys.service.impl.DriverServiceImpl;
+import com.compliancesys.util.ConnectionFactory;
+import com.compliancesys.util.GsonUtil;
+import com.compliancesys.util.Validator;
 import com.compliancesys.util.impl.GsonUtilImpl;
+import com.compliancesys.util.impl.HikariCPConnectionFactory;
 import com.compliancesys.util.impl.ValidatorImpl;
 
 import javax.servlet.ServletException;
@@ -19,169 +26,186 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
-@WebServlet("/drivers/*")
+@WebServlet("/api/drivers/*")
 public class DriverServlet extends HttpServlet {
-
     private static final Logger LOGGER = Logger.getLogger(DriverServlet.class.getName());
-    private DriverServiceImpl driverService;
-    private GsonUtilImpl gson;
+    private ConnectionFactory connectionFactory;
+    private GsonUtil gsonUtil;
+    private Validator validator;
 
     @Override
     public void init() throws ServletException {
+        super.init();
         try {
-            Connection connection = DatabaseConfig.getInstance().getConnection();
-            DriverDAOImpl driverDAO = new DriverDAOImpl(connection);
-            ValidatorImpl validator = new ValidatorImpl();
-            
-            this.driverService = new DriverServiceImpl(driverDAO, validator);
-            this.gson = new GsonUtilImpl();
-        } catch (SQLException e) {
+            this.connectionFactory = new HikariCPConnectionFactory();
+            this.gsonUtil = new GsonUtilImpl();
+            this.validator = new ValidatorImpl();
+        } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Erro ao inicializar DriverServlet: " + e.getMessage(), e);
             throw new ServletException("Erro ao inicializar DriverServlet", e);
         }
     }
 
     @Override
-    protected void doGet(HttpServletRequest request, HttpServletResponse response) 
-            throws ServletException, IOException {
+    public void destroy() {
+        super.destroy();
+        if (this.connectionFactory != null) {
+            this.connectionFactory.closeDataSource();
+        }
+    }
+
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
-
         String pathInfo = request.getPathInfo();
-        
-        try {
+
+        try (Connection conn = connectionFactory.getConnection()) {
+            DriverDAO driverDAO = new DriverDAOImpl(conn);
+            CompanyDAO companyDAO = new CompanyDAOImpl(conn);
+            DriverService driverService = new DriverServiceImpl(driverDAO, companyDAO, validator);
+
             if (pathInfo == null || pathInfo.equals("/")) {
                 List<Driver> drivers = driverService.getAllDrivers();
-                out.print(gson.serialize(drivers));
+                out.print(gsonUtil.serialize(drivers));
             } else {
-                int id = Integer.parseInt(pathInfo.substring(1));
-                Driver driver = driverService.getDriverById(id);
-                
-                if (driver != null) {
-                    out.print(gson.serialize(driver));
+                String[] splits = pathInfo.split("/");
+                if (splits.length == 2) {
+                    int id = Integer.parseInt(splits[1]);
+                    Optional<Driver> driver = driverService.getDriverById(id);
+                    if (driver.isPresent()) {
+                        response.setStatus(HttpServletResponse.SC_OK);
+                        out.print(gsonUtil.serialize(driver.get()));
+                    } else {
+                        response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+                        out.print(gsonUtil.serialize(new ErrorResponse("Motorista não encontrado.")));
+                    }
                 } else {
-                    response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                    out.print(gson.serialize(new ErrorResponse("Motorista não encontrado")));
+                    response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                    out.print(gsonUtil.serialize(new ErrorResponse("Formato de URL inválido.")));
                 }
             }
         } catch (NumberFormatException e) {
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gson.serialize(new ErrorResponse("ID inválido")));
             LOGGER.log(Level.WARNING, "ID inválido: " + e.getMessage(), e);
-        } catch (BusinessException e) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gson.serialize(new ErrorResponse(e.getMessage())));
-            LOGGER.log(Level.WARNING, "Erro de negócio: " + e.getMessage(), e);
+            out.print(gsonUtil.serialize(new ErrorResponse("ID inválido.")));
         } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Erro de SQL ao buscar motorista: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            out.print(gson.serialize(new ErrorResponse("Erro de banco de dados")));
-            LOGGER.log(Level.SEVERE, "Erro de SQL: " + e.getMessage(), e);
+            out.print(gsonUtil.serialize(new ErrorResponse("Erro de banco de dados ao buscar motorista. Tente novamente mais tarde.")));
         } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Erro inesperado ao buscar motorista: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            out.print(gson.serialize(new ErrorResponse("Erro inesperado")));
-            LOGGER.log(Level.SEVERE, "Erro inesperado: " + e.getMessage(), e);
+            out.print(gsonUtil.serialize(new ErrorResponse("Erro inesperado ao buscar motorista.")));
         } finally {
             out.flush();
         }
     }
 
     @Override
-    protected void doPost(HttpServletRequest request, HttpServletResponse response) 
-            throws ServletException, IOException {
+    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
 
-        try {
-            String jsonBody = request.getReader().lines().collect(Collectors.joining());
-            Driver newDriver = gson.deserialize(jsonBody, Driver.class);
-            Driver created = driverService.createDriver(newDriver);
+        try (Connection conn = connectionFactory.getConnection()) {
+            DriverDAO driverDAO = new DriverDAOImpl(conn);
+            CompanyDAO companyDAO = new CompanyDAOImpl(conn);
+            DriverService driverService = new DriverServiceImpl(driverDAO, companyDAO, validator);
+
+            Driver newDriver = gsonUtil.deserialize(request.getReader(), Driver.class);
+            Driver createdDriver = driverService.registerDriver(newDriver);
             
             response.setStatus(HttpServletResponse.SC_CREATED);
-            out.print(gson.serialize(created));
+            out.print(gsonUtil.serialize(createdDriver));
         } catch (BusinessException e) {
+            LOGGER.log(Level.WARNING, "Erro de negócio ao registrar motorista: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gson.serialize(new ErrorResponse(e.getMessage())));
-            LOGGER.log(Level.WARNING, "Erro de negócio ao criar motorista: " + e.getMessage(), e);
+            out.print(gsonUtil.serialize(new ErrorResponse(e.getMessage())));
         } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Erro de SQL ao registrar motorista: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            out.print(gson.serialize(new ErrorResponse("Erro de banco de dados")));
-            LOGGER.log(Level.SEVERE, "Erro de SQL ao criar motorista: " + e.getMessage(), e);
+            out.print(gsonUtil.serialize(new ErrorResponse("Erro de banco de dados ao registrar motorista. Tente novamente mais tarde.")));
         } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Erro inesperado ao registrar motorista: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            out.print(gson.serialize(new ErrorResponse("Erro inesperado")));
-            LOGGER.log(Level.SEVERE, "Erro inesperado ao criar motorista: " + e.getMessage(), e);
+            out.print(gsonUtil.serialize(new ErrorResponse("Erro inesperado ao registrar motorista.")));
         } finally {
             out.flush();
         }
     }
 
     @Override
-    protected void doPut(HttpServletRequest request, HttpServletResponse response) 
-            throws ServletException, IOException {
+    protected void doPut(HttpServletRequest request, HttpServletResponse response) throws IOException {
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
-
         String pathInfo = request.getPathInfo();
+
         if (pathInfo == null || pathInfo.equals("/")) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gson.serialize(new ErrorResponse("ID do motorista é obrigatório")));
+            out.print(gsonUtil.serialize(new ErrorResponse("ID do motorista é obrigatório para atualização.")));
             out.flush();
             return;
         }
 
-        try {
+        try (Connection conn = connectionFactory.getConnection()) {
+            DriverDAO driverDAO = new DriverDAOImpl(conn);
+            CompanyDAO companyDAO = new CompanyDAOImpl(conn);
+            DriverService driverService = new DriverServiceImpl(driverDAO, companyDAO, validator);
+
             int id = Integer.parseInt(pathInfo.substring(1));
-            String jsonBody = request.getReader().lines().collect(Collectors.joining());
-            Driver driver = gson.deserialize(jsonBody, Driver.class);
-            driver.setId(id);
+            Driver updatedDriver = gsonUtil.deserialize(request.getReader(), Driver.class);
+            updatedDriver.setId(id);
 
-            Driver updated = driverService.updateDriver(driver);
+            Driver result = driverService.updateDriver(updatedDriver);
             response.setStatus(HttpServletResponse.SC_OK);
-            out.print(gson.serialize(updated));
+            out.print(gsonUtil.serialize(result));
         } catch (NumberFormatException e) {
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gson.serialize(new ErrorResponse("ID inválido")));
             LOGGER.log(Level.WARNING, "ID inválido ao atualizar: " + e.getMessage(), e);
-        } catch (BusinessException e) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gson.serialize(new ErrorResponse(e.getMessage())));
-            LOGGER.log(Level.WARNING, "Erro de negócio ao atualizar: " + e.getMessage(), e);
+            out.print(gsonUtil.serialize(new ErrorResponse("ID inválido.")));
+        } catch (BusinessException e) {
+            LOGGER.log(Level.WARNING, "Erro de negócio ao atualizar motorista: " + e.getMessage(), e);
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            out.print(gsonUtil.serialize(new ErrorResponse(e.getMessage())));
         } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Erro de SQL ao atualizar motorista: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            out.print(gson.serialize(new ErrorResponse("Erro de banco de dados")));
-            LOGGER.log(Level.SEVERE, "Erro de SQL ao atualizar: " + e.getMessage(), e);
+            out.print(gsonUtil.serialize(new ErrorResponse("Erro de banco de dados ao atualizar motorista. Tente novamente mais tarde.")));
         } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Erro inesperado ao atualizar motorista: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            out.print(gson.serialize(new ErrorResponse("Erro inesperado")));
-            LOGGER.log(Level.SEVERE, "Erro inesperado ao atualizar: " + e.getMessage(), e);
+            out.print(gsonUtil.serialize(new ErrorResponse("Erro inesperado ao atualizar motorista.")));
         } finally {
             out.flush();
         }
     }
 
     @Override
-    protected void doDelete(HttpServletRequest request, HttpServletResponse response) 
-            throws ServletException, IOException {
+    protected void doDelete(HttpServletRequest request, HttpServletResponse response) throws IOException {
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
-
         String pathInfo = request.getPathInfo();
+
         if (pathInfo == null || pathInfo.equals("/")) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gson.serialize(new ErrorResponse("ID do motorista é obrigatório")));
+            out.print(gsonUtil.serialize(new ErrorResponse("ID do motorista é obrigatório para exclusão.")));
             out.flush();
             return;
         }
 
-        try {
+        try (Connection conn = connectionFactory.getConnection()) {
+            DriverDAO driverDAO = new DriverDAOImpl(conn);
+            CompanyDAO companyDAO = new CompanyDAOImpl(conn);
+            DriverService driverService = new DriverServiceImpl(driverDAO, companyDAO, validator);
+
             int id = Integer.parseInt(pathInfo.substring(1));
             boolean deleted = driverService.deleteDriver(id);
             
@@ -189,32 +213,32 @@ public class DriverServlet extends HttpServlet {
                 response.setStatus(HttpServletResponse.SC_NO_CONTENT);
             } else {
                 response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                out.print(gson.serialize(new ErrorResponse("Motorista não encontrado")));
+                out.print(gsonUtil.serialize(new ErrorResponse("Motorista não encontrado.")));
             }
         } catch (NumberFormatException e) {
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gson.serialize(new ErrorResponse("ID inválido")));
             LOGGER.log(Level.WARNING, "ID inválido ao deletar: " + e.getMessage(), e);
-        } catch (BusinessException e) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gson.serialize(new ErrorResponse(e.getMessage())));
-            LOGGER.log(Level.WARNING, "Erro de negócio ao deletar: " + e.getMessage(), e);
+            out.print(gsonUtil.serialize(new ErrorResponse("ID inválido.")));
+        } catch (BusinessException e) {
+            LOGGER.log(Level.WARNING, "Erro de negócio ao deletar motorista: " + e.getMessage(), e);
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            out.print(gsonUtil.serialize(new ErrorResponse(e.getMessage())));
         } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Erro de SQL ao deletar motorista: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            out.print(gson.serialize(new ErrorResponse("Erro de banco de dados")));
-            LOGGER.log(Level.SEVERE, "Erro de SQL ao deletar: " + e.getMessage(), e);
+            out.print(gsonUtil.serialize(new ErrorResponse("Erro de banco de dados ao deletar motorista. Tente novamente mais tarde.")));
         } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Erro inesperado ao deletar motorista: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            out.print(gson.serialize(new ErrorResponse("Erro inesperado")));
-            LOGGER.log(Level.SEVERE, "Erro inesperado ao deletar: " + e.getMessage(), e);
+            out.print(gsonUtil.serialize(new ErrorResponse("Erro inesperado ao deletar motorista.")));
         } finally {
             out.flush();
         }
     }
 
     private static class ErrorResponse {
-        private String message;
-        private LocalDateTime timestamp;
+        private final String message;
+        private final LocalDateTime timestamp;
 
         public ErrorResponse(String message) {
             this.message = message;

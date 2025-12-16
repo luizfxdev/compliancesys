@@ -1,4 +1,3 @@
-// src/main/java/com/compliancesys/dao/DriverDAO.java (Interface)
 package com.compliancesys.dao;
 
 import java.sql.SQLException;
@@ -14,9 +13,8 @@ public interface DriverDAO {
     boolean update(Driver driver) throws SQLException;
     boolean delete(int id) throws SQLException;
 
-    // Métodos adicionados/confirmados com base nas necessidades do sistema
     Optional<Driver> findByCpf(String cpf) throws SQLException;
     Optional<Driver> findByLicenseNumber(String licenseNumber) throws SQLException;
     List<Driver> findByCompanyId(int companyId) throws SQLException;
-    Optional<Driver> findByEmail(String email) throws SQLException; // Adicionado para consistência
+    Optional<Driver> findByEmail(String email) throws SQLException;
 }
