@@ -6,282 +6,296 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.assertNotNull; // Adicionado para clareza em alguns casos
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-public class TimeUtilTest {
+import com.compliancesys.model.TimeRecord;
+import com.compliancesys.model.enums.EventType;
+import com.compliancesys.util.impl.TimeUtilImpl;
 
-    // Implementação concreta simples da interface TimeUtil para fins de teste
-    private static class TimeUtilImpl implements TimeUtil {
-
-        @Override
-        public boolean isPositiveDuration(Duration duration) {
-            return duration != null && !duration.isNegative() && !duration.isZero();
-        }
-
-        @Override
-        public boolean isChronological(List<LocalDateTime> timestamps) {
-            if (timestamps == null || timestamps.size() <= 1) {
-                return true; // Uma lista nula, vazia ou com um único elemento é considerada cronológica
-            }
-            for (int i = 0; i < timestamps.size() - 1; i++) {
-                if (timestamps.get(i) == null || timestamps.get(i + 1) == null) {
-                    return false; // Timestamps nulos invalidam a ordem
-                }
-                if (timestamps.get(i).isAfter(timestamps.get(i + 1))) {
-                    return false; // Se um timestamp for depois do próximo, não é cronológico
-                }
-            }
-            return true;
-        }
-
-        @Override
-        public boolean isWithinMaxDuration(Duration duration, Duration maxDuration) {
-            if (duration == null || maxDuration == null || duration.isNegative() || maxDuration.isNegative()) {
-                return false; // Duração ou limite nulo/negativo não é válido para esta verificação
-            }
-            return !duration.isAfter(maxDuration); // duration <= maxDuration
-        }
-
-        @Override
-        public boolean isAboveMinDuration(Duration duration, Duration minDuration) {
-            if (duration == null || minDuration == null || duration.isNegative() || minDuration.isNegative()) {
-                return false; // Duração ou limite nulo/negativo não é válido para esta verificação
-            }
-            return !duration.isBefore(minDuration); // duration >= minDuration
-        }
-    }
+class TimeUtilTest {
 
     private TimeUtil timeUtil;
+    private LocalDateTime baseTime;
 
     @BeforeEach
     void setUp() {
         timeUtil = new TimeUtilImpl();
+        baseTime = LocalDateTime.of(2024, 1, 15, 8, 0, 0);
     }
 
-    // Testes para isPositiveDuration
-    @Test
-    @DisplayName("Deve retornar true para duração positiva")
-    void shouldReturnTrueForPositiveDuration() {
-        assertTrue(timeUtil.isPositiveDuration(Duration.ofMinutes(1)));
-        assertTrue(timeUtil.isPositiveDuration(Duration.ofHours(10)));
+    // ==================== Helper Methods ====================
+
+    private TimeRecord createTimeRecord(EventType eventType, LocalDateTime recordTime) {
+        TimeRecord record = new TimeRecord();
+        record.setEventType(eventType);
+        record.setRecordTime(recordTime);
+        record.setDriverId(1);
+        record.setJourneyId(1);
+        return record;
     }
 
-    @Test
-    @DisplayName("Deve retornar false para duração zero")
-    void shouldReturnFalseForZeroDuration() {
-        assertFalse(timeUtil.isPositiveDuration(Duration.ZERO));
-    }
+    // ==================== Testes de calculateTotalWorkDuration ====================
 
     @Test
-    @DisplayName("Deve retornar false para duração negativa")
-    void shouldReturnFalseForNegativeDuration() {
-        assertFalse(timeUtil.isPositiveDuration(Duration.ofMinutes(-1)));
-        assertFalse(timeUtil.isPositiveDuration(Duration.ofHours(-5)));
-    }
-
-    @Test
-    @DisplayName("Deve retornar false para duração nula")
-    void shouldReturnFalseForNullDuration() {
-        assertFalse(timeUtil.isPositiveDuration(null));
-    }
-
-    // Testes para isChronological
-    @Test
-    @DisplayName("Deve retornar true para lista de timestamps em ordem cronológica")
-    void shouldReturnTrueForChronologicalTimestamps() {
-        List<LocalDateTime> chronologicalList = Arrays.asList(
-                LocalDateTime.of(2023, 1, 1, 10, 0, 0),
-                LocalDateTime.of(2023, 1, 1, 10, 0, 1),
-                LocalDateTime.of(2023, 1, 1, 10, 0, 2)
+    @DisplayName("Deve calcular duração total de trabalho corretamente")
+    void calculateTotalWorkDuration_ValidRecords_ReturnsCorrectDuration() {
+        List<TimeRecord> records = Arrays.asList(
+            createTimeRecord(EventType.START_WORK, baseTime),
+            createTimeRecord(EventType.END_WORK, baseTime.plusHours(4)),
+            createTimeRecord(EventType.START_WORK, baseTime.plusHours(5)),
+            createTimeRecord(EventType.END_WORK, baseTime.plusHours(8))
         );
-        assertTrue(timeUtil.isChronological(chronologicalList));
+
+        Duration result = timeUtil.calculateTotalWorkDuration(records);
+
+        assertEquals(Duration.ofHours(7), result);
     }
 
     @Test
-    @DisplayName("Deve retornar true para lista de timestamps com elementos iguais")
-    void shouldReturnTrueForChronologicalTimestampsWithEquals() {
-        List<LocalDateTime> chronologicalList = Arrays.asList(
-                LocalDateTime.of(2023, 1, 1, 10, 0, 0),
-                LocalDateTime.of(2023, 1, 1, 10, 0, 0),
-                LocalDateTime.of(2023, 1, 1, 10, 0, 1)
+    @DisplayName("Deve retornar zero para lista vazia")
+    void calculateTotalWorkDuration_EmptyList_ReturnsZero() {
+        Duration result = timeUtil.calculateTotalWorkDuration(Collections.emptyList());
+        assertEquals(Duration.ZERO, result);
+    }
+
+    @Test
+    @DisplayName("Deve retornar zero para lista nula")
+    void calculateTotalWorkDuration_NullList_ReturnsZero() {
+        Duration result = timeUtil.calculateTotalWorkDuration(null);
+        assertEquals(Duration.ZERO, result);
+    }
+
+    @Test
+    @DisplayName("Deve calcular duração com START_DRIVE e END_DRIVE")
+    void calculateTotalWorkDuration_DriveEvents_ReturnsCorrectDuration() {
+        List<TimeRecord> records = Arrays.asList(
+            createTimeRecord(EventType.START_DRIVE, baseTime),
+            createTimeRecord(EventType.END_DRIVE, baseTime.plusHours(5))
         );
-        assertTrue(timeUtil.isChronological(chronologicalList));
+
+        Duration result = timeUtil.calculateTotalWorkDuration(records);
+
+        assertEquals(Duration.ofHours(5), result);
+    }
+
+    // ==================== Testes de calculateTotalRestDuration ====================
+
+    @Test
+    @DisplayName("Deve calcular duração total de descanso corretamente")
+    void calculateTotalRestDuration_ValidRecords_ReturnsCorrectDuration() {
+        List<TimeRecord> records = Arrays.asList(
+            createTimeRecord(EventType.START_REST, baseTime),
+            createTimeRecord(EventType.END_REST, baseTime.plusMinutes(30)),
+            createTimeRecord(EventType.START_REST, baseTime.plusHours(4)),
+            createTimeRecord(EventType.END_REST, baseTime.plusHours(4).plusMinutes(30))
+        );
+
+        Duration result = timeUtil.calculateTotalRestDuration(records);
+
+        assertEquals(Duration.ofHours(1), result);
+    }
+
+    @Test
+    @DisplayName("Deve retornar zero para lista vazia de descanso")
+    void calculateTotalRestDuration_EmptyList_ReturnsZero() {
+        Duration result = timeUtil.calculateTotalRestDuration(Collections.emptyList());
+        assertEquals(Duration.ZERO, result);
+    }
+
+    @Test
+    @DisplayName("Deve retornar zero para lista nula de descanso")
+    void calculateTotalRestDuration_NullList_ReturnsZero() {
+        Duration result = timeUtil.calculateTotalRestDuration(null);
+        assertEquals(Duration.ZERO, result);
+    }
+
+    // ==================== Testes de exceedsMaxContinuousDriving ====================
+
+    @Test
+    @DisplayName("Deve detectar direção contínua excedendo limite")
+    void exceedsMaxContinuousDriving_ExceedsLimit_ReturnsTrue() {
+        Duration maxDriving = Duration.ofHours(4);
+        List<TimeRecord> records = Arrays.asList(
+            createTimeRecord(EventType.START_DRIVE, baseTime),
+            createTimeRecord(EventType.END_DRIVE, baseTime.plusHours(5))
+        );
+
+        boolean result = timeUtil.exceedsMaxContinuousDriving(records, maxDriving);
+
+        assertTrue(result);
+    }
+
+    @Test
+    @DisplayName("Deve retornar false quando direção está dentro do limite")
+    void exceedsMaxContinuousDriving_WithinLimit_ReturnsFalse() {
+        Duration maxDriving = Duration.ofHours(4);
+        List<TimeRecord> records = Arrays.asList(
+            createTimeRecord(EventType.START_DRIVE, baseTime),
+            createTimeRecord(EventType.END_DRIVE, baseTime.plusHours(3))
+        );
+
+        boolean result = timeUtil.exceedsMaxContinuousDriving(records, maxDriving);
+
+        assertFalse(result);
+    }
+
+    @Test
+    @DisplayName("Deve retornar false para lista vazia")
+    void exceedsMaxContinuousDriving_EmptyList_ReturnsFalse() {
+        Duration maxDriving = Duration.ofHours(4);
+
+        boolean result = timeUtil.exceedsMaxContinuousDriving(Collections.emptyList(), maxDriving);
+
+        assertFalse(result);
+    }
+
+    // ==================== Testes de hasInsufficientInterJourneyRest ====================
+
+    @Test
+    @DisplayName("Deve detectar descanso interjornada insuficiente")
+    void hasInsufficientInterJourneyRest_InsufficientRest_ReturnsTrue() {
+        LocalDateTime lastExit = LocalDateTime.of(2024, 1, 15, 22, 0);
+        LocalDateTime nextEntry = LocalDateTime.of(2024, 1, 16, 5, 0);
+        Duration minRest = Duration.ofHours(11);
+
+        boolean result = timeUtil.hasInsufficientInterJourneyRest(lastExit, nextEntry, minRest);
+
+        assertTrue(result);
+    }
+
+    @Test
+    @DisplayName("Deve retornar false quando descanso interjornada é suficiente")
+    void hasInsufficientInterJourneyRest_SufficientRest_ReturnsFalse() {
+        LocalDateTime lastExit = LocalDateTime.of(2024, 1, 15, 18, 0);
+        LocalDateTime nextEntry = LocalDateTime.of(2024, 1, 16, 6, 0);
+        Duration minRest = Duration.ofHours(11);
+
+        boolean result = timeUtil.hasInsufficientInterJourneyRest(lastExit, nextEntry, minRest);
+
+        assertFalse(result);
+    }
+
+    @Test
+    @DisplayName("Deve retornar false para datas nulas")
+    void hasInsufficientInterJourneyRest_NullDates_ReturnsFalse() {
+        Duration minRest = Duration.ofHours(11);
+
+        assertFalse(timeUtil.hasInsufficientInterJourneyRest(null, LocalDateTime.now(), minRest));
+        assertFalse(timeUtil.hasInsufficientInterJourneyRest(LocalDateTime.now(), null, minRest));
+    }
+
+    // ==================== Testes de calculateDuration ====================
+
+    @Test
+    @DisplayName("Deve calcular duração entre dois horários")
+    void calculateDuration_ValidTimes_ReturnsCorrectDuration() {
+        LocalDateTime start = LocalDateTime.of(2024, 1, 15, 8, 0);
+        LocalDateTime end = LocalDateTime.of(2024, 1, 15, 12, 30);
+
+        Duration result = timeUtil.calculateDuration(start, end);
+
+        assertEquals(Duration.ofHours(4).plusMinutes(30), result);
+    }
+
+    @Test
+    @DisplayName("Deve retornar zero quando fim é antes do início")
+    void calculateDuration_EndBeforeStart_ReturnsZero() {
+        LocalDateTime start = LocalDateTime.of(2024, 1, 15, 12, 0);
+        LocalDateTime end = LocalDateTime.of(2024, 1, 15, 8, 0);
+
+        Duration result = timeUtil.calculateDuration(start, end);
+
+        assertEquals(Duration.ZERO, result);
+    }
+
+    @Test
+    @DisplayName("Deve retornar zero para valores nulos")
+    void calculateDuration_NullValues_ReturnsZero() {
+        assertEquals(Duration.ZERO, timeUtil.calculateDuration(null, LocalDateTime.now()));
+        assertEquals(Duration.ZERO, timeUtil.calculateDuration(LocalDateTime.now(), null));
+        assertEquals(Duration.ZERO, timeUtil.calculateDuration(null, null));
+    }
+
+    // ==================== Testes de calculateMaxContinuousDriving ====================
+
+    @Test
+    @DisplayName("Deve calcular máxima direção contínua corretamente")
+    void calculateMaxContinuousDriving_ValidRecords_ReturnsMaxDuration() {
+        List<TimeRecord> records = Arrays.asList(
+            createTimeRecord(EventType.START_DRIVE, baseTime),
+            createTimeRecord(EventType.END_DRIVE, baseTime.plusHours(2)),
+            createTimeRecord(EventType.START_REST, baseTime.plusHours(2)),
+            createTimeRecord(EventType.END_REST, baseTime.plusHours(2).plusMinutes(30)),
+            createTimeRecord(EventType.START_DRIVE, baseTime.plusHours(3)),
+            createTimeRecord(EventType.END_DRIVE, baseTime.plusHours(6))
+        );
+
+        Duration result = timeUtil.calculateMaxContinuousDriving(records);
+
+        assertEquals(Duration.ofHours(3), result);
+    }
+
+    @Test
+    @DisplayName("Deve retornar zero para lista vazia")
+    void calculateMaxContinuousDriving_EmptyList_ReturnsZero() {
+        Duration result = timeUtil.calculateMaxContinuousDriving(Collections.emptyList());
+        assertEquals(Duration.ZERO, result);
+    }
+
+    // ==================== Testes de hasRestPeriodAfterDriving ====================
+
+    @Test
+    @DisplayName("Deve retornar true quando há período de descanso adequado")
+    void hasRestPeriodAfterDriving_AdequateRest_ReturnsTrue() {
+        Duration maxDriving = Duration.ofHours(4);
+        List<TimeRecord> records = Arrays.asList(
+            createTimeRecord(EventType.START_DRIVE, baseTime),
+            createTimeRecord(EventType.END_DRIVE, baseTime.plusHours(4)),
+            createTimeRecord(EventType.START_REST, baseTime.plusHours(4)),
+            createTimeRecord(EventType.END_REST, baseTime.plusHours(4).plusMinutes(30))
+        );
+
+        boolean result = timeUtil.hasRestPeriodAfterDriving(records, maxDriving);
+
+        assertTrue(result);
     }
 
     @Test
     @DisplayName("Deve retornar true para lista vazia")
-    void shouldReturnTrueForEmptyList() {
-        assertTrue(timeUtil.isChronological(Collections.emptyList()));
+    void hasRestPeriodAfterDriving_EmptyList_ReturnsTrue() {
+        Duration maxDriving = Duration.ofHours(4);
+
+        boolean result = timeUtil.hasRestPeriodAfterDriving(Collections.emptyList(), maxDriving);
+
+        assertTrue(result);
+    }
+
+    // ==================== Testes de hasInsufficientIntraJourneyRest ====================
+
+    @Test
+    @DisplayName("Deve retornar false para lista vazia no descanso intrajornada")
+    void hasInsufficientIntraJourneyRest_EmptyList_ReturnsFalse() {
+        Duration minRest = Duration.ofMinutes(30);
+        Duration maxDriving = Duration.ofHours(4);
+
+        boolean result = timeUtil.hasInsufficientIntraJourneyRest(Collections.emptyList(), minRest, maxDriving);
+
+        assertFalse(result);
     }
 
     @Test
-    @DisplayName("Deve retornar true para lista com um único elemento")
-    void shouldReturnTrueForSingleElementList() {
-        assertTrue(timeUtil.isChronological(Collections.singletonList(LocalDateTime.now())));
-    }
+    @DisplayName("Deve retornar false para lista nula no descanso intrajornada")
+    void hasInsufficientIntraJourneyRest_NullList_ReturnsFalse() {
+        Duration minRest = Duration.ofMinutes(30);
+        Duration maxDriving = Duration.ofHours(4);
 
-    @Test
-    @DisplayName("Deve retornar true para lista nula")
-    void shouldReturnTrueForNullList() {
-        assertTrue(timeUtil.isChronological(null));
-    }
+        boolean result = timeUtil.hasInsufficientIntraJourneyRest(null, minRest, maxDriving);
 
-    @Test
-    @DisplayName("Deve retornar false para lista de timestamps fora de ordem cronológica")
-    void shouldReturnFalseForNonChronologicalTimestamps() {
-        List<LocalDateTime> nonChronologicalList = Arrays.asList(
-                LocalDateTime.of(2023, 1, 1, 10, 0, 0),
-                LocalDateTime.of(2023, 1, 1, 9, 59, 59), // Fora de ordem
-                LocalDateTime.of(2023, 1, 1, 10, 0, 2)
-        );
-        assertFalse(timeUtil.isChronological(nonChronologicalList));
-    }
-
-    @Test
-    @DisplayName("Deve retornar false para lista com timestamp nulo no meio")
-    void shouldReturnFalseForListWithNullTimestamp() {
-        List<LocalDateTime> listWithNull = Arrays.asList(
-                LocalDateTime.of(2023, 1, 1, 10, 0, 0),
-                null,
-                LocalDateTime.of(2023, 1, 1, 10, 0, 2)
-        );
-        assertFalse(timeUtil.isChronological(listWithNull));
-    }
-
-    @Test
-    @DisplayName("Deve retornar false para lista com timestamp nulo no início")
-    void shouldReturnFalseForListWithNullTimestampAtStart() {
-        List<LocalDateTime> listWithNull = Arrays.asList(
-                null,
-                LocalDateTime.of(2023, 1, 1, 10, 0, 0),
-                LocalDateTime.of(2023, 1, 1, 10, 0, 2)
-        );
-        assertFalse(timeUtil.isChronological(listWithNull));
-    }
-
-    @Test
-    @DisplayName("Deve retornar false para lista com timestamp nulo no fim")
-    void shouldReturnFalseForListWithNullTimestampAtEnd() {
-        List<LocalDateTime> listWithNull = Arrays.asList(
-                LocalDateTime.of(2023, 1, 1, 10, 0, 0),
-                LocalDateTime.of(2023, 1, 1, 10, 0, 2),
-                null
-        );
-        assertFalse(timeUtil.isChronological(listWithNull));
-    }
-
-    // Testes para isWithinMaxDuration
-    @Test
-    @DisplayName("Deve retornar true quando a duração está dentro do limite máximo")
-    void shouldReturnTrueWhenDurationIsWithinMaxLimit() {
-        Duration duration = Duration.ofHours(1);
-        Duration maxDuration = Duration.ofHours(2);
-        assertTrue(timeUtil.isWithinMaxDuration(duration, maxDuration));
-    }
-
-    @Test
-    @DisplayName("Deve retornar true quando a duração é igual ao limite máximo")
-    void shouldReturnTrueWhenDurationIsAtMaxLimit() {
-        Duration duration = Duration.ofHours(2);
-        Duration maxDuration = Duration.ofHours(2);
-        assertTrue(timeUtil.isWithinMaxDuration(duration, maxDuration));
-    }
-
-    @Test
-    @DisplayName("Deve retornar false quando a duração excede o limite máximo")
-    void shouldReturnFalseWhenDurationExceedsMaxLimit() {
-        Duration duration = Duration.ofHours(3);
-        Duration maxDuration = Duration.ofHours(2);
-        assertFalse(timeUtil.isWithinMaxDuration(duration, maxDuration));
-    }
-
-    @Test
-    @DisplayName("Deve retornar false quando a duração é negativa para isWithinMaxDuration")
-    void shouldReturnFalseWhenDurationIsNegativeForIsWithinMaxDuration() {
-        Duration duration = Duration.ofHours(-1);
-        Duration maxDuration = Duration.ofHours(2);
-        assertFalse(timeUtil.isWithinMaxDuration(duration, maxDuration));
-    }
-
-    @Test
-    @DisplayName("Deve retornar false quando o limite máximo é negativo para isWithinMaxDuration")
-    void shouldReturnFalseWhenMaxDurationIsNegativeForIsWithinMaxDuration() {
-        Duration duration = Duration.ofHours(1);
-        Duration maxDuration = Duration.ofHours(-2);
-        assertFalse(timeUtil.isWithinMaxDuration(duration, maxDuration));
-    }
-
-    @Test
-    @DisplayName("Deve retornar false quando a duração é nula para isWithinMaxDuration")
-    void shouldReturnFalseWhenDurationIsNullForIsWithinMaxDuration() {
-        Duration maxDuration = Duration.ofHours(1);
-        assertFalse(timeUtil.isWithinMaxDuration(null, maxDuration));
-    }
-
-    @Test
-    @DisplayName("Deve retornar false quando o limite máximo é nulo para isWithinMaxDuration")
-    void shouldReturnFalseWhenMaxDurationIsNullForIsWithinMaxDuration() {
-        Duration duration = Duration.ofHours(1);
-        assertFalse(timeUtil.isWithinMaxDuration(duration, null));
-    }
-
-    // Testes para isAboveMinDuration
-    @Test
-    @DisplayName("Deve retornar true quando a duração está acima do limite mínimo")
-    void shouldReturnTrueWhenDurationIsAboveMinLimit() {
-        Duration duration = Duration.ofHours(2);
-        Duration minDuration = Duration.ofHours(1);
-        assertTrue(timeUtil.isAboveMinDuration(duration, minDuration));
-    }
-
-    @Test
-    @DisplayName("Deve retornar true quando a duração é igual ao limite mínimo")
-    void shouldReturnTrueWhenDurationIsAtMinLimit() {
-        Duration duration = Duration.ofHours(1);
-        Duration minDuration = Duration.ofHours(1);
-        assertTrue(timeUtil.isAboveMinDuration(duration, minDuration));
-    }
-
-    @Test
-    @DisplayName("Deve retornar false quando a duração está abaixo do limite mínimo")
-    void shouldReturnFalseWhenDurationIsBelowMinLimit() {
-        Duration duration = Duration.ofMinutes(30);
-        Duration minDuration = Duration.ofHours(1);
-        assertFalse(timeUtil.isAboveMinDuration(duration, minDuration));
-    }
-
-    @Test
-    @DisplayName("Deve retornar false quando a duração é negativa para isAboveMinDuration")
-    void shouldReturnFalseWhenDurationIsNegativeForIsAboveMinDuration() {
-        Duration duration = Duration.ofHours(-1);
-        Duration minDuration = Duration.ofHours(1);
-        assertFalse(timeUtil.isAboveMinDuration(duration, minDuration));
-    }
-
-    @Test
-    @DisplayName("Deve retornar false quando o limite mínimo é negativo para isAboveMinDuration")
-    void shouldReturnFalseWhenMinDurationIsNegativeForIsAboveMinDuration() {
-        Duration duration = Duration.ofHours(1);
-        Duration minDuration = Duration.ofHours(-1);
-        assertFalse(timeUtil.isAboveMinDuration(duration, minDuration));
-    }
-
-    @Test
-    @DisplayName("Deve retornar false quando a duração é nula para isAboveMinDuration")
-    void shouldReturnFalseWhenDurationIsNullForIsAboveMinDuration() {
-        Duration minDuration = Duration.ofHours(1);
-        assertFalse(timeUtil.isAboveMinDuration(null, minDuration));
-    }
-
-    @Test
-    @DisplayName("Deve retornar false quando o limite mínimo é nulo para isAboveMinDuration")
-    void shouldReturnFalseWhenMinDurationIsNullForIsAboveMinDuration() {
-        Duration duration = Duration.ofHours(1);
-        assertFalse(timeUtil.isAboveMinDuration(duration, null));
+        assertFalse(result);
     }
 }

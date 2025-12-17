@@ -1,8 +1,21 @@
 package com.compliancesys.controller;
 
-import com.compliancesys.dao.CompanyDAO;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.sql.SQLException;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import javax.servlet.ServletException;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
 import com.compliancesys.dao.DriverDAO;
-import com.compliancesys.dao.impl.CompanyDAOImpl;
 import com.compliancesys.dao.impl.DriverDAOImpl;
 import com.compliancesys.exception.BusinessException;
 import com.compliancesys.model.Driver;
@@ -15,27 +28,13 @@ import com.compliancesys.util.impl.GsonUtilImpl;
 import com.compliancesys.util.impl.HikariCPConnectionFactory;
 import com.compliancesys.util.impl.ValidatorImpl;
 
-import javax.servlet.ServletException;
-import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 @WebServlet("/api/drivers/*")
 public class DriverServlet extends HttpServlet {
     private static final Logger LOGGER = Logger.getLogger(DriverServlet.class.getName());
     private ConnectionFactory connectionFactory;
     private GsonUtil gsonUtil;
     private Validator validator;
+    private DriverService driverService;
 
     @Override
     public void init() throws ServletException {
@@ -44,6 +43,9 @@ public class DriverServlet extends HttpServlet {
             this.connectionFactory = new HikariCPConnectionFactory();
             this.gsonUtil = new GsonUtilImpl();
             this.validator = new ValidatorImpl();
+            
+            DriverDAO driverDAO = new DriverDAOImpl(connectionFactory);
+            this.driverService = new DriverServiceImpl(driverDAO, validator);
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Erro ao inicializar DriverServlet: " + e.getMessage(), e);
             throw new ServletException("Erro ao inicializar DriverServlet", e);
@@ -65,11 +67,7 @@ public class DriverServlet extends HttpServlet {
         PrintWriter out = response.getWriter();
         String pathInfo = request.getPathInfo();
 
-        try (Connection conn = connectionFactory.getConnection()) {
-            DriverDAO driverDAO = new DriverDAOImpl(conn);
-            CompanyDAO companyDAO = new CompanyDAOImpl(conn);
-            DriverService driverService = new DriverServiceImpl(driverDAO, companyDAO, validator);
-
+        try {
             if (pathInfo == null || pathInfo.equals("/")) {
                 List<Driver> drivers = driverService.getAllDrivers();
                 out.print(gsonUtil.serialize(drivers));
@@ -97,7 +95,7 @@ public class DriverServlet extends HttpServlet {
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Erro de SQL ao buscar motorista: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            out.print(gsonUtil.serialize(new ErrorResponse("Erro de banco de dados ao buscar motorista. Tente novamente mais tarde.")));
+            out.print(gsonUtil.serialize(new ErrorResponse("Erro de banco de dados ao buscar motorista.")));
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Erro inesperado ao buscar motorista: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
@@ -113,11 +111,7 @@ public class DriverServlet extends HttpServlet {
         response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
 
-        try (Connection conn = connectionFactory.getConnection()) {
-            DriverDAO driverDAO = new DriverDAOImpl(conn);
-            CompanyDAO companyDAO = new CompanyDAOImpl(conn);
-            DriverService driverService = new DriverServiceImpl(driverDAO, companyDAO, validator);
-
+        try {
             Driver newDriver = gsonUtil.deserialize(request.getReader(), Driver.class);
             Driver createdDriver = driverService.registerDriver(newDriver);
             
@@ -130,7 +124,7 @@ public class DriverServlet extends HttpServlet {
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Erro de SQL ao registrar motorista: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            out.print(gsonUtil.serialize(new ErrorResponse("Erro de banco de dados ao registrar motorista. Tente novamente mais tarde.")));
+            out.print(gsonUtil.serialize(new ErrorResponse("Erro de banco de dados ao registrar motorista.")));
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Erro inesperado ao registrar motorista: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
@@ -154,11 +148,7 @@ public class DriverServlet extends HttpServlet {
             return;
         }
 
-        try (Connection conn = connectionFactory.getConnection()) {
-            DriverDAO driverDAO = new DriverDAOImpl(conn);
-            CompanyDAO companyDAO = new CompanyDAOImpl(conn);
-            DriverService driverService = new DriverServiceImpl(driverDAO, companyDAO, validator);
-
+        try {
             int id = Integer.parseInt(pathInfo.substring(1));
             Driver updatedDriver = gsonUtil.deserialize(request.getReader(), Driver.class);
             updatedDriver.setId(id);
@@ -177,7 +167,7 @@ public class DriverServlet extends HttpServlet {
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Erro de SQL ao atualizar motorista: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            out.print(gsonUtil.serialize(new ErrorResponse("Erro de banco de dados ao atualizar motorista. Tente novamente mais tarde.")));
+            out.print(gsonUtil.serialize(new ErrorResponse("Erro de banco de dados ao atualizar motorista.")));
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Erro inesperado ao atualizar motorista: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
@@ -201,11 +191,7 @@ public class DriverServlet extends HttpServlet {
             return;
         }
 
-        try (Connection conn = connectionFactory.getConnection()) {
-            DriverDAO driverDAO = new DriverDAOImpl(conn);
-            CompanyDAO companyDAO = new CompanyDAOImpl(conn);
-            DriverService driverService = new DriverServiceImpl(driverDAO, companyDAO, validator);
-
+        try {
             int id = Integer.parseInt(pathInfo.substring(1));
             boolean deleted = driverService.deleteDriver(id);
             
@@ -226,7 +212,7 @@ public class DriverServlet extends HttpServlet {
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Erro de SQL ao deletar motorista: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            out.print(gsonUtil.serialize(new ErrorResponse("Erro de banco de dados ao deletar motorista. Tente novamente mais tarde.")));
+            out.print(gsonUtil.serialize(new ErrorResponse("Erro de banco de dados ao deletar motorista.")));
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Erro inesperado ao deletar motorista: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);

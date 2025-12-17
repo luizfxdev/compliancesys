@@ -1,15 +1,12 @@
 package com.compliancesys.util.impl;
 
-import com.compliancesys.util.PasswordUtil;
-import org.mindrot.jbcrypt.BCrypt; // Necessário adicionar a dependência no build.gradle
-
 import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.logging.Logger; // Necessário adicionar a dependência no build.gradle
 
-/**
- * Implementação da interface PasswordUtil utilizando o algoritmo BCrypt para hashing de senhas.
- * BCrypt é um algoritmo de hashing de senha robusto e recomendado para aplicações modernas.
- */
+import org.mindrot.jbcrypt.BCrypt;
+
+import com.compliancesys.util.PasswordUtil;
+
 public class PasswordUtilImpl implements PasswordUtil {
 
     private static final Logger LOGGER = Logger.getLogger(PasswordUtilImpl.class.getName());

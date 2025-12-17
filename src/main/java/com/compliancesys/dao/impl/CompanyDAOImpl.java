@@ -14,18 +14,20 @@ import java.util.logging.Logger;
 
 import com.compliancesys.dao.CompanyDAO;
 import com.compliancesys.model.Company;
-import com.compliancesys.util.ConnectionFactory; 
+import com.compliancesys.util.ConnectionFactory;
+
 public class CompanyDAOImpl implements CompanyDAO {
     private static final Logger LOGGER = Logger.getLogger(CompanyDAOImpl.class.getName());
-    private final ConnectionFactory connectionFactory; 
-    public CompanyDAOImpl(ConnectionFactory connectionFactory) { 
+    private final ConnectionFactory connectionFactory;
+
+    public CompanyDAOImpl(ConnectionFactory connectionFactory) {
         this.connectionFactory = connectionFactory;
     }
 
     @Override
     public int create(Company company) throws SQLException {
         String sql = "INSERT INTO companies (cnpj, legal_name, trading_name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)";
-        try (Connection conn = connectionFactory.getConnection(); 
+        try (Connection conn = connectionFactory.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             LocalDateTime now = LocalDateTime.now();
             stmt.setString(1, company.getCnpj());
@@ -72,7 +74,8 @@ public class CompanyDAOImpl implements CompanyDAO {
     public List<Company> findAll() throws SQLException {
         List<Company> companies = new ArrayList<>();
         String sql = "SELECT id, cnpj, legal_name, trading_name, created_at, updated_at FROM companies";
-        try (Connection conn = connectionFactory.getConnection(); 
+        try (Connection conn = connectionFactory.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
                 companies.add(mapResultSetToCompany(rs));
@@ -87,7 +90,7 @@ public class CompanyDAOImpl implements CompanyDAO {
     @Override
     public boolean update(Company company) throws SQLException {
         String sql = "UPDATE companies SET cnpj = ?, legal_name = ?, trading_name = ?, updated_at = ? WHERE id = ?";
-        try (Connection conn = connectionFactory.getConnection(); 
+        try (Connection conn = connectionFactory.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, company.getCnpj());
             stmt.setString(2, company.getLegalName());
@@ -104,7 +107,7 @@ public class CompanyDAOImpl implements CompanyDAO {
     @Override
     public boolean delete(int id) throws SQLException {
         String sql = "DELETE FROM companies WHERE id = ?";
-        try (Connection conn = connectionFactory.getConnection(); 
+        try (Connection conn = connectionFactory.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, id);
             return stmt.executeUpdate() > 0;
@@ -132,7 +135,42 @@ public class CompanyDAOImpl implements CompanyDAO {
         return Optional.empty();
     }
 
-  
+    @Override
+    public Optional<Company> findByLegalName(String legalName) throws SQLException {
+        String sql = "SELECT id, cnpj, legal_name, trading_name, created_at, updated_at FROM companies WHERE legal_name = ?";
+        try (Connection conn = connectionFactory.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, legalName);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return Optional.of(mapResultSetToCompany(rs));
+                }
+            }
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Erro ao buscar empresa por razão social: " + e.getMessage(), e);
+            throw e;
+        }
+        return Optional.empty();
+    }
+
+    @Override
+    public Optional<Company> findByTradingName(String tradingName) throws SQLException {
+        String sql = "SELECT id, cnpj, legal_name, trading_name, created_at, updated_at FROM companies WHERE trading_name = ?";
+        try (Connection conn = connectionFactory.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, tradingName);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return Optional.of(mapResultSetToCompany(rs));
+                }
+            }
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Erro ao buscar empresa por nome fantasia: " + e.getMessage(), e);
+            throw e;
+        }
+        return Optional.empty();
+    }
+
     private Company mapResultSetToCompany(ResultSet rs) throws SQLException {
         return new Company(
                 rs.getInt("id"),

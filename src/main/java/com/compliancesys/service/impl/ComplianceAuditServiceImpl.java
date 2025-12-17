@@ -1,20 +1,19 @@
 package com.compliancesys.service.impl;
 
+import java.sql.SQLException;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
 import com.compliancesys.dao.ComplianceAuditDAO;
 import com.compliancesys.dao.DriverDAO;
 import com.compliancesys.dao.JourneyDAO;
 import com.compliancesys.exception.BusinessException;
 import com.compliancesys.model.ComplianceAudit;
-import com.compliancesys.model.Driver;
-import com.compliancesys.model.Journey;
 import com.compliancesys.model.enums.ComplianceStatus;
 import com.compliancesys.service.ComplianceAuditService;
 import com.compliancesys.util.Validator;
-
-import java.sql.SQLException;
-import java.time.LocalDate;
-import java.util.List;
-import java.util.Optional;
 
 public class ComplianceAuditServiceImpl implements ComplianceAuditService {
 
@@ -34,45 +33,46 @@ public class ComplianceAuditServiceImpl implements ComplianceAuditService {
     public ComplianceAudit createAudit(ComplianceAudit audit) throws SQLException, BusinessException {
         validator.validate(audit);
 
-        Optional<Journey> existingJourney = journeyDAO.findById(audit.getJourneyId());
-        if (!existingJourney.isPresent()) {
+        if (!journeyDAO.findById(audit.getJourneyId()).isPresent()) {
             throw new BusinessException("Jornada com ID " + audit.getJourneyId() + " não encontrada.");
         }
 
-        Optional<Driver> existingDriver = driverDAO.findById(audit.getDriverId());
-        if (!existingDriver.isPresent()) {
+        if (audit.getDriverId() > 0 && !driverDAO.findById(audit.getDriverId()).isPresent()) {
             throw new BusinessException("Motorista com ID " + audit.getDriverId() + " não encontrado.");
         }
 
-        return complianceAuditDAO.create(audit);
+        LocalDateTime now = LocalDateTime.now();
+        audit.setCreatedAt(now);
+        audit.setUpdatedAt(now);
+
+        int id = complianceAuditDAO.create(audit);
+        audit.setId(id);
+        return audit;
     }
 
     @Override
     public boolean updateAudit(ComplianceAudit audit) throws SQLException, BusinessException {
         validator.validate(audit);
 
-        Optional<ComplianceAudit> existingAudit = complianceAuditDAO.findById(audit.getId());
-        if (!existingAudit.isPresent()) {
+        if (!complianceAuditDAO.findById(audit.getId()).isPresent()) {
             throw new BusinessException("Auditoria com ID " + audit.getId() + " não encontrada para atualização.");
         }
 
-        Optional<Journey> existingJourney = journeyDAO.findById(audit.getJourneyId());
-        if (!existingJourney.isPresent()) {
+        if (!journeyDAO.findById(audit.getJourneyId()).isPresent()) {
             throw new BusinessException("Jornada com ID " + audit.getJourneyId() + " não encontrada.");
         }
 
-        Optional<Driver> existingDriver = driverDAO.findById(audit.getDriverId());
-        if (!existingDriver.isPresent()) {
+        if (audit.getDriverId() > 0 && !driverDAO.findById(audit.getDriverId()).isPresent()) {
             throw new BusinessException("Motorista com ID " + audit.getDriverId() + " não encontrado.");
         }
 
+        audit.setUpdatedAt(LocalDateTime.now());
         return complianceAuditDAO.update(audit);
     }
 
     @Override
     public boolean deleteAudit(int id) throws SQLException, BusinessException {
-        Optional<ComplianceAudit> existingAudit = complianceAuditDAO.findById(id);
-        if (!existingAudit.isPresent()) {
+        if (!complianceAuditDAO.findById(id).isPresent()) {
             throw new BusinessException("Auditoria com ID " + id + " não encontrada para exclusão.");
         }
         return complianceAuditDAO.delete(id);

@@ -1,5 +1,13 @@
 package com.compliancesys.service.impl;
 
+import java.sql.SQLException;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import com.compliancesys.dao.CompanyDAO;
 import com.compliancesys.dao.VehicleDAO;
 import com.compliancesys.exception.BusinessException;
@@ -7,18 +15,11 @@ import com.compliancesys.model.Vehicle;
 import com.compliancesys.service.VehicleService;
 import com.compliancesys.util.Validator;
 
-import java.sql.SQLException;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 public class VehicleServiceImpl implements VehicleService {
 
     private static final Logger LOGGER = Logger.getLogger(VehicleServiceImpl.class.getName());
     private final VehicleDAO vehicleDAO;
-    private final CompanyDAO companyDAO; // Para validar a existência da empresa
+    private final CompanyDAO companyDAO;
     private final Validator validator;
 
     public VehicleServiceImpl(VehicleDAO vehicleDAO, CompanyDAO companyDAO, Validator validator) {
@@ -29,8 +30,7 @@ public class VehicleServiceImpl implements VehicleService {
 
     @Override
     public Vehicle createVehicle(Vehicle vehicle) throws BusinessException, SQLException {
-        // Validação de negócio
-        validator.validate(vehicle); // Usando o novo método validate(Vehicle)
+        validator.validate(vehicle);
 
         if (vehicleDAO.findByPlate(vehicle.getPlate()).isPresent()) {
             throw new BusinessException("Já existe um veículo com a placa informada.");
@@ -39,15 +39,18 @@ public class VehicleServiceImpl implements VehicleService {
             throw new BusinessException("Empresa associada ao veículo não encontrada.");
         }
 
-        vehicle.setCreatedAt(LocalDateTime.now());
-        vehicle.setUpdatedAt(LocalDateTime.now());
-        return vehicleDAO.create(vehicle);
+        LocalDateTime now = LocalDateTime.now();
+        vehicle.setCreatedAt(now);
+        vehicle.setUpdatedAt(now);
+        
+        int id = vehicleDAO.create(vehicle);
+        vehicle.setId(id);
+        return vehicle;
     }
 
     @Override
     public Vehicle updateVehicle(Vehicle vehicle) throws BusinessException, SQLException {
-        // Validação de negócio
-        validator.validate(vehicle); // Usando o novo método validate(Vehicle)
+        validator.validate(vehicle);
 
         if (!validator.isValidId(vehicle.getId())) {
             throw new BusinessException("ID do veículo inválido para atualização.");
@@ -67,9 +70,13 @@ public class VehicleServiceImpl implements VehicleService {
             throw new BusinessException("Empresa associada ao veículo não encontrada.");
         }
 
-        vehicle.setCreatedAt(existingVehicle.get().getCreatedAt()); // Mantém o createdAt original
+        vehicle.setCreatedAt(existingVehicle.get().getCreatedAt());
         vehicle.setUpdatedAt(LocalDateTime.now());
-        return vehicleDAO.update(vehicle);
+        
+        if (!vehicleDAO.update(vehicle)) {
+            throw new BusinessException("Falha ao atualizar veículo.");
+        }
+        return vehicle;
     }
 
     @Override
@@ -107,7 +114,7 @@ public class VehicleServiceImpl implements VehicleService {
     public List<Vehicle> getVehiclesByCompanyId(int companyId) throws SQLException {
         if (!validator.isValidId(companyId)) {
             LOGGER.log(Level.WARNING, "Tentativa de buscar veículos com ID de empresa inválido: {0}", companyId);
-            return List.of(); // Retorna lista vazia para ID inválido
+            return new ArrayList<>();
         }
         return vehicleDAO.findByCompanyId(companyId);
     }
@@ -116,16 +123,16 @@ public class VehicleServiceImpl implements VehicleService {
     public List<Vehicle> getVehiclesByModel(String model) throws SQLException {
         if (model == null || model.trim().isEmpty()) {
             LOGGER.log(Level.WARNING, "Tentativa de buscar veículos com modelo nulo ou vazio.");
-            return List.of();
+            return new ArrayList<>();
         }
         return vehicleDAO.findByModel(model);
     }
 
     @Override
     public List<Vehicle> getVehiclesByYear(int year) throws SQLException {
-        if (year <= 1900 || year > LocalDateTime.now().getYear() + 1) { // Exemplo de validação de ano
+        if (year <= 1900 || year > LocalDateTime.now().getYear() + 1) {
             LOGGER.log(Level.WARNING, "Tentativa de buscar veículos com ano inválido: {0}", year);
-            return List.of();
+            return new ArrayList<>();
         }
         return vehicleDAO.findByYear(year);
     }

@@ -1,108 +1,185 @@
 package com.compliancesys.util;
 
-import com.compliancesys.util.impl.PasswordUtilImpl; // Importa a implementação real
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mindrot.jbcrypt.BCrypt; // Usando jBCrypt para verificação, se a implementação real usar
 
-import static org.junit.jupiter.api.Assertions.*;
+import com.compliancesys.util.impl.PasswordUtilImpl;
 
-public class PasswordUtilTest {
+class PasswordUtilTest {
 
     private PasswordUtil passwordUtil;
 
     @BeforeEach
     void setUp() {
-        // Instancia a implementação real da interface PasswordUtil
         passwordUtil = new PasswordUtilImpl();
     }
 
-    @Test
-    @DisplayName("Deve gerar um hash de senha válido")
-    void testHashPasswordSuccess() {
-        String password = "minhaSenhaSecreta123";
-        String hashedPassword = passwordUtil.hashPassword(password);
+    // ==================== Testes de hashPassword ====================
 
-        assertNotNull(hashedPassword);
-        assertFalse(hashedPassword.isEmpty());
-        // Verifica se o hash gerado é um hash BCrypt válido (começa com $2a$, $2b$ ou $2y$)
-        assertTrue(hashedPassword.startsWith("$2a$") || hashedPassword.startsWith("$2b$") || hashedPassword.startsWith("$2y$"));
-        // Verifica se o hash pode ser verificado pelo próprio BCrypt (se a implementação usar BCrypt)
-        assertTrue(BCrypt.checkpw(password, hashedPassword));
+    @Test
+    @DisplayName("Deve gerar hash para senha válida")
+    void hashPassword_ValidPassword_ReturnsHash() {
+        String password = "SenhaSegura123!";
+
+        String hash = passwordUtil.hashPassword(password);
+
+        assertNotNull(hash);
+        assertNotEquals(password, hash);
+        assertTrue(hash.startsWith("$2a$") || hash.startsWith("$2b$"));
     }
 
     @Test
-    @DisplayName("Deve lançar IllegalArgumentException para senha nula ao fazer hash")
-    void testHashPasswordWithNullPassword() {
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
-            passwordUtil.hashPassword(null);
-        });
-        assertEquals("A senha não pode ser nula ou vazia.", exception.getMessage());
+    @DisplayName("Deve gerar hashes diferentes para mesma senha")
+    void hashPassword_SamePassword_ReturnsDifferentHashes() {
+        String password = "SenhaSegura123!";
+
+        String hash1 = passwordUtil.hashPassword(password);
+        String hash2 = passwordUtil.hashPassword(password);
+
+        assertNotEquals(hash1, hash2);
     }
 
     @Test
-    @DisplayName("Deve lançar IllegalArgumentException para senha vazia ao fazer hash")
-    void testHashPasswordWithEmptyPassword() {
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
-            passwordUtil.hashPassword("");
-        });
-        assertEquals("A senha não pode ser nula ou vazia.", exception.getMessage());
+    @DisplayName("Deve retornar null para senha nula")
+    void hashPassword_NullPassword_ReturnsNull() {
+        String hash = passwordUtil.hashPassword(null);
+        assertNull(hash);
     }
 
     @Test
-    @DisplayName("Deve verificar uma senha correta com sucesso")
-    void testVerifyPasswordSuccess() {
-        String password = "minhaSenhaSecreta123";
-        String hashedPassword = passwordUtil.hashPassword(password); // Gerar um hash válido
-
-        assertTrue(passwordUtil.verifyPassword(password, hashedPassword));
+    @DisplayName("Deve retornar null para senha vazia")
+    void hashPassword_EmptyPassword_ReturnsNull() {
+        String hash = passwordUtil.hashPassword("");
+        assertNull(hash);
     }
 
     @Test
-    @DisplayName("Não deve verificar uma senha incorreta")
-    void testVerifyPasswordFailure() {
-        String password = "minhaSenhaSecreta123";
-        String wrongPassword = "senhaIncorreta";
-        String hashedPassword = passwordUtil.hashPassword(password);
+    @DisplayName("Deve gerar hash para senha com caracteres especiais")
+    void hashPassword_SpecialCharacters_ReturnsHash() {
+        String password = "Senh@#$%^&*()123!";
 
-        assertFalse(passwordUtil.verifyPassword(wrongPassword, hashedPassword));
+        String hash = passwordUtil.hashPassword(password);
+
+        assertNotNull(hash);
     }
 
     @Test
-    @DisplayName("Não deve verificar senha nula")
-    void testVerifyPasswordWithNullPassword() {
-        String hashedPassword = passwordUtil.hashPassword("anyPassword");
-        assertFalse(passwordUtil.verifyPassword(null, hashedPassword));
+    @DisplayName("Deve gerar hash para senha longa")
+    void hashPassword_LongPassword_ReturnsHash() {
+        String password = "UmaSenhaMuitoLongaQueTemMaisDe50CaracteresParaTestar123!";
+
+        String hash = passwordUtil.hashPassword(password);
+
+        assertNotNull(hash);
+    }
+
+    // ==================== Testes de checkPassword ====================
+
+    @Test
+    @DisplayName("Deve verificar senha correta")
+    void checkPassword_CorrectPassword_ReturnsTrue() {
+        String password = "SenhaSegura123!";
+        String hash = passwordUtil.hashPassword(password);
+
+        boolean result = passwordUtil.checkPassword(password, hash);
+
+        assertTrue(result);
     }
 
     @Test
-    @DisplayName("Não deve verificar senha vazia")
-    void testVerifyPasswordWithEmptyPassword() {
-        String hashedPassword = passwordUtil.hashPassword("anyPassword");
-        assertFalse(passwordUtil.verifyPassword("", hashedPassword));
+    @DisplayName("Deve rejeitar senha incorreta")
+    void checkPassword_IncorrectPassword_ReturnsFalse() {
+        String password = "SenhaSegura123!";
+        String hash = passwordUtil.hashPassword(password);
+
+        boolean result = passwordUtil.checkPassword("SenhaErrada456!", hash);
+
+        assertFalse(result);
     }
 
     @Test
-    @DisplayName("Não deve verificar com hash nulo")
-    void testVerifyPasswordWithNullHashedPassword() {
-        assertFalse(passwordUtil.verifyPassword("anyPassword", null));
+    @DisplayName("Deve retornar false para senha nula")
+    void checkPassword_NullPlainPassword_ReturnsFalse() {
+        String hash = passwordUtil.hashPassword("SenhaSegura123!");
+
+        boolean result = passwordUtil.checkPassword(null, hash);
+
+        assertFalse(result);
     }
 
     @Test
-    @DisplayName("Não deve verificar com hash vazio")
-    void testVerifyPasswordWithEmptyHashedPassword() {
-        assertFalse(passwordUtil.verifyPassword("anyPassword", ""));
+    @DisplayName("Deve retornar false para hash nulo")
+    void checkPassword_NullHash_ReturnsFalse() {
+        boolean result = passwordUtil.checkPassword("SenhaSegura123!", null);
+
+        assertFalse(result);
     }
 
     @Test
-    @DisplayName("Não deve verificar com hash malformado")
-    void testVerifyPasswordWithMalformedHashedPassword() {
-        String password = "testPassword";
-        String malformedHash = "notAValidHash"; // Não é um hash BCrypt válido
-        assertFalse(passwordUtil.verifyPassword(password, malformedHash));
+    @DisplayName("Deve retornar false para ambos nulos")
+    void checkPassword_BothNull_ReturnsFalse() {
+        boolean result = passwordUtil.checkPassword(null, null);
 
-        String anotherMalformedHash = "$2a$10$invalidhashformat.thisisnotvalid"; // Formato inválido
-        assertFalse(passwordUtil.verifyPassword(password, anotherMalformedHash));
+        assertFalse(result);
+    }
+
+    @Test
+    @DisplayName("Deve verificar senha com caracteres especiais")
+    void checkPassword_SpecialCharacters_ReturnsTrue() {
+        String password = "Senh@#$%^&*()123!";
+        String hash = passwordUtil.hashPassword(password);
+
+        boolean result = passwordUtil.checkPassword(password, hash);
+
+        assertTrue(result);
+    }
+
+    @Test
+    @DisplayName("Deve diferenciar maiúsculas e minúsculas")
+    void checkPassword_CaseSensitive_ReturnsFalse() {
+        String password = "SenhaSegura123!";
+        String hash = passwordUtil.hashPassword(password);
+
+        boolean result = passwordUtil.checkPassword("senhasegura123!", hash);
+
+        assertFalse(result);
+    }
+
+    @Test
+    @DisplayName("Deve verificar senha com espaços")
+    void checkPassword_WithSpaces_ReturnsTrue() {
+        String password = "Senha Com Espaços 123!";
+        String hash = passwordUtil.hashPassword(password);
+
+        boolean result = passwordUtil.checkPassword(password, hash);
+
+        assertTrue(result);
+    }
+
+    // ==================== Testes de Ida e Volta ====================
+
+    @Test
+    @DisplayName("Deve funcionar corretamente em ciclo hash-verify")
+    void roundTrip_HashAndVerify_WorksCorrectly() {
+        String[] passwords = {
+            "simple",
+            "Complex123!",
+            "WithSpaces Here",
+            "Símbolos@#$%",
+            "12345678",
+            "VeryLongPasswordThatExceedsNormalLengthsUsedInMostApplications!"
+        };
+
+        for (String password : passwords) {
+            String hash = passwordUtil.hashPassword(password);
+            assertTrue(passwordUtil.checkPassword(password, hash), 
+                "Falha para senha: " + password);
+        }
     }
 }

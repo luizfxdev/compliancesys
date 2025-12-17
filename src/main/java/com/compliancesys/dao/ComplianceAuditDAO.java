@@ -9,7 +9,7 @@ import com.compliancesys.model.ComplianceAudit;
 import com.compliancesys.model.enums.ComplianceStatus;
 
 public interface ComplianceAuditDAO {
-    ComplianceAudit create(ComplianceAudit audit) throws SQLException;
+    int create(ComplianceAudit audit) throws SQLException;
     Optional<ComplianceAudit> findById(int id) throws SQLException;
     List<ComplianceAudit> findByJourneyId(int journeyId) throws SQLException;
     List<ComplianceAudit> findByDriverId(int driverId) throws SQLException;

@@ -1,7 +1,7 @@
 package com.compliancesys.service.impl;
 
 import java.sql.SQLException;
-import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.logging.Level;
@@ -55,7 +55,7 @@ public class DriverServiceImpl implements DriverService {
         validator.validate(driver);
 
         Optional<Driver> existingDriverOptional = driverDAO.findById(driver.getId());
-        if (existingDriverOptional.isEmpty()) {
+        if (!existingDriverOptional.isPresent()) {
             throw new BusinessException("Motorista não encontrado para atualização.");
         }
 
@@ -88,7 +88,7 @@ public class DriverServiceImpl implements DriverService {
         if (id <= 0) {
             throw new BusinessException("ID do motorista inválido para exclusão.");
         }
-        if (driverDAO.findById(id).isEmpty()) {
+        if (!driverDAO.findById(id).isPresent()) {
             throw new BusinessException("Motorista não encontrado para exclusão.");
         }
         boolean deleted = driverDAO.delete(id);
@@ -136,7 +136,7 @@ public class DriverServiceImpl implements DriverService {
     public List<Driver> getDriversByCompanyId(int companyId) throws SQLException {
         if (companyId <= 0) {
             LOGGER.log(Level.WARNING, "Tentativa de buscar motoristas com ID de empresa inválido: {0}", companyId);
-            return List.of(); // Retorna lista vazia para ID inválido
+            return new ArrayList<>();
         }
         return driverDAO.findByCompanyId(companyId);
     }
