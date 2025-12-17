@@ -1,7 +1,6 @@
 plugins {
     id 'java'
     id 'war'
-    id 'jetty' version '4.0.5'
 }
 
 group 'com.compliancesys'
@@ -39,8 +38,9 @@ war {
     archiveFileName = "${project.name}.war"
 }
 
-jettyRun {
-    httpPort = 8080
-    contextPath = '/compliancesys'
-    scanIntervalSeconds = 10
+// TASK SIMPLES PARA HTTP SERVER
+task webServer(type: JavaExec) {
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.sun.net.httpserver.HttpServer'
+    systemProperty 'java.awt.headless', 'true'
 }
