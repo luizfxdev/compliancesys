@@ -1,6 +1,7 @@
 plugins {
     id 'java'
     id 'war'
+    id 'jetty' version '4.0.5'
 }
 
 group 'com.compliancesys'
@@ -16,47 +17,30 @@ java {
 }
 
 dependencies {
-    // Dependências para a aplicação em tempo de execução (runtime) e compilação
-
-    // Servlet API (fornecida pelo Tomcat)
-    // Usamos 'providedCompile' para que o JAR não seja incluído no WAR,
-    // pois o servidor de aplicação (Tomcat) já o fornece.
-    // Para Gradle 7+, 'providedCompile' foi substituído por 'compileOnly'.
-    compileOnly 'javax.servlet:javax.servlet-api:4.0.1' // Compatível com Tomcat 8+ e Java 8+
-
-    // PostgreSQL JDBC Driver
-    implementation 'org.postgresql:postgresql:42.7.3' // Versão recente e compatível
-
-    // HikariCP - Pool de Conexões
-    implementation 'com.zaxxer:HikariCP:5.1.0' // Versão recente e estável
-
-    // Gson - Serialização/Desserialização JSON
-    implementation 'com.google.code.gson:gson:2.10.1' // Versão recente
-
-    // jBCrypt - Hashing de Senhas
-    implementation 'org.mindrot:jbcrypt:0.4' // Versão estável
-
-    // Dependências para Testes (test-only)
-    // JUnit Jupiter (JUnit 5)
+    compileOnly 'javax.servlet:javax.servlet-api:4.0.1'
+    implementation 'org.postgresql:postgresql:42.7.3'
+    implementation 'com.zaxxer:HikariCP:5.1.0'
+    implementation 'com.google.code.gson:gson:2.10.1'
+    implementation 'org.mindrot:jbcrypt:0.4'
+    
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.0'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.0'
-    // Adicionando o JUnit Platform Launcher explicitamente para garantir que seja encontrado
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.10.0' // Versão correspondente ao JUnit Jupiter 5.10.0
-
-    // Mockito - Framework de Mocking
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.10.0'
     testImplementation 'org.mockito:mockito-core:5.6.0'
-    testImplementation 'org.mockito:mockito-junit-jupiter:5.6.0' // Integração Mockito com JUnit 5
-
-    // AssertJ - Biblioteca de Asserções (opcional, mas melhora a legibilidade dos testes)
-    testImplementation 'org.assertj:assertj-core:3.25.3' // Versão recente
+    testImplementation 'org.mockito:mockito-junit-jupiter:5.6.0'
+    testImplementation 'org.assertj:assertj-core:3.25.3'
 }
 
-// Configuração para execução de testes com JUnit Platform (JUnit 5)
 test {
     useJUnitPlatform()
 }
 
-// Configuração para o WAR (opcional, mas útil para renomear o arquivo WAR)
 war {
     archiveFileName = "${project.name}.war"
+}
+
+jettyRun {
+    httpPort = 8080
+    contextPath = '/compliancesys'
+    scanIntervalSeconds = 10
 }
