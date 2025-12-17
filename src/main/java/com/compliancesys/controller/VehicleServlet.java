@@ -1,5 +1,20 @@
 package com.compliancesys.controller;
 
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.sql.SQLException;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import javax.servlet.ServletException;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
 import com.compliancesys.dao.CompanyDAO;
 import com.compliancesys.dao.VehicleDAO;
 import com.compliancesys.dao.impl.CompanyDAOImpl;
@@ -15,35 +30,23 @@ import com.compliancesys.util.impl.GsonUtilImpl;
 import com.compliancesys.util.impl.HikariCPConnectionFactory;
 import com.compliancesys.util.impl.ValidatorImpl;
 
-import javax.servlet.ServletException;
-import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 @WebServlet("/api/vehicles/*")
 public class VehicleServlet extends HttpServlet {
     private static final Logger LOGGER = Logger.getLogger(VehicleServlet.class.getName());
-    private ConnectionFactory connectionFactory;
+    private VehicleService vehicleService;
     private GsonUtil gsonUtil;
-    private Validator validator;
+    private ConnectionFactory connectionFactory;
 
     @Override
     public void init() throws ServletException {
         super.init();
         try {
             this.connectionFactory = new HikariCPConnectionFactory();
+            VehicleDAO vehicleDAO = new VehicleDAOImpl(connectionFactory);
+            CompanyDAO companyDAO = new CompanyDAOImpl(connectionFactory);
+            Validator validator = new ValidatorImpl();
+            this.vehicleService = new VehicleServiceImpl(vehicleDAO, companyDAO, validator);
             this.gsonUtil = new GsonUtilImpl();
-            this.validator = new ValidatorImpl();
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Erro ao inicializar VehicleServlet: " + e.getMessage(), e);
             throw new ServletException("Erro ao inicializar VehicleServlet", e);
@@ -65,11 +68,7 @@ public class VehicleServlet extends HttpServlet {
         PrintWriter out = response.getWriter();
         String pathInfo = request.getPathInfo();
 
-        try (Connection conn = connectionFactory.getConnection()) {
-            VehicleDAO vehicleDAO = new VehicleDAOImpl(conn);
-            CompanyDAO companyDAO = new CompanyDAOImpl(conn);
-            VehicleService vehicleService = new VehicleServiceImpl(vehicleDAO, companyDAO, validator);
-
+        try {
             if (pathInfo == null || pathInfo.equals("/")) {
                 List<Vehicle> vehicles = vehicleService.getAllVehicles();
                 response.setStatus(HttpServletResponse.SC_OK);
@@ -157,11 +156,7 @@ public class VehicleServlet extends HttpServlet {
         response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
 
-        try (Connection conn = connectionFactory.getConnection()) {
-            VehicleDAO vehicleDAO = new VehicleDAOImpl(conn);
-            CompanyDAO companyDAO = new CompanyDAOImpl(conn);
-            VehicleService vehicleService = new VehicleServiceImpl(vehicleDAO, companyDAO, validator);
-
+        try {
             Vehicle newVehicle = gsonUtil.deserialize(request.getReader(), Vehicle.class);
             Vehicle createdVehicle = vehicleService.createVehicle(newVehicle);
 
@@ -198,24 +193,14 @@ public class VehicleServlet extends HttpServlet {
             return;
         }
 
-        try (Connection conn = connectionFactory.getConnection()) {
-            VehicleDAO vehicleDAO = new VehicleDAOImpl(conn);
-            CompanyDAO companyDAO = new CompanyDAOImpl(conn);
-            VehicleService vehicleService = new VehicleServiceImpl(vehicleDAO, companyDAO, validator);
-
+        try {
             int id = Integer.parseInt(pathInfo.substring(1));
             Vehicle updatedVehicle = gsonUtil.deserialize(request.getReader(), Vehicle.class);
             updatedVehicle.setId(id);
 
-            boolean updated = vehicleService.updateVehicle(updatedVehicle);
-
-            if (updated) {
-                response.setStatus(HttpServletResponse.SC_OK);
-                out.print(gsonUtil.serialize(updatedVehicle));
-            } else {
-                response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                out.print(gsonUtil.serialize(new ErrorResponse("Veículo não encontrado")));
-            }
+            Vehicle result = vehicleService.updateVehicle(updatedVehicle);
+            response.setStatus(HttpServletResponse.SC_OK);
+            out.print(gsonUtil.serialize(result));
         } catch (NumberFormatException e) {
             LOGGER.log(Level.WARNING, "ID inválido ao atualizar: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
@@ -251,11 +236,7 @@ public class VehicleServlet extends HttpServlet {
             return;
         }
 
-        try (Connection conn = connectionFactory.getConnection()) {
-            VehicleDAO vehicleDAO = new VehicleDAOImpl(conn);
-            CompanyDAO companyDAO = new CompanyDAOImpl(conn);
-            VehicleService vehicleService = new VehicleServiceImpl(vehicleDAO, companyDAO, validator);
-
+        try {
             int id = Integer.parseInt(pathInfo.substring(1));
             boolean deleted = vehicleService.deleteVehicle(id);
 

@@ -25,7 +25,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -38,17 +37,21 @@ import java.util.logging.Logger;
 public class ComplianceAuditServlet extends HttpServlet {
 
     private static final Logger LOGGER = Logger.getLogger(ComplianceAuditServlet.class.getName());
-    private ConnectionFactory connectionFactory;
+    private ComplianceAuditService complianceAuditService;
     private GsonUtil gsonUtil;
-    private Validator validator;
+    private ConnectionFactory connectionFactory;
 
     @Override
     public void init() throws ServletException {
         super.init();
         try {
             this.connectionFactory = new HikariCPConnectionFactory();
+            ComplianceAuditDAO complianceAuditDAO = new ComplianceAuditDAOImpl(connectionFactory);
+            JourneyDAO journeyDAO = new JourneyDAOImpl(connectionFactory);
+            DriverDAO driverDAO = new DriverDAOImpl(connectionFactory);
+            Validator validator = new ValidatorImpl();
+            this.complianceAuditService = new ComplianceAuditServiceImpl(complianceAuditDAO, journeyDAO, driverDAO, validator);
             this.gsonUtil = new GsonUtilImpl();
-            this.validator = new ValidatorImpl();
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Erro ao inicializar ComplianceAuditServlet: " + e.getMessage(), e);
             throw new ServletException("Erro ao inicializar ComplianceAuditServlet", e);
@@ -69,12 +72,7 @@ public class ComplianceAuditServlet extends HttpServlet {
         response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
 
-        try (Connection conn = connectionFactory.getConnection()) {
-            ComplianceAuditDAO complianceAuditDAO = new ComplianceAuditDAOImpl(conn);
-            JourneyDAO journeyDAO = new JourneyDAOImpl(conn);
-            DriverDAO driverDAO = new DriverDAOImpl(conn);
-            ComplianceAuditService complianceAuditService = new ComplianceAuditServiceImpl(complianceAuditDAO, journeyDAO, driverDAO, validator);
-
+        try {
             String pathInfo = request.getPathInfo();
             String driverIdParam = request.getParameter("driverId");
             String journeyIdParam = request.getParameter("journeyId");
@@ -141,12 +139,7 @@ public class ComplianceAuditServlet extends HttpServlet {
         response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
 
-        try (Connection conn = connectionFactory.getConnection()) {
-            ComplianceAuditDAO complianceAuditDAO = new ComplianceAuditDAOImpl(conn);
-            JourneyDAO journeyDAO = new JourneyDAOImpl(conn);
-            DriverDAO driverDAO = new DriverDAOImpl(conn);
-            ComplianceAuditService complianceAuditService = new ComplianceAuditServiceImpl(complianceAuditDAO, journeyDAO, driverDAO, validator);
-
+        try {
             ComplianceAudit audit = gsonUtil.deserialize(request.getReader(), ComplianceAudit.class);
             ComplianceAudit createdAudit = complianceAuditService.createAudit(audit);
             
@@ -183,12 +176,7 @@ public class ComplianceAuditServlet extends HttpServlet {
             return;
         }
 
-        try (Connection conn = connectionFactory.getConnection()) {
-            ComplianceAuditDAO complianceAuditDAO = new ComplianceAuditDAOImpl(conn);
-            JourneyDAO journeyDAO = new JourneyDAOImpl(conn);
-            DriverDAO driverDAO = new DriverDAOImpl(conn);
-            ComplianceAuditService complianceAuditService = new ComplianceAuditServiceImpl(complianceAuditDAO, journeyDAO, driverDAO, validator);
-
+        try {
             int auditId = Integer.parseInt(pathInfo.substring(1));
             ComplianceAudit audit = gsonUtil.deserialize(request.getReader(), ComplianceAudit.class);
             audit.setId(auditId);
@@ -236,12 +224,7 @@ public class ComplianceAuditServlet extends HttpServlet {
             return;
         }
 
-        try (Connection conn = connectionFactory.getConnection()) {
-            ComplianceAuditDAO complianceAuditDAO = new ComplianceAuditDAOImpl(conn);
-            JourneyDAO journeyDAO = new JourneyDAOImpl(conn);
-            DriverDAO driverDAO = new DriverDAOImpl(conn);
-            ComplianceAuditService complianceAuditService = new ComplianceAuditServiceImpl(complianceAuditDAO, journeyDAO, driverDAO, validator);
-
+        try {
             int auditId = Integer.parseInt(pathInfo.substring(1));
             boolean deleted = complianceAuditService.deleteAudit(auditId);
 

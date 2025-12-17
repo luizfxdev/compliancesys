@@ -20,7 +20,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -32,17 +31,21 @@ import java.util.logging.Logger;
 public class MobileCommunicationServlet extends HttpServlet {
 
     private static final Logger LOGGER = Logger.getLogger(MobileCommunicationServlet.class.getName());
-    private ConnectionFactory connectionFactory;
+    private MobileCommunicationServiceImpl mobileCommunicationService;
     private GsonUtil gsonUtil;
-    private Validator validator;
+    private ConnectionFactory connectionFactory;
 
     @Override
     public void init() throws ServletException {
         super.init();
         try {
             this.connectionFactory = new HikariCPConnectionFactory();
+            MobileCommunicationDAOImpl mobileCommunicationDAO = new MobileCommunicationDAOImpl(connectionFactory);
+            JourneyDAOImpl journeyDAO = new JourneyDAOImpl(connectionFactory);
+            DriverDAOImpl driverDAO = new DriverDAOImpl(connectionFactory);
+            Validator validator = new ValidatorImpl();
+            this.mobileCommunicationService = new MobileCommunicationServiceImpl(mobileCommunicationDAO, journeyDAO, driverDAO, validator);
             this.gsonUtil = new GsonUtilImpl();
-            this.validator = new ValidatorImpl();
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Erro ao inicializar MobileCommunicationServlet: " + e.getMessage(), e);
             throw new ServletException("Erro ao inicializar MobileCommunicationServlet", e);
@@ -64,12 +67,7 @@ public class MobileCommunicationServlet extends HttpServlet {
         PrintWriter out = response.getWriter();
         String pathInfo = request.getPathInfo();
 
-        try (Connection conn = connectionFactory.getConnection()) {
-            MobileCommunicationDAOImpl mobileCommunicationDAO = new MobileCommunicationDAOImpl(conn);
-            JourneyDAOImpl journeyDAO = new JourneyDAOImpl(conn);
-            DriverDAOImpl driverDAO = new DriverDAOImpl(conn);
-            MobileCommunicationServiceImpl mobileCommunicationService = new MobileCommunicationServiceImpl(mobileCommunicationDAO, journeyDAO, driverDAO, validator);
-
+        try {
             if (pathInfo == null || pathInfo.equals("/")) {
                 List<MobileCommunication> communications = mobileCommunicationService.getAllMobileCommunications();
                 out.print(gsonUtil.serialize(communications));
@@ -111,12 +109,7 @@ public class MobileCommunicationServlet extends HttpServlet {
         response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
 
-        try (Connection conn = connectionFactory.getConnection()) {
-            MobileCommunicationDAOImpl mobileCommunicationDAO = new MobileCommunicationDAOImpl(conn);
-            JourneyDAOImpl journeyDAO = new JourneyDAOImpl(conn);
-            DriverDAOImpl driverDAO = new DriverDAOImpl(conn);
-            MobileCommunicationServiceImpl mobileCommunicationService = new MobileCommunicationServiceImpl(mobileCommunicationDAO, journeyDAO, driverDAO, validator);
-
+        try {
             MobileCommunication newCommunication = gsonUtil.deserialize(request.getReader(), MobileCommunication.class);
             MobileCommunication createdCommunication = mobileCommunicationService.createMobileCommunication(newCommunication);
 
@@ -153,12 +146,7 @@ public class MobileCommunicationServlet extends HttpServlet {
             return;
         }
 
-        try (Connection conn = connectionFactory.getConnection()) {
-            MobileCommunicationDAOImpl mobileCommunicationDAO = new MobileCommunicationDAOImpl(conn);
-            JourneyDAOImpl journeyDAO = new JourneyDAOImpl(conn);
-            DriverDAOImpl driverDAO = new DriverDAOImpl(conn);
-            MobileCommunicationServiceImpl mobileCommunicationService = new MobileCommunicationServiceImpl(mobileCommunicationDAO, journeyDAO, driverDAO, validator);
-
+        try {
             int id = Integer.parseInt(pathInfo.substring(1));
             MobileCommunication updatedCommunication = gsonUtil.deserialize(request.getReader(), MobileCommunication.class);
             updatedCommunication.setId(id);
@@ -201,12 +189,7 @@ public class MobileCommunicationServlet extends HttpServlet {
             return;
         }
 
-        try (Connection conn = connectionFactory.getConnection()) {
-            MobileCommunicationDAOImpl mobileCommunicationDAO = new MobileCommunicationDAOImpl(conn);
-            JourneyDAOImpl journeyDAO = new JourneyDAOImpl(conn);
-            DriverDAOImpl driverDAO = new DriverDAOImpl(conn);
-            MobileCommunicationServiceImpl mobileCommunicationService = new MobileCommunicationServiceImpl(mobileCommunicationDAO, journeyDAO, driverDAO, validator);
-
+        try {
             int id = Integer.parseInt(pathInfo.substring(1));
             boolean deleted = mobileCommunicationService.deleteMobileCommunication(id);
 

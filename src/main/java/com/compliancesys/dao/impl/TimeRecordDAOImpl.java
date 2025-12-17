@@ -6,71 +6,62 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
-import java.sql.Types;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.compliancesys.dao.TimeRecordDAO;
 import com.compliancesys.model.TimeRecord;
 import com.compliancesys.model.enums.EventType;
-import com.compliancesys.util.ConnectionFactory;
+import com.compliancesys.util.ConnectionFactory; // Importar ConnectionFactory
 
 public class TimeRecordDAOImpl implements TimeRecordDAO {
-
     private static final Logger LOGGER = Logger.getLogger(TimeRecordDAOImpl.class.getName());
-    private final ConnectionFactory connectionFactory;
+    private final ConnectionFactory connectionFactory; // Alterado para ConnectionFactory
 
-    public TimeRecordDAOImpl(ConnectionFactory connectionFactory) {
+    public TimeRecordDAOImpl(ConnectionFactory connectionFactory) { // Alterado o construtor
         this.connectionFactory = connectionFactory;
     }
 
     @Override
     public int create(TimeRecord timeRecord) throws SQLException {
         String sql = "INSERT INTO time_records (driver_id, journey_id, record_time, event_type, location, latitude, longitude, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        try (Connection conn = connectionFactory.getConnection();
+        try (Connection conn = connectionFactory.getConnection(); // Obter conexão do pool
              PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-
+            LocalDateTime now = LocalDateTime.now();
             stmt.setInt(1, timeRecord.getDriverId());
             stmt.setInt(2, timeRecord.getJourneyId());
-            stmt.setTimestamp(3, Timestamp.valueOf(timeRecord.getRecordTime()));
+            stmt.setObject(3, timeRecord.getRecordTime());
             stmt.setString(4, timeRecord.getEventType().name());
             stmt.setString(5, timeRecord.getLocation());
-            if (timeRecord.getLatitude() != null) {
-                stmt.setDouble(6, timeRecord.getLatitude());
-            } else {
-                stmt.setNull(6, Types.DOUBLE);
-            }
-            if (timeRecord.getLongitude() != null) {
-                stmt.setDouble(7, timeRecord.getLongitude());
-            } else {
-                stmt.setNull(7, Types.DOUBLE);
-            }
-            stmt.setTimestamp(8, Timestamp.valueOf(LocalDateTime.now()));
-            stmt.setTimestamp(9, Timestamp.valueOf(LocalDateTime.now()));
-
+            stmt.setObject(6, timeRecord.getLatitude());
+            stmt.setObject(7, timeRecord.getLongitude());
+            stmt.setObject(8, now);
+            stmt.setObject(9, now);
             int affectedRows = stmt.executeUpdate();
-
             if (affectedRows == 0) {
                 throw new SQLException("Falha ao criar registro de tempo, nenhuma linha afetada.");
             }
-
             try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
                 if (generatedKeys.next()) {
                     return generatedKeys.getInt(1);
                 } else {
-                    throw new SQLException("Falha ao criar registro de tempo, nenhum ID obtido.");
+                    throw new SQLException("Falha ao criar registro de tempo, nenhum ID gerado.");
                 }
             }
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Erro ao criar registro de tempo: " + e.getMessage(), e);
+            throw e;
         }
     }
 
     @Override
     public Optional<TimeRecord> findById(int id) throws SQLException {
-        String sql = "SELECT * FROM time_records WHERE id = ?";
-        try (Connection conn = connectionFactory.getConnection();
+        String sql = "SELECT id, driver_id, journey_id, record_time, event_type, location, latitude, longitude, created_at, updated_at FROM time_records WHERE id = ?";
+        try (Connection conn = connectionFactory.getConnection(); // Obter conexão do pool
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, id);
             try (ResultSet rs = stmt.executeQuery()) {
@@ -78,6 +69,9 @@ public class TimeRecordDAOImpl implements TimeRecordDAO {
                     return Optional.of(mapResultSetToTimeRecord(rs));
                 }
             }
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Erro ao buscar registro de tempo por ID: " + e.getMessage(), e);
+            throw e;
         }
         return Optional.empty();
     }
@@ -85,13 +79,16 @@ public class TimeRecordDAOImpl implements TimeRecordDAO {
     @Override
     public List<TimeRecord> findAll() throws SQLException {
         List<TimeRecord> timeRecords = new ArrayList<>();
-        String sql = "SELECT * FROM time_records";
-        try (Connection conn = connectionFactory.getConnection();
+        String sql = "SELECT id, driver_id, journey_id, record_time, event_type, location, latitude, longitude, created_at, updated_at FROM time_records";
+        try (Connection conn = connectionFactory.getConnection(); // Obter conexão do pool
              PreparedStatement stmt = conn.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
                 timeRecords.add(mapResultSetToTimeRecord(rs));
             }
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Erro ao buscar todos os registros de tempo: " + e.getMessage(), e);
+            throw e;
         }
         return timeRecords;
     }
@@ -99,43 +96,41 @@ public class TimeRecordDAOImpl implements TimeRecordDAO {
     @Override
     public boolean update(TimeRecord timeRecord) throws SQLException {
         String sql = "UPDATE time_records SET driver_id = ?, journey_id = ?, record_time = ?, event_type = ?, location = ?, latitude = ?, longitude = ?, updated_at = ? WHERE id = ?";
-        try (Connection conn = connectionFactory.getConnection();
+        try (Connection conn = connectionFactory.getConnection(); // Obter conexão do pool
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, timeRecord.getDriverId());
             stmt.setInt(2, timeRecord.getJourneyId());
-            stmt.setTimestamp(3, Timestamp.valueOf(timeRecord.getRecordTime()));
+            stmt.setObject(3, timeRecord.getRecordTime());
             stmt.setString(4, timeRecord.getEventType().name());
             stmt.setString(5, timeRecord.getLocation());
-            if (timeRecord.getLatitude() != null) {
-                stmt.setDouble(6, timeRecord.getLatitude());
-            } else {
-                stmt.setNull(6, Types.DOUBLE);
-            }
-            if (timeRecord.getLongitude() != null) {
-                stmt.setDouble(7, timeRecord.getLongitude());
-            } else {
-                stmt.setNull(7, Types.DOUBLE);
-            }
-            stmt.setTimestamp(8, Timestamp.valueOf(LocalDateTime.now()));
+            stmt.setObject(6, timeRecord.getLatitude());
+            stmt.setObject(7, timeRecord.getLongitude());
+            stmt.setObject(8, LocalDateTime.now());
             stmt.setInt(9, timeRecord.getId());
             return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Erro ao atualizar registro de tempo: " + e.getMessage(), e);
+            throw e;
         }
     }
 
     @Override
     public boolean delete(int id) throws SQLException {
         String sql = "DELETE FROM time_records WHERE id = ?";
-        try (Connection conn = connectionFactory.getConnection();
+        try (Connection conn = connectionFactory.getConnection(); // Obter conexão do pool
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, id);
             return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Erro ao deletar registro de tempo: " + e.getMessage(), e);
+            throw e;
         }
     }
 
     @Override
     public List<TimeRecord> findByJourneyId(int journeyId) throws SQLException {
         List<TimeRecord> timeRecords = new ArrayList<>();
-        String sql = "SELECT * FROM time_records WHERE journey_id = ? ORDER BY record_time ASC";
+        String sql = "SELECT id, driver_id, journey_id, record_time, event_type, location, latitude, longitude, created_at, updated_at FROM time_records WHERE journey_id = ? ORDER BY record_time ASC";
         try (Connection conn = connectionFactory.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, journeyId);
@@ -144,6 +139,9 @@ public class TimeRecordDAOImpl implements TimeRecordDAO {
                     timeRecords.add(mapResultSetToTimeRecord(rs));
                 }
             }
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Erro ao buscar registros de tempo por ID da jornada: " + e.getMessage(), e);
+            throw e;
         }
         return timeRecords;
     }
@@ -151,7 +149,7 @@ public class TimeRecordDAOImpl implements TimeRecordDAO {
     @Override
     public List<TimeRecord> findByDriverId(int driverId) throws SQLException {
         List<TimeRecord> timeRecords = new ArrayList<>();
-        String sql = "SELECT * FROM time_records WHERE driver_id = ? ORDER BY record_time ASC";
+        String sql = "SELECT id, driver_id, journey_id, record_time, event_type, location, latitude, longitude, created_at, updated_at FROM time_records WHERE driver_id = ? ORDER BY record_time ASC";
         try (Connection conn = connectionFactory.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, driverId);
@@ -160,6 +158,9 @@ public class TimeRecordDAOImpl implements TimeRecordDAO {
                     timeRecords.add(mapResultSetToTimeRecord(rs));
                 }
             }
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Erro ao buscar registros de tempo por ID do motorista: " + e.getMessage(), e);
+            throw e;
         }
         return timeRecords;
     }
@@ -167,7 +168,7 @@ public class TimeRecordDAOImpl implements TimeRecordDAO {
     @Override
     public List<TimeRecord> findByEventType(EventType eventType) throws SQLException {
         List<TimeRecord> timeRecords = new ArrayList<>();
-        String sql = "SELECT * FROM time_records WHERE event_type = ? ORDER BY record_time ASC";
+        String sql = "SELECT id, driver_id, journey_id, record_time, event_type, location, latitude, longitude, created_at, updated_at FROM time_records WHERE event_type = ? ORDER BY record_time ASC";
         try (Connection conn = connectionFactory.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, eventType.name());
@@ -176,6 +177,9 @@ public class TimeRecordDAOImpl implements TimeRecordDAO {
                     timeRecords.add(mapResultSetToTimeRecord(rs));
                 }
             }
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Erro ao buscar registros de tempo por tipo de evento: " + e.getMessage(), e);
+            throw e;
         }
         return timeRecords;
     }
@@ -183,7 +187,7 @@ public class TimeRecordDAOImpl implements TimeRecordDAO {
     @Override
     public List<TimeRecord> findByRecordTimeRange(LocalDateTime start, LocalDateTime end) throws SQLException {
         List<TimeRecord> timeRecords = new ArrayList<>();
-        String sql = "SELECT * FROM time_records WHERE record_time BETWEEN ? AND ? ORDER BY record_time ASC";
+        String sql = "SELECT id, driver_id, journey_id, record_time, event_type, location, latitude, longitude, created_at, updated_at FROM time_records WHERE record_time BETWEEN ? AND ? ORDER BY record_time ASC";
         try (Connection conn = connectionFactory.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setTimestamp(1, Timestamp.valueOf(start));
@@ -193,13 +197,16 @@ public class TimeRecordDAOImpl implements TimeRecordDAO {
                     timeRecords.add(mapResultSetToTimeRecord(rs));
                 }
             }
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Erro ao buscar registros de tempo por intervalo de tempo: " + e.getMessage(), e);
+            throw e;
         }
         return timeRecords;
     }
 
     @Override
     public Optional<TimeRecord> findLatestByDriverIdAndJourneyId(int driverId, int journeyId) throws SQLException {
-        String sql = "SELECT * FROM time_records WHERE driver_id = ? AND journey_id = ? ORDER BY record_time DESC LIMIT 1";
+        String sql = "SELECT id, driver_id, journey_id, record_time, event_type, location, latitude, longitude, created_at, updated_at FROM time_records WHERE driver_id = ? AND journey_id = ? ORDER BY record_time DESC LIMIT 1";
         try (Connection conn = connectionFactory.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, driverId);
@@ -209,6 +216,9 @@ public class TimeRecordDAOImpl implements TimeRecordDAO {
                     return Optional.of(mapResultSetToTimeRecord(rs));
                 }
             }
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Erro ao buscar o último registro de tempo por motorista e jornada: " + e.getMessage(), e);
+            throw e;
         }
         return Optional.empty();
     }

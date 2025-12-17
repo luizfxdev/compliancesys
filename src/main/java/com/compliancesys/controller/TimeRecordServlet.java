@@ -25,7 +25,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -37,17 +36,21 @@ import java.util.logging.Logger;
 public class TimeRecordServlet extends HttpServlet {
 
     private static final Logger LOGGER = Logger.getLogger(TimeRecordServlet.class.getName());
-    private ConnectionFactory connectionFactory;
+    private TimeRecordService timeRecordService;
     private GsonUtil gsonUtil;
-    private Validator validator;
+    private ConnectionFactory connectionFactory;
 
     @Override
     public void init() throws ServletException {
         super.init();
         try {
             this.connectionFactory = new HikariCPConnectionFactory();
+            TimeRecordDAO timeRecordDAO = new TimeRecordDAOImpl(connectionFactory);
+            DriverDAO driverDAO = new DriverDAOImpl(connectionFactory);
+            JourneyDAO journeyDAO = new JourneyDAOImpl(connectionFactory);
+            Validator validator = new ValidatorImpl();
+            this.timeRecordService = new TimeRecordServiceImpl(timeRecordDAO, driverDAO, journeyDAO, validator);
             this.gsonUtil = new GsonUtilImpl();
-            this.validator = new ValidatorImpl();
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Erro ao inicializar TimeRecordServlet: " + e.getMessage(), e);
             throw new ServletException("Erro ao inicializar TimeRecordServlet", e);
@@ -67,15 +70,9 @@ public class TimeRecordServlet extends HttpServlet {
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
+        String pathInfo = request.getPathInfo();
 
-        try (Connection conn = connectionFactory.getConnection()) {
-            TimeRecordDAO timeRecordDAO = new TimeRecordDAOImpl(conn);
-            DriverDAO driverDAO = new DriverDAOImpl(conn);
-            JourneyDAO journeyDAO = new JourneyDAOImpl(conn);
-            TimeRecordService timeRecordService = new TimeRecordServiceImpl(timeRecordDAO, driverDAO, journeyDAO, validator);
-
-            String pathInfo = request.getPathInfo();
-
+        try {
             if (pathInfo == null || pathInfo.equals("/")) {
                 List<TimeRecord> timeRecords = timeRecordService.getAllTimeRecords();
                 out.print(gsonUtil.serialize(timeRecords));
@@ -167,12 +164,7 @@ public class TimeRecordServlet extends HttpServlet {
         response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
 
-        try (Connection conn = connectionFactory.getConnection()) {
-            TimeRecordDAO timeRecordDAO = new TimeRecordDAOImpl(conn);
-            DriverDAO driverDAO = new DriverDAOImpl(conn);
-            JourneyDAO journeyDAO = new JourneyDAOImpl(conn);
-            TimeRecordService timeRecordService = new TimeRecordServiceImpl(timeRecordDAO, driverDAO, journeyDAO, validator);
-
+        try {
             TimeRecord timeRecord = gsonUtil.deserialize(request.getReader(), TimeRecord.class);
             TimeRecord createdRecord = timeRecordService.createTimeRecord(timeRecord);
             
@@ -209,12 +201,7 @@ public class TimeRecordServlet extends HttpServlet {
             return;
         }
 
-        try (Connection conn = connectionFactory.getConnection()) {
-            TimeRecordDAO timeRecordDAO = new TimeRecordDAOImpl(conn);
-            DriverDAO driverDAO = new DriverDAOImpl(conn);
-            JourneyDAO journeyDAO = new JourneyDAOImpl(conn);
-            TimeRecordService timeRecordService = new TimeRecordServiceImpl(timeRecordDAO, driverDAO, journeyDAO, validator);
-
+        try {
             int id = Integer.parseInt(pathInfo.substring(1));
             TimeRecord updatedRecord = gsonUtil.deserialize(request.getReader(), TimeRecord.class);
             updatedRecord.setId(id);
@@ -257,12 +244,7 @@ public class TimeRecordServlet extends HttpServlet {
             return;
         }
 
-        try (Connection conn = connectionFactory.getConnection()) {
-            TimeRecordDAO timeRecordDAO = new TimeRecordDAOImpl(conn);
-            DriverDAO driverDAO = new DriverDAOImpl(conn);
-            JourneyDAO journeyDAO = new JourneyDAOImpl(conn);
-            TimeRecordService timeRecordService = new TimeRecordServiceImpl(timeRecordDAO, driverDAO, journeyDAO, validator);
-
+        try {
             int recordId = Integer.parseInt(pathInfo.substring(1));
             boolean deleted = timeRecordService.deleteTimeRecord(recordId);
             

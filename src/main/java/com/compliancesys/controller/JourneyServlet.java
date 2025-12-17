@@ -2,9 +2,11 @@ package com.compliancesys.controller;
 
 import com.compliancesys.dao.DriverDAO;
 import com.compliancesys.dao.JourneyDAO;
+import com.compliancesys.dao.TimeRecordDAO;
 import com.compliancesys.dao.VehicleDAO;
 import com.compliancesys.dao.impl.DriverDAOImpl;
 import com.compliancesys.dao.impl.JourneyDAOImpl;
+import com.compliancesys.dao.impl.TimeRecordDAOImpl;
 import com.compliancesys.dao.impl.VehicleDAOImpl;
 import com.compliancesys.exception.BusinessException;
 import com.compliancesys.model.Journey;
@@ -26,7 +28,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -39,19 +40,23 @@ import java.util.logging.Logger;
 @WebServlet("/api/journeys/*")
 public class JourneyServlet extends HttpServlet {
     private static final Logger LOGGER = Logger.getLogger(JourneyServlet.class.getName());
-    private ConnectionFactory connectionFactory;
+    private JourneyService journeyService;
     private GsonUtil gsonUtil;
-    private Validator validator;
-    private TimeUtil timeUtil;
+    private ConnectionFactory connectionFactory;
 
     @Override
     public void init() throws ServletException {
         super.init();
         try {
             this.connectionFactory = new HikariCPConnectionFactory();
+            JourneyDAO journeyDAO = new JourneyDAOImpl(connectionFactory);
+            DriverDAO driverDAO = new DriverDAOImpl(connectionFactory);
+            VehicleDAO vehicleDAO = new VehicleDAOImpl(connectionFactory);
+            TimeRecordDAO timeRecordDAO = new TimeRecordDAOImpl(connectionFactory);
+            Validator validator = new ValidatorImpl();
+            TimeUtil timeUtil = new TimeUtilImpl();
+            this.journeyService = new JourneyServiceImpl(journeyDAO, driverDAO, vehicleDAO, timeRecordDAO, validator, timeUtil);
             this.gsonUtil = new GsonUtilImpl();
-            this.validator = new ValidatorImpl();
-            this.timeUtil = new TimeUtilImpl();
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Erro ao inicializar JourneyServlet: " + e.getMessage(), e);
             throw new ServletException("Erro ao inicializar JourneyServlet", e);
@@ -73,12 +78,7 @@ public class JourneyServlet extends HttpServlet {
         PrintWriter out = response.getWriter();
         String pathInfo = request.getPathInfo();
 
-        try (Connection conn = connectionFactory.getConnection()) {
-            JourneyDAO journeyDAO = new JourneyDAOImpl(conn);
-            DriverDAO driverDAO = new DriverDAOImpl(conn);
-            VehicleDAO vehicleDAO = new VehicleDAOImpl(conn);
-            JourneyService journeyService = new JourneyServiceImpl(journeyDAO, driverDAO, vehicleDAO, validator, timeUtil);
-
+        try {
             if (pathInfo == null || pathInfo.equals("/")) {
                 List<Journey> journeys = journeyService.getAllJourneys();
                 out.print(gsonUtil.serialize(journeys));
@@ -162,12 +162,7 @@ public class JourneyServlet extends HttpServlet {
         response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
 
-        try (Connection conn = connectionFactory.getConnection()) {
-            JourneyDAO journeyDAO = new JourneyDAOImpl(conn);
-            DriverDAO driverDAO = new DriverDAOImpl(conn);
-            VehicleDAO vehicleDAO = new VehicleDAOImpl(conn);
-            JourneyService journeyService = new JourneyServiceImpl(journeyDAO, driverDAO, vehicleDAO, validator, timeUtil);
-
+        try {
             Journey newJourney = gsonUtil.deserialize(request.getReader(), Journey.class);
             Journey createdJourney = journeyService.createJourney(newJourney);
             
@@ -204,12 +199,7 @@ public class JourneyServlet extends HttpServlet {
             return;
         }
 
-        try (Connection conn = connectionFactory.getConnection()) {
-            JourneyDAO journeyDAO = new JourneyDAOImpl(conn);
-            DriverDAO driverDAO = new DriverDAOImpl(conn);
-            VehicleDAO vehicleDAO = new VehicleDAOImpl(conn);
-            JourneyService journeyService = new JourneyServiceImpl(journeyDAO, driverDAO, vehicleDAO, validator, timeUtil);
-
+        try {
             int id = Integer.parseInt(pathInfo.substring(1));
             Journey updatedJourney = gsonUtil.deserialize(request.getReader(), Journey.class);
             updatedJourney.setId(id);
@@ -252,12 +242,7 @@ public class JourneyServlet extends HttpServlet {
             return;
         }
 
-        try (Connection conn = connectionFactory.getConnection()) {
-            JourneyDAO journeyDAO = new JourneyDAOImpl(conn);
-            DriverDAO driverDAO = new DriverDAOImpl(conn);
-            VehicleDAO vehicleDAO = new VehicleDAOImpl(conn);
-            JourneyService journeyService = new JourneyServiceImpl(journeyDAO, driverDAO, vehicleDAO, validator, timeUtil);
-
+        try {
             int id = Integer.parseInt(pathInfo.substring(1));
             boolean deleted = journeyService.deleteJourney(id);
             

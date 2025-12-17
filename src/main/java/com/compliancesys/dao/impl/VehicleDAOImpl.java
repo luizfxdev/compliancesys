@@ -18,10 +18,9 @@ import com.compliancesys.util.ConnectionFactory; // Importar ConnectionFactory
 
 public class VehicleDAOImpl implements VehicleDAO {
     private static final Logger LOGGER = Logger.getLogger(VehicleDAOImpl.class.getName());
-    private final ConnectionFactory connectionFactory; // Usar ConnectionFactory
+    private final ConnectionFactory connectionFactory; // Alterado para ConnectionFactory
 
-    // Construtor ajustado para receber ConnectionFactory
-    public VehicleDAOImpl(ConnectionFactory connectionFactory) {
+    public VehicleDAOImpl(ConnectionFactory connectionFactory) { // Alterado o construtor
         this.connectionFactory = connectionFactory;
     }
 
@@ -36,19 +35,17 @@ public class VehicleDAOImpl implements VehicleDAO {
             stmt.setString(3, vehicle.getModel());
             stmt.setInt(4, vehicle.getYear());
             stmt.setInt(5, vehicle.getCompanyId());
-            stmt.setObject(6, now); // created_at
-            stmt.setObject(7, now); // updated_at
-
+            stmt.setObject(6, now);
+            stmt.setObject(7, now);
             int affectedRows = stmt.executeUpdate();
             if (affectedRows == 0) {
-                throw new SQLException("Falha ao criar veículo, nenhum registro afetado.");
+                throw new SQLException("Falha ao criar veículo, nenhuma linha afetada.");
             }
-
             try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
                 if (generatedKeys.next()) {
                     return generatedKeys.getInt(1);
                 } else {
-                    throw new SQLException("Falha ao criar veículo, nenhum ID obtido.");
+                    throw new SQLException("Falha ao criar veículo, nenhum ID gerado.");
                 }
             }
         } catch (SQLException e) {
@@ -60,7 +57,7 @@ public class VehicleDAOImpl implements VehicleDAO {
     @Override
     public Optional<Vehicle> findById(int id) throws SQLException {
         String sql = "SELECT id, plate, manufacturer, model, year, company_id, created_at, updated_at FROM vehicles WHERE id = ?";
-        try (Connection conn = connectionFactory.getConnection();
+        try (Connection conn = connectionFactory.getConnection(); // Obter conexão do pool
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, id);
             try (ResultSet rs = stmt.executeQuery()) {
@@ -73,6 +70,55 @@ public class VehicleDAOImpl implements VehicleDAO {
             throw e;
         }
         return Optional.empty();
+    }
+
+    @Override
+    public List<Vehicle> findAll() throws SQLException {
+        List<Vehicle> vehicles = new ArrayList<>();
+        String sql = "SELECT id, plate, manufacturer, model, year, company_id, created_at, updated_at FROM vehicles";
+        try (Connection conn = connectionFactory.getConnection(); // Obter conexão do pool
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+            while (rs.next()) {
+                vehicles.add(mapResultSetToVehicle(rs));
+            }
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Erro ao buscar todos os veículos: " + e.getMessage(), e);
+            throw e;
+        }
+        return vehicles;
+    }
+
+    @Override
+    public boolean update(Vehicle vehicle) throws SQLException {
+        String sql = "UPDATE vehicles SET plate = ?, manufacturer = ?, model = ?, year = ?, company_id = ?, updated_at = ? WHERE id = ?";
+        try (Connection conn = connectionFactory.getConnection(); // Obter conexão do pool
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, vehicle.getPlate());
+            stmt.setString(2, vehicle.getManufacturer());
+            stmt.setString(3, vehicle.getModel());
+            stmt.setInt(4, vehicle.getYear());
+            stmt.setInt(5, vehicle.getCompanyId());
+            stmt.setObject(6, LocalDateTime.now());
+            stmt.setInt(7, vehicle.getId());
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Erro ao atualizar veículo: " + e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    @Override
+    public boolean delete(int id) throws SQLException {
+        String sql = "DELETE FROM vehicles WHERE id = ?";
+        try (Connection conn = connectionFactory.getConnection(); // Obter conexão do pool
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, id);
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Erro ao deletar veículo: " + e.getMessage(), e);
+            throw e;
+        }
     }
 
     @Override
@@ -94,55 +140,6 @@ public class VehicleDAOImpl implements VehicleDAO {
     }
 
     @Override
-    public List<Vehicle> findAll() throws SQLException {
-        List<Vehicle> vehicles = new ArrayList<>();
-        String sql = "SELECT id, plate, manufacturer, model, year, company_id, created_at, updated_at FROM vehicles";
-        try (Connection conn = connectionFactory.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
-            while (rs.next()) {
-                vehicles.add(mapResultSetToVehicle(rs));
-            }
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro ao buscar todos os veículos: " + e.getMessage(), e);
-            throw e;
-        }
-        return vehicles;
-    }
-
-    @Override
-    public boolean update(Vehicle vehicle) throws SQLException {
-        String sql = "UPDATE vehicles SET plate = ?, manufacturer = ?, model = ?, year = ?, company_id = ?, updated_at = ? WHERE id = ?";
-        try (Connection conn = connectionFactory.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, vehicle.getPlate());
-            stmt.setString(2, vehicle.getManufacturer());
-            stmt.setString(3, vehicle.getModel());
-            stmt.setInt(4, vehicle.getYear());
-            stmt.setInt(5, vehicle.getCompanyId());
-            stmt.setObject(6, LocalDateTime.now()); // updated_at
-            stmt.setInt(7, vehicle.getId());
-            return stmt.executeUpdate() > 0;
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro ao atualizar veículo: " + e.getMessage(), e);
-            throw e;
-        }
-    }
-
-    @Override
-    public boolean delete(int id) throws SQLException {
-        String sql = "DELETE FROM vehicles WHERE id = ?";
-        try (Connection conn = connectionFactory.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setInt(1, id);
-            return stmt.executeUpdate() > 0;
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro ao deletar veículo: " + e.getMessage(), e);
-            throw e;
-        }
-    }
-
-    @Override
     public List<Vehicle> findByCompanyId(int companyId) throws SQLException {
         List<Vehicle> vehicles = new ArrayList<>();
         String sql = "SELECT id, plate, manufacturer, model, year, company_id, created_at, updated_at FROM vehicles WHERE company_id = ?";
@@ -155,7 +152,7 @@ public class VehicleDAOImpl implements VehicleDAO {
                 }
             }
         } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro ao buscar veículos por Company ID: " + e.getMessage(), e);
+            LOGGER.log(Level.SEVERE, "Erro ao buscar veículos por ID da empresa: " + e.getMessage(), e);
             throw e;
         }
         return vehicles;
@@ -207,8 +204,8 @@ public class VehicleDAOImpl implements VehicleDAO {
                 rs.getString("model"),
                 rs.getInt("year"),
                 rs.getInt("company_id"),
-                rs.getObject("created_at", LocalDateTime.class),
-                rs.getObject("updated_at", LocalDateTime.class)
+                rs.getTimestamp("created_at").toLocalDateTime(),
+                rs.getTimestamp("updated_at").toLocalDateTime()
         );
     }
 }

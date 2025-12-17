@@ -15,19 +15,21 @@ import java.util.logging.Logger;
 
 import com.compliancesys.dao.JourneyDAO;
 import com.compliancesys.model.Journey;
+import com.compliancesys.util.ConnectionFactory; // Importar ConnectionFactory
 
 public class JourneyDAOImpl implements JourneyDAO {
     private static final Logger LOGGER = Logger.getLogger(JourneyDAOImpl.class.getName());
-    private final Connection connection;
+    private final ConnectionFactory connectionFactory; // Alterado para ConnectionFactory
 
-    public JourneyDAOImpl(Connection connection) {
-        this.connection = connection;
+    public JourneyDAOImpl(ConnectionFactory connectionFactory) { // Alterado o construtor
+        this.connectionFactory = connectionFactory;
     }
 
     @Override
     public int create(Journey journey) throws SQLException {
         String sql = "INSERT INTO journeys (driver_id, vehicle_id, company_id, journey_date, start_location, total_driving_time_minutes, total_rest_time_minutes, compliance_status, daily_limit_exceeded, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        try (PreparedStatement stmt = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        try (Connection conn = connectionFactory.getConnection(); // Obter conexão do pool
+             PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             LocalDateTime now = LocalDateTime.now();
             stmt.setInt(1, journey.getDriverId());
             stmt.setInt(2, journey.getVehicleId());
@@ -40,7 +42,6 @@ public class JourneyDAOImpl implements JourneyDAO {
             stmt.setBoolean(9, journey.isDailyLimitExceeded());
             stmt.setObject(10, now);
             stmt.setObject(11, now);
-
             int affectedRows = stmt.executeUpdate();
             if (affectedRows == 0) {
                 throw new SQLException("Falha ao criar jornada, nenhuma linha afetada");
@@ -61,7 +62,8 @@ public class JourneyDAOImpl implements JourneyDAO {
     @Override
     public Optional<Journey> findById(int id) throws SQLException {
         String sql = "SELECT id, driver_id, vehicle_id, company_id, journey_date, start_location, total_driving_time_minutes, total_rest_time_minutes, compliance_status, daily_limit_exceeded, created_at, updated_at FROM journeys WHERE id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+        try (Connection conn = connectionFactory.getConnection(); // Obter conexão do pool
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, id);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
@@ -79,7 +81,8 @@ public class JourneyDAOImpl implements JourneyDAO {
     public List<Journey> findAll() throws SQLException {
         List<Journey> journeys = new ArrayList<>();
         String sql = "SELECT id, driver_id, vehicle_id, company_id, journey_date, start_location, total_driving_time_minutes, total_rest_time_minutes, compliance_status, daily_limit_exceeded, created_at, updated_at FROM journeys";
-        try (PreparedStatement stmt = connection.prepareStatement(sql);
+        try (Connection conn = connectionFactory.getConnection(); // Obter conexão do pool
+             PreparedStatement stmt = conn.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
                 journeys.add(mapResultSetToJourney(rs));
@@ -94,7 +97,8 @@ public class JourneyDAOImpl implements JourneyDAO {
     @Override
     public boolean update(Journey journey) throws SQLException {
         String sql = "UPDATE journeys SET driver_id = ?, vehicle_id = ?, company_id = ?, journey_date = ?, start_location = ?, total_driving_time_minutes = ?, total_rest_time_minutes = ?, compliance_status = ?, daily_limit_exceeded = ?, updated_at = ? WHERE id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+        try (Connection conn = connectionFactory.getConnection(); // Obter conexão do pool
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, journey.getDriverId());
             stmt.setInt(2, journey.getVehicleId());
             stmt.setInt(3, journey.getCompanyId());
@@ -116,7 +120,8 @@ public class JourneyDAOImpl implements JourneyDAO {
     @Override
     public boolean delete(int id) throws SQLException {
         String sql = "DELETE FROM journeys WHERE id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+        try (Connection conn = connectionFactory.getConnection(); // Obter conexão do pool
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, id);
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
@@ -129,7 +134,8 @@ public class JourneyDAOImpl implements JourneyDAO {
     public List<Journey> findByDriverId(int driverId) throws SQLException {
         List<Journey> journeys = new ArrayList<>();
         String sql = "SELECT id, driver_id, vehicle_id, company_id, journey_date, start_location, total_driving_time_minutes, total_rest_time_minutes, compliance_status, daily_limit_exceeded, created_at, updated_at FROM journeys WHERE driver_id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+        try (Connection conn = connectionFactory.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, driverId);
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
@@ -137,7 +143,7 @@ public class JourneyDAOImpl implements JourneyDAO {
                 }
             }
         } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro ao buscar jornadas por driverId: " + e.getMessage(), e);
+            LOGGER.log(Level.SEVERE, "Erro ao buscar jornadas por ID do motorista: " + e.getMessage(), e);
             throw e;
         }
         return journeys;
@@ -147,7 +153,8 @@ public class JourneyDAOImpl implements JourneyDAO {
     public List<Journey> findByVehicleId(int vehicleId) throws SQLException {
         List<Journey> journeys = new ArrayList<>();
         String sql = "SELECT id, driver_id, vehicle_id, company_id, journey_date, start_location, total_driving_time_minutes, total_rest_time_minutes, compliance_status, daily_limit_exceeded, created_at, updated_at FROM journeys WHERE vehicle_id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+        try (Connection conn = connectionFactory.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, vehicleId);
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
@@ -155,7 +162,7 @@ public class JourneyDAOImpl implements JourneyDAO {
                 }
             }
         } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro ao buscar jornadas por vehicleId: " + e.getMessage(), e);
+            LOGGER.log(Level.SEVERE, "Erro ao buscar jornadas por ID do veículo: " + e.getMessage(), e);
             throw e;
         }
         return journeys;
@@ -165,7 +172,8 @@ public class JourneyDAOImpl implements JourneyDAO {
     public List<Journey> findByCompanyId(int companyId) throws SQLException {
         List<Journey> journeys = new ArrayList<>();
         String sql = "SELECT id, driver_id, vehicle_id, company_id, journey_date, start_location, total_driving_time_minutes, total_rest_time_minutes, compliance_status, daily_limit_exceeded, created_at, updated_at FROM journeys WHERE company_id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+        try (Connection conn = connectionFactory.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, companyId);
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
@@ -173,7 +181,7 @@ public class JourneyDAOImpl implements JourneyDAO {
                 }
             }
         } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro ao buscar jornadas por companyId: " + e.getMessage(), e);
+            LOGGER.log(Level.SEVERE, "Erro ao buscar jornadas por ID da empresa: " + e.getMessage(), e);
             throw e;
         }
         return journeys;
@@ -183,7 +191,8 @@ public class JourneyDAOImpl implements JourneyDAO {
     public List<Journey> findByDateRange(LocalDate startDate, LocalDate endDate) throws SQLException {
         List<Journey> journeys = new ArrayList<>();
         String sql = "SELECT id, driver_id, vehicle_id, company_id, journey_date, start_location, total_driving_time_minutes, total_rest_time_minutes, compliance_status, daily_limit_exceeded, created_at, updated_at FROM journeys WHERE journey_date BETWEEN ? AND ?";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+        try (Connection conn = connectionFactory.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setObject(1, startDate);
             stmt.setObject(2, endDate);
             try (ResultSet rs = stmt.executeQuery()) {
@@ -201,7 +210,8 @@ public class JourneyDAOImpl implements JourneyDAO {
     @Override
     public Optional<Journey> findByDriverIdAndDate(int driverId, LocalDate journeyDate) throws SQLException {
         String sql = "SELECT id, driver_id, vehicle_id, company_id, journey_date, start_location, total_driving_time_minutes, total_rest_time_minutes, compliance_status, daily_limit_exceeded, created_at, updated_at FROM journeys WHERE driver_id = ? AND journey_date = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+        try (Connection conn = connectionFactory.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, driverId);
             stmt.setObject(2, journeyDate);
             try (ResultSet rs = stmt.executeQuery()) {
@@ -210,7 +220,7 @@ public class JourneyDAOImpl implements JourneyDAO {
                 }
             }
         } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro ao buscar jornada por driverId e data: " + e.getMessage(), e);
+            LOGGER.log(Level.SEVERE, "Erro ao buscar jornada por ID do motorista e data: " + e.getMessage(), e);
             throw e;
         }
         return Optional.empty();
@@ -218,18 +228,18 @@ public class JourneyDAOImpl implements JourneyDAO {
 
     private Journey mapResultSetToJourney(ResultSet rs) throws SQLException {
         return new Journey(
-            rs.getInt("id"),
-            rs.getInt("driver_id"),
-            rs.getInt("vehicle_id"),
-            rs.getInt("company_id"),
-            rs.getObject("journey_date", LocalDate.class),
-            rs.getString("start_location"),
-            rs.getInt("total_driving_time_minutes"),
-            rs.getInt("total_rest_time_minutes"),
-            rs.getString("compliance_status"),
-            rs.getBoolean("daily_limit_exceeded"),
-            rs.getObject("created_at", LocalDateTime.class),
-            rs.getObject("updated_at", LocalDateTime.class)
+                rs.getInt("id"),
+                rs.getInt("driver_id"),
+                rs.getInt("vehicle_id"),
+                rs.getInt("company_id"),
+                rs.getObject("journey_date", LocalDate.class),
+                rs.getString("start_location"),
+                rs.getInt("total_driving_time_minutes"),
+                rs.getInt("total_rest_time_minutes"),
+                rs.getString("compliance_status"),
+                rs.getBoolean("daily_limit_exceeded"),
+                rs.getTimestamp("created_at").toLocalDateTime(),
+                rs.getTimestamp("updated_at").toLocalDateTime()
         );
     }
 }
