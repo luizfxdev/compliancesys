@@ -1,6 +1,7 @@
 plugins {
     id 'java'
     id 'war'
+    id 'jacoco'
 }
 
 group 'com.compliancesys'
@@ -21,7 +22,6 @@ dependencies {
     implementation 'com.zaxxer:HikariCP:5.1.0'
     implementation 'com.google.code.gson:gson:2.10.1'
     implementation 'org.mindrot:jbcrypt:0.4'
-    
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.0'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.0'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.10.0'
@@ -32,13 +32,25 @@ dependencies {
 
 test {
     useJUnitPlatform()
+    finalizedBy jacocoTestReport
+}
+
+jacoco {
+    toolVersion = "0.8.11"
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        xml.required = true
+        html.required = true
+    }
 }
 
 war {
     archiveFileName = "${project.name}.war"
 }
 
-// TASK SIMPLES PARA HTTP SERVER
 task webServer(type: JavaExec) {
     classpath = sourceSets.main.runtimeClasspath
     mainClass = 'com.sun.net.httpserver.HttpServer'
