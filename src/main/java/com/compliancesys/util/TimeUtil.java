@@ -4,46 +4,22 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * Interface para validações específicas de objetos java.time.
- * Contém métodos para validar períodos de tempo e sequências de eventos.
- */
+import com.compliancesys.model.TimeRecord;
+
 public interface TimeUtil {
+    Duration calculateTotalWorkDuration(List<TimeRecord> timeRecords);
 
-    /**
-     * Valida se um período de tempo (Duration) é positivo.
-     * @param duration O período de tempo a ser validado.
-     * @return true se a duração é positiva, false caso contrário.
-     */
-    boolean isPositiveDuration(Duration duration);
+    Duration calculateTotalRestDuration(List<TimeRecord> timeRecords);
 
-    /**
-     * Valida se uma lista de LocalDateTime está em ordem cronológica.
-     * @param timestamps A lista de LocalDateTime a ser validada.
-     * @return true se os timestamps estão em ordem cronológica, false caso contrário.
-     */
-    boolean isChronological(List<LocalDateTime> timestamps);
+    boolean exceedsMaxContinuousDriving(List<TimeRecord> timeRecords, Duration maxContinuousDriving);
 
-    /**
-     * Valida se um LocalDateTime não é nulo e não está no futuro.
-     * @param dateTime O LocalDateTime a ser validado.
-     * @return true se o LocalDateTime é válido, false caso contrário.
-     */
-    boolean isValidDateTime(LocalDateTime dateTime);
+    boolean hasInsufficientInterJourneyRest(LocalDateTime lastExit, LocalDateTime nextEntry, Duration minInterJourneyRest);
 
-    /**
-     * Valida se um período de tempo está dentro de um limite máximo.
-     * @param duration O período de tempo a ser verificado.
-     * @param maxDuration O limite máximo permitido.
-     * @return true se a duração é menor ou igual ao limite máximo, false caso contrário.
-     */
-    boolean isWithinMaxDuration(Duration duration, Duration maxDuration);
+    boolean hasInsufficientIntraJourneyRest(List<TimeRecord> timeRecords, Duration minIntraJourneyRest, Duration maxDrivingBeforeRest);
 
-    /**
-     * Valida se um período de tempo está acima de um limite mínimo.
-     * @param duration O período de tempo a ser verificado.
-     * @param minDuration O limite mínimo permitido.
-     * @return true se a duração é maior ou igual ao limite mínimo, false caso contrário.
-     */
-    boolean isAboveMinDuration(Duration duration, Duration minDuration);
+    Duration calculateDuration(LocalDateTime start, LocalDateTime end);
+
+    Duration calculateMaxContinuousDriving(List<TimeRecord> timeRecords);
+
+    boolean hasRestPeriodAfterDriving(List<TimeRecord> timeRecords, Duration maxDrivingDuration);
 }

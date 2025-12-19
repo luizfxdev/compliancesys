@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="http://xmlns.jcp.org/xml/ns/javaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee http://xmlns.jcp.org/xml/ns/javaee/web-app_4_0.xsd"
+         version="4.0">
+
+    <display-name>ComplianceSys</display-name>
+
+    <!-- Servlet para TimeRecord -->
+    <servlet>
+        <servlet-name>TimeRecordServlet</servlet-name>
+        <servlet-class>com.compliancesys.controller.TimeRecordServlet</servlet-class>
+        <load-on-startup>1</load-on-startup> <!-- Inicializa o servlet na inicialização da aplicação -->
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>TimeRecordServlet</servlet-name>
+        <url-pattern>/timerecords/*</url-pattern>
+    </servlet-mapping>
+
+    <!-- Servlet para MobileCommunication -->
+    <servlet>
+        <servlet-name>MobileCommunicationServlet</servlet-name>
+        <servlet-class>com.compliancesys.controller.MobileCommunicationServlet</servlet-class>
+        <load-on-startup>1</load-on-startup>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>MobileCommunicationServlet</servlet-name>
+        <url-pattern>/mobilecommunications/*</url-pattern>
+    </servlet-mapping>
+
+    <!-- Servlet para Vehicle -->
+    <servlet>
+        <servlet-name>VehicleServlet</servlet-name>
+        <servlet-class>com.compliancesys.controller.VehicleServlet</servlet-class>
+        <load-on-startup>1</load-on-startup>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>VehicleServlet</servlet-name>
+        <url-pattern>/vehicles/*</url-pattern>
+    </servlet-mapping>
+
+    <!-- Páginas de boas-vindas -->
+    <welcome-file-list>
+        <welcome-file>index.html</welcome-file>
+        <welcome-file>index.jsp</welcome-file>
+    </welcome-file-list>
+
+    <!-- Definição de páginas de erro (opcional, mas boa prática) -->
+    <!--
+    <error-page>
+        <error-code>404</error-code>
+        <location>/error404.jsp</location>
+    </error-page>
+    <error-page>
+        <exception-type>java.lang.Exception</exception-type>
+        <location>/error.jsp</location>
+    </error-page>
+    -->
+
+</web-app>

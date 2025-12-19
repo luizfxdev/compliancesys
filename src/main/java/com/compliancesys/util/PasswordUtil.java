@@ -1,24 +1,24 @@
 package com.compliancesys.util;
 
 /**
- * Interface para utilitários de segurança de senha.
- * Define métodos para hash e verificação de senhas.
+ * Interface para utilitários de manipulação de senhas, como hashing e verificação.
  */
 public interface PasswordUtil {
 
     /**
      * Gera um hash seguro para uma senha.
-     * @param password A senha em texto claro.
+     *
+     * @param password A senha em texto puro.
      * @return O hash da senha.
-     * @throws RuntimeException Se ocorrer um erro durante a geração do hash.
      */
     String hashPassword(String password);
 
     /**
-     * Verifica se uma senha em texto claro corresponde a um hash fornecido.
-     * @param password A senha em texto claro.
+     * Verifica se uma senha em texto puro corresponde a um hash fornecido.
+     *
+     * @param plainPassword A senha em texto puro.
      * @param hashedPassword O hash da senha a ser comparado.
-     * @return true se a senha corresponde ao hash, false caso contrário.
+     * @return true se a senha corresponder ao hash, false caso contrário.
      */
-    boolean verifyPassword(String password, String hashedPassword);
+    boolean checkPassword(String plainPassword, String hashedPassword);
 }

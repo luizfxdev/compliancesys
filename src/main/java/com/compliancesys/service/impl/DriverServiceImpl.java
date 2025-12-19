@@ -1,10 +1,10 @@
 package com.compliancesys.service.impl;
 
 import java.sql.SQLException;
-import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.logging.Level; // Importa o Validator
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.compliancesys.dao.DriverDAO;
@@ -17,7 +17,7 @@ public class DriverServiceImpl implements DriverService {
 
     private static final Logger LOGGER = Logger.getLogger(DriverServiceImpl.class.getName());
     private final DriverDAO driverDAO;
-    private final Validator validator; // Injeta o Validator
+    private final Validator validator;
 
     public DriverServiceImpl(DriverDAO driverDAO, Validator validator) {
         this.driverDAO = driverDAO;
@@ -25,156 +25,128 @@ public class DriverServiceImpl implements DriverService {
     }
 
     @Override
-    public Driver registerDriver(Driver driver) throws BusinessException, SQLException {
+    public Driver registerDriver(Driver driver) throws SQLException, BusinessException {
         if (driver == null) {
-            throw new BusinessException("Motorista não pode ser nulo.");
+            throw new BusinessException("Dados do motorista não podem ser nulos.");
         }
-        if (driver.getCompanyId() <= 0) {
-            throw new BusinessException("ID da empresa inválido.");
+        validator.validate(driver);
+
+        if (driverDAO.findByCpf(driver.getCpf()).isPresent()) {
+            throw new BusinessException("CPF já cadastrado para outro motorista.");
         }
-        if (!validator.isValidName(driver.getName())) {
-            throw new BusinessException("Nome do motorista inválido.");
+        if (driverDAO.findByLicenseNumber(driver.getLicenseNumber()).isPresent()) {
+            throw new BusinessException("Número de licença já cadastrado para outro motorista.");
         }
-        if (!validator.isValidCpf(driver.getCpf())) {
-            throw new BusinessException("CPF do motorista inválido.");
-        }
-        if (!validator.isValidLicenseNumber(driver.getLicenseNumber())) {
-            throw new BusinessException("Número da licença do motorista inválido.");
-        }
-        if (driver.getBirthDate() == null) { // CORRIGIDO: getBirthDate()
-            throw new BusinessException("Data de nascimento do motorista é obrigatória.");
-        }
-        if (!validator.isPastOrPresentDate(driver.getBirthDate())) {
-            throw new BusinessException("Data de nascimento não pode ser futura.");
+        if (driver.getEmail() != null && !driver.getEmail().isEmpty() && driverDAO.findByEmail(driver.getEmail()).isPresent()) {
+            throw new BusinessException("Email já cadastrado para outro motorista.");
         }
 
-        try {
-            // Verifica se já existe um motorista com o mesmo CPF
-            if (driverDAO.findByCpf(driver.getCpf()).isPresent()) {
-                throw new BusinessException("Já existe um motorista cadastrado com este CPF.");
-            }
-
-            driver.setCreatedAt(LocalDateTime.now());
-            driver.setUpdatedAt(LocalDateTime.now());
-            int id = driverDAO.create(driver);
-            driver.setId(id);
-            LOGGER.log(Level.INFO, "Motorista registrado com sucesso: ID {0}", id);
-            return driver;
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro de SQL ao registrar motorista: " + e.getMessage(), e);
-            throw new BusinessException("Erro interno ao registrar motorista. Tente novamente mais tarde.", e);
-        }
+        int id = driverDAO.create(driver);
+        driver.setId(id);
+        LOGGER.log(Level.INFO, "Motorista registrado com ID: {0}", id);
+        return driver;
     }
 
     @Override
-    public Optional<Driver> getDriverById(int driverId) throws BusinessException, SQLException {
-        if (driverId <= 0) {
-            throw new BusinessException("ID do motorista inválido.");
-        }
-        try {
-            return driverDAO.findById(driverId);
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro de SQL ao buscar motorista por ID: " + e.getMessage(), e);
-            throw new BusinessException("Erro interno ao buscar motorista. Tente novamente mais tarde.", e);
-        }
-    }
-
-    @Override
-    public Optional<Driver> getDriverByCpf(String cpf) throws BusinessException, SQLException {
-        if (!validator.isValidCpf(cpf)) {
-            throw new BusinessException("CPF inválido para busca.");
-        }
-        try {
-            return driverDAO.findByCpf(cpf);
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro de SQL ao buscar motorista por CPF: " + e.getMessage(), e);
-            throw new BusinessException("Erro interno ao buscar motorista. Tente novamente mais tarde.", e);
-        }
-    }
-
-    @Override
-    public List<Driver> getAllDrivers() throws BusinessException, SQLException {
-        try {
-            return driverDAO.findAll();
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro de SQL ao buscar todos os motoristas: " + e.getMessage(), e);
-            throw new BusinessException("Erro interno ao buscar motoristas. Tente novamente mais tarde.", e);
-        }
-    }
-
-    @Override
-    public Driver updateDriver(Driver driver) throws BusinessException, SQLException {
+    public Driver updateDriver(Driver driver) throws SQLException, BusinessException {
         if (driver == null || driver.getId() <= 0) {
-            throw new BusinessException("Motorista ou ID inválido para atualização.");
+            throw new BusinessException("Dados do motorista ou ID inválidos para atualização.");
         }
-        if (driver.getCompanyId() <= 0) {
-            throw new BusinessException("ID da empresa inválido.");
-        }
-        if (!validator.isValidName(driver.getName())) {
-            throw new BusinessException("Nome do motorista inválido.");
-        }
-        if (!validator.isValidCpf(driver.getCpf())) {
-            throw new BusinessException("CPF do motorista inválido.");
-        }
-        if (!validator.isValidLicenseNumber(driver.getLicenseNumber())) {
-            throw new BusinessException("Número da licença do motorista inválido.");
-        }
-        if (driver.getBirthDate() == null) { // CORRIGIDO: getBirthDate()
-            throw new BusinessException("Data de nascimento do motorista é obrigatória.");
-        }
-        if (!validator.isPastOrPresentDate(driver.getBirthDate())) {
-            throw new BusinessException("Data de nascimento não pode ser futura.");
+        validator.validate(driver);
+
+        Optional<Driver> existingDriverOptional = driverDAO.findById(driver.getId());
+        if (!existingDriverOptional.isPresent()) {
+            throw new BusinessException("Motorista não encontrado para atualização.");
         }
 
-        try {
-            Optional<Driver> existingDriver = driverDAO.findById(driver.getId());
-            if (existingDriver.isEmpty()) {
-                throw new BusinessException("Motorista com ID " + driver.getId() + " não encontrado para atualização.");
+        Optional<Driver> driverByCpf = driverDAO.findByCpf(driver.getCpf());
+        if (driverByCpf.isPresent() && driverByCpf.get().getId() != driver.getId()) {
+            throw new BusinessException("CPF já cadastrado para outro motorista.");
+        }
+
+        Optional<Driver> driverByLicense = driverDAO.findByLicenseNumber(driver.getLicenseNumber());
+        if (driverByLicense.isPresent() && driverByLicense.get().getId() != driver.getId()) {
+            throw new BusinessException("Número de licença já cadastrado para outro motorista.");
+        }
+
+        if (driver.getEmail() != null && !driver.getEmail().isEmpty()) {
+            Optional<Driver> driverByEmail = driverDAO.findByEmail(driver.getEmail());
+            if (driverByEmail.isPresent() && driverByEmail.get().getId() != driver.getId()) {
+                throw new BusinessException("Email já cadastrado para outro motorista.");
             }
-
-            // Verifica se o CPF foi alterado e se o novo CPF já existe para outro motorista
-            if (!existingDriver.get().getCpf().equals(driver.getCpf())) {
-                if (driverDAO.findByCpf(driver.getCpf()).isPresent()) {
-                    throw new BusinessException("Já existe outro motorista cadastrado com o CPF informado.");
-                }
-            }
-
-            driver.setUpdatedAt(LocalDateTime.now());
-            driver.setCreatedAt(existingDriver.get().getCreatedAt()); // Mantém a data de criação original
-
-            boolean updated = driverDAO.update(driver);
-            if (updated) {
-                LOGGER.log(Level.INFO, "Motorista atualizado com sucesso: ID {0}", driver.getId());
-                return driver;
-            } else {
-                throw new BusinessException("Falha ao atualizar motorista. Nenhuma linha afetada.");
-            }
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro de SQL ao atualizar motorista: " + e.getMessage(), e);
-            throw new BusinessException("Erro interno ao atualizar motorista. Tente novamente mais tarde.", e);
         }
+
+        if (!driverDAO.update(driver)) {
+            throw new BusinessException("Falha ao atualizar motorista.");
+        }
+        LOGGER.log(Level.INFO, "Motorista atualizado com ID: {0}", driver.getId());
+        return driver;
     }
 
     @Override
-    public boolean deleteDriver(int driverId) throws BusinessException, SQLException {
-        if (driverId <= 0) {
+    public boolean deleteDriver(int id) throws SQLException, BusinessException {
+        if (id <= 0) {
             throw new BusinessException("ID do motorista inválido para exclusão.");
         }
-        try {
-            Optional<Driver> existingDriver = driverDAO.findById(driverId);
-            if (existingDriver.isEmpty()) {
-                throw new BusinessException("Motorista com ID " + driverId + " não encontrado para exclusão.");
-            }
-            boolean deleted = driverDAO.delete(driverId);
-            if (deleted) {
-                LOGGER.log(Level.INFO, "Motorista com ID {0} deletado com sucesso.", driverId);
-            } else {
-                LOGGER.log(Level.WARNING, "Falha ao deletar motorista com ID {0}.", driverId);
-            }
-            return deleted;
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Erro de SQL ao deletar motorista: " + e.getMessage(), e);
-            throw new BusinessException("Erro interno ao deletar motorista. Tente novamente mais tarde.", e);
+        if (!driverDAO.findById(id).isPresent()) {
+            throw new BusinessException("Motorista não encontrado para exclusão.");
         }
+        boolean deleted = driverDAO.delete(id);
+        if (deleted) {
+            LOGGER.log(Level.INFO, "Motorista deletado com ID: {0}", id);
+        } else {
+            LOGGER.log(Level.WARNING, "Falha ao deletar motorista com ID: {0}", id);
+        }
+        return deleted;
+    }
+
+    @Override
+    public Optional<Driver> getDriverById(int id) throws SQLException {
+        if (id <= 0) {
+            LOGGER.log(Level.WARNING, "Tentativa de buscar motorista com ID inválido: {0}", id);
+            return Optional.empty();
+        }
+        return driverDAO.findById(id);
+    }
+
+    @Override
+    public List<Driver> getAllDrivers() throws SQLException {
+        return driverDAO.findAll();
+    }
+
+    @Override
+    public Optional<Driver> getDriverByCpf(String cpf) throws SQLException {
+        if (cpf == null || cpf.trim().isEmpty()) {
+            LOGGER.log(Level.WARNING, "Tentativa de buscar motorista com CPF nulo ou vazio.");
+            return Optional.empty();
+        }
+        return driverDAO.findByCpf(cpf);
+    }
+
+    @Override
+    public Optional<Driver> getDriverByLicenseNumber(String licenseNumber) throws SQLException {
+        if (licenseNumber == null || licenseNumber.trim().isEmpty()) {
+            LOGGER.log(Level.WARNING, "Tentativa de buscar motorista com número de licença nulo ou vazio.");
+            return Optional.empty();
+        }
+        return driverDAO.findByLicenseNumber(licenseNumber);
+    }
+
+    @Override
+    public List<Driver> getDriversByCompanyId(int companyId) throws SQLException {
+        if (companyId <= 0) {
+            LOGGER.log(Level.WARNING, "Tentativa de buscar motoristas com ID de empresa inválido: {0}", companyId);
+            return new ArrayList<>();
+        }
+        return driverDAO.findByCompanyId(companyId);
+    }
+
+    @Override
+    public Optional<Driver> getDriverByEmail(String email) throws SQLException {
+        if (email == null || email.trim().isEmpty()) {
+            LOGGER.log(Level.WARNING, "Tentativa de buscar motorista com email nulo ou vazio.");
+            return Optional.empty();
+        }
+        return driverDAO.findByEmail(email);
     }
 }

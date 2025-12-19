@@ -1,10 +1,26 @@
 package com.compliancesys.controller;
 
+import com.compliancesys.dao.DriverDAO;
+import com.compliancesys.dao.JourneyDAO;
+import com.compliancesys.dao.TimeRecordDAO;
+import com.compliancesys.dao.VehicleDAO;
+import com.compliancesys.dao.impl.DriverDAOImpl;
+import com.compliancesys.dao.impl.JourneyDAOImpl;
+import com.compliancesys.dao.impl.TimeRecordDAOImpl;
+import com.compliancesys.dao.impl.VehicleDAOImpl;
+import com.compliancesys.exception.BusinessException;
 import com.compliancesys.model.Journey;
 import com.compliancesys.service.JourneyService;
-import com.compliancesys.service.impl.JourneyServiceImpl; // Assumindo uma implementação
+import com.compliancesys.service.impl.JourneyServiceImpl;
+import com.compliancesys.util.ConnectionFactory;
 import com.compliancesys.util.GsonUtil;
-import com.compliancesys.util.impl.GsonUtilImpl; // Assumindo uma implementação
+import com.compliancesys.util.TimeUtil;
+import com.compliancesys.util.Validator;
+import com.compliancesys.util.impl.GsonUtilImpl;
+import com.compliancesys.util.impl.HikariCPConnectionFactory;
+import com.compliancesys.util.impl.TimeUtilImpl;
+import com.compliancesys.util.impl.ValidatorImpl;
+
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
@@ -14,193 +30,264 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Optional;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
-/**
- * Servlet para gerenciar operações CRUD de jornadas (Journey).
- * Responde a requisições HTTP para /journeys.
- * Inclui API para comunicação JSON (Gson).
- */
-@WebServlet("/journeys/*") // Adicionado /* para permitir pathInfo
+@WebServlet("/api/journeys/*")
 public class JourneyServlet extends HttpServlet {
-
+    private static final Logger LOGGER = Logger.getLogger(JourneyServlet.class.getName());
     private JourneyService journeyService;
-    private GsonUtil gsonSerializer;
+    private GsonUtil gsonUtil;
+    private ConnectionFactory connectionFactory;
 
     @Override
     public void init() throws ServletException {
-        // Instanciando diretamente para o exemplo. Em um projeto real, use injeção de dependência.
-        this.journeyService = new JourneyServiceImpl(); // Você precisará criar JourneyServiceImpl
-        this.gsonSerializer = new GsonUtilImpl(); // Você precisará criar GsonUtilImpl
+        super.init();
+        try {
+            this.connectionFactory = new HikariCPConnectionFactory();
+            JourneyDAO journeyDAO = new JourneyDAOImpl(connectionFactory);
+            DriverDAO driverDAO = new DriverDAOImpl(connectionFactory);
+            VehicleDAO vehicleDAO = new VehicleDAOImpl(connectionFactory);
+            TimeRecordDAO timeRecordDAO = new TimeRecordDAOImpl(connectionFactory);
+            Validator validator = new ValidatorImpl();
+            TimeUtil timeUtil = new TimeUtilImpl();
+            this.journeyService = new JourneyServiceImpl(journeyDAO, driverDAO, vehicleDAO, timeRecordDAO, validator, timeUtil);
+            this.gsonUtil = new GsonUtilImpl();
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Erro ao inicializar JourneyServlet: " + e.getMessage(), e);
+            throw new ServletException("Erro ao inicializar JourneyServlet", e);
+        }
     }
 
     @Override
-    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    public void destroy() {
+        super.destroy();
+        if (this.connectionFactory != null) {
+            this.connectionFactory.closeDataSource();
+        }
+    }
+
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
+        String pathInfo = request.getPathInfo();
 
-        String pathInfo = request.getPathInfo(); // /journeys/{id} ou /journeys/driver/{driverId}?date=YYYY-MM-DD
-
-        if (pathInfo == null || pathInfo.equals("/")) {
-            // GET /journeys - Retorna todas as jornadas
-            try {
+        try {
+            if (pathInfo == null || pathInfo.equals("/")) {
                 List<Journey> journeys = journeyService.getAllJourneys();
-                out.print(gsonSerializer.serialize(journeys));
-            } catch (SQLException e) {
-                response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-                out.print(gsonSerializer.serialize(new ErrorResponse("Erro ao buscar jornadas: " + e.getMessage())));
-            }
-        } else if (pathInfo.startsWith("/driver/")) {
-            // GET /journeys/driver/{driverId}?date=YYYY-MM-DD
-            try {
-                int driverId = Integer.parseInt(pathInfo.substring("/driver/".length()));
-                String dateParam = request.getParameter("date");
-                List<Journey> journeys;
-
-                if (dateParam != null && !dateParam.isEmpty()) {
-                    LocalDate journeyDate = LocalDate.parse(dateParam);
-                    Optional<Journey> journey = journeyService.getJourneyByDriverIdAndDate(driverId, journeyDate);
-                    journeys = journey.map(List::of).orElse(List.of()); // Retorna lista com 1 item ou vazia
+                out.print(gsonUtil.serialize(journeys));
+            } else {
+                String[] pathParts = pathInfo.split("/");
+                if (pathParts.length > 1) {
+                    if (pathParts.length == 2) {
+                        String identifier = pathParts[1];
+                        if (identifier.matches("\\d+")) {
+                            int id = Integer.parseInt(identifier);
+                            Optional<Journey> journeyOptional = journeyService.getJourneyById(id);
+                            if (journeyOptional.isPresent()) {
+                                out.print(gsonUtil.serialize(journeyOptional.get()));
+                            } else {
+                                response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+                                out.print(gsonUtil.serialize(new ErrorResponse("Jornada não encontrada.")));
+                            }
+                        } else {
+                            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                            out.print(gsonUtil.serialize(new ErrorResponse("Identificador inválido.")));
+                        }
+                    } else if (pathParts.length == 3 && "driver".equals(pathParts[1])) {
+                        int driverId = Integer.parseInt(pathParts[2]);
+                        List<Journey> journeys = journeyService.getJourneysByDriverId(driverId);
+                        out.print(gsonUtil.serialize(journeys));
+                    } else if (pathParts.length == 3 && "vehicle".equals(pathParts[1])) {
+                        int vehicleId = Integer.parseInt(pathParts[2]);
+                        List<Journey> journeys = journeyService.getJourneysByVehicleId(vehicleId);
+                        out.print(gsonUtil.serialize(journeys));
+                    } else if (pathParts.length == 3 && "company".equals(pathParts[1])) {
+                        int companyId = Integer.parseInt(pathParts[2]);
+                        List<Journey> journeys = journeyService.getJourneysByCompanyId(companyId);
+                        out.print(gsonUtil.serialize(journeys));
+                    } else if (pathParts.length == 5 && "driver".equals(pathParts[1]) && "date".equals(pathParts[3])) {
+                        int driverId = Integer.parseInt(pathParts[2]);
+                        LocalDate date = LocalDate.parse(pathParts[4]);
+                        Optional<Journey> journeyOptional = journeyService.getJourneyByDriverIdAndDate(driverId, date);
+                        if (journeyOptional.isPresent()) {
+                            out.print(gsonUtil.serialize(journeyOptional.get()));
+                        } else {
+                            response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+                            out.print(gsonUtil.serialize(new ErrorResponse("Jornada não encontrada para o motorista e data especificados.")));
+                        }
+                    } else {
+                        response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                        out.print(gsonUtil.serialize(new ErrorResponse("Formato de URL inválido para busca de jornada.")));
+                    }
                 } else {
-                    journeys = journeyService.getJourneysByDriverId(driverId);
+                    response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                    out.print(gsonUtil.serialize(new ErrorResponse("Formato de URL inválido para busca de jornada.")));
                 }
-                out.print(gsonSerializer.serialize(journeys));
-            } catch (NumberFormatException e) {
-                response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-                out.print(gsonSerializer.serialize(new ErrorResponse("ID de motorista inválido.")));
-            } catch (java.time.format.DateTimeParseException e) {
-                response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-                out.print(gsonSerializer.serialize(new ErrorResponse("Formato de data inválido. Use YYYY-MM-DD.")));
-            } catch (SQLException e) {
-                response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-                out.print(gsonSerializer.serialize(new ErrorResponse("Erro ao buscar jornadas por motorista: " + e.getMessage())));
             }
-        } else {
-            // GET /journeys/{id} - Retorna uma jornada específica
-            try {
-                int journeyId = Integer.parseInt(pathInfo.substring(1)); // Remove a barra inicial
-                Optional<Journey> journey = journeyService.getJourneyById(journeyId);
-                if (journey.isPresent()) {
-                    out.print(gsonSerializer.serialize(journey.get()));
-                } else {
-                    response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                    out.print(gsonSerializer.serialize(new ErrorResponse("Jornada não encontrada.")));
-                }
-            } catch (NumberFormatException e) {
-                response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-                out.print(gsonSerializer.serialize(new ErrorResponse("ID de jornada inválido.")));
-            } catch (SQLException e) {
-                response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-                out.print(gsonSerializer.serialize(new ErrorResponse("Erro ao buscar jornada: " + e.getMessage())));
-            }
+        } catch (NumberFormatException e) {
+            LOGGER.log(Level.WARNING, "ID ou parâmetro numérico inválido: " + e.getMessage(), e);
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            out.print(gsonUtil.serialize(new ErrorResponse("ID ou parâmetro numérico inválido.")));
+        } catch (DateTimeParseException e) {
+            LOGGER.log(Level.WARNING, "Formato de data inválido: " + e.getMessage(), e);
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            out.print(gsonUtil.serialize(new ErrorResponse("Formato de data inválido. Use YYYY-MM-DD.")));
+        } catch (BusinessException e) {
+            LOGGER.log(Level.WARNING, "Erro de negócio ao buscar jornada: " + e.getMessage(), e);
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            out.print(gsonUtil.serialize(new ErrorResponse(e.getMessage())));
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Erro de SQL ao buscar jornada: " + e.getMessage(), e);
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.print(gsonUtil.serialize(new ErrorResponse("Erro de banco de dados ao buscar jornada. Tente novamente mais tarde.")));
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Erro inesperado ao buscar jornada: " + e.getMessage(), e);
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.print(gsonUtil.serialize(new ErrorResponse("Erro inesperado ao buscar jornada.")));
+        } finally {
+            out.flush();
         }
-        out.flush();
     }
 
     @Override
-    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
 
         try {
-            Journey journey = gsonSerializer.deserialize(request.getReader().readLine(), Journey.class);
-            int newJourneyId = journeyService.createJourney(journey);
-            journey.setId(newJourneyId); // Define o ID gerado no objeto
+            Journey newJourney = gsonUtil.deserialize(request.getReader(), Journey.class);
+            Journey createdJourney = journeyService.createJourney(newJourney);
+            
             response.setStatus(HttpServletResponse.SC_CREATED);
-            out.print(gsonSerializer.serialize(journey));
-        } catch (IllegalArgumentException e) {
+            out.print(gsonUtil.serialize(createdJourney));
+        } catch (BusinessException e) {
+            LOGGER.log(Level.WARNING, "Erro de negócio ao criar jornada: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse(e.getMessage())));
+            out.print(gsonUtil.serialize(new ErrorResponse(e.getMessage())));
         } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Erro de SQL ao criar jornada: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Erro ao criar jornada: " + e.getMessage())));
+            out.print(gsonUtil.serialize(new ErrorResponse("Erro de banco de dados ao criar jornada. Tente novamente mais tarde.")));
         } catch (Exception e) {
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Dados da jornada inválidos: " + e.getMessage())));
+            LOGGER.log(Level.SEVERE, "Erro inesperado ao criar jornada: " + e.getMessage(), e);
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.print(gsonUtil.serialize(new ErrorResponse("Erro inesperado ao criar jornada.")));
+        } finally {
+            out.flush();
         }
-        out.flush();
     }
 
     @Override
-    protected void doPut(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    protected void doPut(HttpServletRequest request, HttpServletResponse response) throws IOException {
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
-
         String pathInfo = request.getPathInfo();
+
         if (pathInfo == null || pathInfo.equals("/")) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse("ID da jornada é obrigatório para atualização.")));
+            out.print(gsonUtil.serialize(new ErrorResponse("ID da jornada é obrigatório para atualização.")));
             out.flush();
             return;
         }
 
         try {
-            int journeyId = Integer.parseInt(pathInfo.substring(1));
-            Journey journey = gsonSerializer.deserialize(request.getReader().readLine(), Journey.class);
-            journey.setId(journeyId); // Garante que o ID do path seja usado
+            int id = Integer.parseInt(pathInfo.substring(1));
+            Journey updatedJourney = gsonUtil.deserialize(request.getReader(), Journey.class);
+            updatedJourney.setId(id);
 
-            if (journeyService.updateJourney(journey)) {
-                response.setStatus(HttpServletResponse.SC_OK);
-                out.print(gsonSerializer.serialize(journey));
-            } else {
-                response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                out.print(gsonSerializer.serialize(new ErrorResponse("Jornada não encontrada para atualização.")));
-            }
+            Journey result = journeyService.updateJourney(updatedJourney);
+            response.setStatus(HttpServletResponse.SC_OK);
+            out.print(gsonUtil.serialize(result));
         } catch (NumberFormatException e) {
+            LOGGER.log(Level.WARNING, "ID inválido ao atualizar: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse("ID de jornada inválido.")));
-        } catch (IllegalArgumentException e) {
+            out.print(gsonUtil.serialize(new ErrorResponse("ID inválido.")));
+        } catch (BusinessException e) {
+            LOGGER.log(Level.WARNING, "Erro de negócio ao atualizar jornada: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse(e.getMessage())));
+            out.print(gsonUtil.serialize(new ErrorResponse(e.getMessage())));
         } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Erro de SQL ao atualizar jornada: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Erro ao atualizar jornada: " + e.getMessage())));
+            out.print(gsonUtil.serialize(new ErrorResponse("Erro de banco de dados ao atualizar jornada. Tente novamente mais tarde.")));
         } catch (Exception e) {
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Dados da jornada inválidos: " + e.getMessage())));
+            LOGGER.log(Level.SEVERE, "Erro inesperado ao atualizar jornada: " + e.getMessage(), e);
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.print(gsonUtil.serialize(new ErrorResponse("Erro inesperado ao atualizar jornada.")));
+        } finally {
+            out.flush();
         }
-        out.flush();
     }
 
     @Override
-    protected void doDelete(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    protected void doDelete(HttpServletRequest request, HttpServletResponse response) throws IOException {
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
-
         String pathInfo = request.getPathInfo();
+
         if (pathInfo == null || pathInfo.equals("/")) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse("ID da jornada é obrigatório para exclusão.")));
+            out.print(gsonUtil.serialize(new ErrorResponse("ID da jornada é obrigatório")));
             out.flush();
             return;
         }
 
         try {
-            int journeyId = Integer.parseInt(pathInfo.substring(1));
-            if (journeyService.deleteJourney(journeyId)) {
-                response.setStatus(HttpServletResponse.SC_NO_CONTENT); // 204 No Content para exclusão bem-sucedida
+            int id = Integer.parseInt(pathInfo.substring(1));
+            boolean deleted = journeyService.deleteJourney(id);
+            
+            if (deleted) {
+                response.setStatus(HttpServletResponse.SC_NO_CONTENT);
             } else {
                 response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                out.print(gsonSerializer.serialize(new ErrorResponse("Jornada não encontrada para exclusão.")));
+                out.print(gsonUtil.serialize(new ErrorResponse("Jornada não encontrada")));
             }
         } catch (NumberFormatException e) {
+            LOGGER.log(Level.WARNING, "ID inválido ao deletar: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse("ID de jornada inválido.")));
+            out.print(gsonUtil.serialize(new ErrorResponse("ID inválido")));
+        } catch (BusinessException e) {
+            LOGGER.log(Level.WARNING, "Erro de negócio ao deletar: " + e.getMessage(), e);
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            out.print(gsonUtil.serialize(new ErrorResponse(e.getMessage())));
         } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Erro de SQL ao deletar: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Erro ao deletar jornada: " + e.getMessage())));
+            out.print(gsonUtil.serialize(new ErrorResponse("Erro de banco de dados")));
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Erro inesperado ao deletar: " + e.getMessage(), e);
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.print(gsonUtil.serialize(new ErrorResponse("Erro inesperado")));
+        } finally {
+            out.flush();
         }
-        out.flush();
     }
 
-    // Classe auxiliar para padronizar respostas de erro
     private static class ErrorResponse {
-        private String message;
-        public ErrorResponse(String message) { this.message = message; }
+        private final String message;
+        private final LocalDateTime timestamp;
+
+        public ErrorResponse(String message) {
+            this.message = message;
+            this.timestamp = LocalDateTime.now();
+        }
+
+        public String getMessage() {
+            return message;
+        }
+
+        public LocalDateTime getTimestamp() {
+            return timestamp;
+        }
     }
 }

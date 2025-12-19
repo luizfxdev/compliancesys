@@ -1,10 +1,23 @@
 package com.compliancesys.controller;
 
+import com.compliancesys.dao.DriverDAO;
+import com.compliancesys.dao.JourneyDAO;
+import com.compliancesys.dao.TimeRecordDAO;
+import com.compliancesys.dao.impl.DriverDAOImpl;
+import com.compliancesys.dao.impl.JourneyDAOImpl;
+import com.compliancesys.dao.impl.TimeRecordDAOImpl;
+import com.compliancesys.exception.BusinessException;
 import com.compliancesys.model.TimeRecord;
+import com.compliancesys.model.enums.EventType;
 import com.compliancesys.service.TimeRecordService;
-import com.compliancesys.service.impl.TimeRecordServiceImpl; // Assumindo uma implementação
+import com.compliancesys.service.impl.TimeRecordServiceImpl;
+import com.compliancesys.util.ConnectionFactory;
 import com.compliancesys.util.GsonUtil;
-import com.compliancesys.util.impl.GsonUtilImpl; // Assumindo uma implementação
+import com.compliancesys.util.Validator;
+import com.compliancesys.util.impl.GsonUtilImpl;
+import com.compliancesys.util.impl.HikariCPConnectionFactory;
+import com.compliancesys.util.impl.ValidatorImpl;
+
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
@@ -13,186 +26,270 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.sql.SQLException;
-import java.time.LocalDate;
-import java.time.format.DateTimeParseException; // Import adicionado para tratamento de exceção
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
-/**
- * Servlet para gerenciar operações CRUD de registros de ponto (TimeRecord).
- * Responde a requisições HTTP para /timerecords.
- */
-@WebServlet("/timerecords/*") // Adicionado /* para permitir pathInfo
+@WebServlet("/timerecords/*")
 public class TimeRecordServlet extends HttpServlet {
 
+    private static final Logger LOGGER = Logger.getLogger(TimeRecordServlet.class.getName());
     private TimeRecordService timeRecordService;
-    private GsonUtil gsonSerializer;
+    private GsonUtil gsonUtil;
+    private ConnectionFactory connectionFactory;
 
     @Override
     public void init() throws ServletException {
-        // Instanciando diretamente para o exemplo. Em um projeto real, use injeção de dependência.
-        this.timeRecordService = new TimeRecordServiceImpl(); // Substituído por implementação real
-        this.gsonSerializer = new GsonUtilImpl(); // Substituído por implementação real
+        super.init();
+        try {
+            this.connectionFactory = new HikariCPConnectionFactory();
+            TimeRecordDAO timeRecordDAO = new TimeRecordDAOImpl(connectionFactory);
+            DriverDAO driverDAO = new DriverDAOImpl(connectionFactory);
+            JourneyDAO journeyDAO = new JourneyDAOImpl(connectionFactory);
+            Validator validator = new ValidatorImpl();
+            this.timeRecordService = new TimeRecordServiceImpl(timeRecordDAO, driverDAO, journeyDAO, validator);
+            this.gsonUtil = new GsonUtilImpl();
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Erro ao inicializar TimeRecordServlet: " + e.getMessage(), e);
+            throw new ServletException("Erro ao inicializar TimeRecordServlet", e);
+        }
     }
 
     @Override
-    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    public void destroy() {
+        super.destroy();
+        if (this.connectionFactory != null) {
+            this.connectionFactory.closeDataSource();
+        }
+    }
+
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
-
-        String pathInfo = request.getPathInfo(); // /timerecords/{id} ou /timerecords/driver/{driverId}?date=YYYY-MM-DD
+        String pathInfo = request.getPathInfo();
 
         try {
             if (pathInfo == null || pathInfo.equals("/")) {
-                // GET /timerecords - Retorna todos os registros de ponto
                 List<TimeRecord> timeRecords = timeRecordService.getAllTimeRecords();
-                out.print(gsonSerializer.serialize(timeRecords));
-            } else if (pathInfo.startsWith("/driver/")) {
-                // GET /timerecords/driver/{driverId}?date=YYYY-MM-DD
-                int driverId = Integer.parseInt(pathInfo.substring("/driver/".length()));
-                String dateParam = request.getParameter("date");
-                List<TimeRecord> records;
-
-                if (dateParam != null && !dateParam.isEmpty()) {
-                    LocalDate date = LocalDate.parse(dateParam);
-                    records = timeRecordService.getTimeRecordsByDriverIdAndDate(driverId, date);
-                } else {
-                    records = timeRecordService.getTimeRecordsByDriverId(driverId);
-                }
-                out.print(gsonSerializer.serialize(records));
-            } else {
-                // GET /timerecords/{id} - Retorna um registro de ponto específico
-                int recordId = Integer.parseInt(pathInfo.substring(1)); // Remove a barra inicial
-                Optional<TimeRecord> timeRecord = timeRecordService.getTimeRecordById(recordId);
+                out.print(gsonUtil.serialize(timeRecords));
+            } else if (pathInfo.matches("/\\d+")) {
+                int id = Integer.parseInt(pathInfo.substring(1));
+                Optional<TimeRecord> timeRecord = timeRecordService.getTimeRecordById(id);
                 if (timeRecord.isPresent()) {
-                    out.print(gsonSerializer.serialize(timeRecord.get()));
+                    out.print(gsonUtil.serialize(timeRecord.get()));
                 } else {
                     response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                    out.print(gsonSerializer.serialize(new ErrorResponse("Registro de ponto não encontrado.")));
+                    out.print(gsonUtil.serialize(new ErrorResponse("Registro de tempo não encontrado")));
                 }
+            } else if (pathInfo.startsWith("/journey/")) {
+                int journeyId = Integer.parseInt(pathInfo.substring(pathInfo.lastIndexOf('/') + 1));
+                List<TimeRecord> timeRecords = timeRecordService.getTimeRecordsByJourneyId(journeyId);
+                out.print(gsonUtil.serialize(timeRecords));
+            } else if (pathInfo.startsWith("/driver/")) {
+                int driverId = Integer.parseInt(pathInfo.substring(pathInfo.lastIndexOf('/') + 1));
+                List<TimeRecord> timeRecords = timeRecordService.getTimeRecordsByDriverId(driverId);
+                out.print(gsonUtil.serialize(timeRecords));
+            } else if (pathInfo.startsWith("/eventtype/")) {
+                String eventTypeString = pathInfo.substring(pathInfo.lastIndexOf('/') + 1).toUpperCase();
+                try {
+                    EventType eventType = EventType.valueOf(eventTypeString);
+                    List<TimeRecord> timeRecords = timeRecordService.getTimeRecordsByEventType(eventType);
+                    out.print(gsonUtil.serialize(timeRecords));
+                } catch (IllegalArgumentException e) {
+                    response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                    out.print(gsonUtil.serialize(new ErrorResponse("Tipo de evento inválido: " + eventTypeString)));
+                    LOGGER.log(Level.WARNING, "Tipo de evento inválido: " + e.getMessage(), e);
+                }
+            } else if (pathInfo.equals("/range")) {
+                String startParam = request.getParameter("start");
+                String endParam = request.getParameter("end");
+                if (startParam != null && endParam != null) {
+                    LocalDateTime start = LocalDateTime.parse(startParam);
+                    LocalDateTime end = LocalDateTime.parse(endParam);
+                    List<TimeRecord> timeRecords = timeRecordService.getTimeRecordsByRecordTimeRange(start, end);
+                    out.print(gsonUtil.serialize(timeRecords));
+                } else {
+                    response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                    out.print(gsonUtil.serialize(new ErrorResponse("Parâmetros 'start' e 'end' são obrigatórios para busca por intervalo de tempo.")));
+                }
+            } else if (pathInfo.equals("/latest")) {
+                String driverIdParam = request.getParameter("driverId");
+                String journeyIdParam = request.getParameter("journeyId");
+                if (driverIdParam != null && journeyIdParam != null) {
+                    int driverId = Integer.parseInt(driverIdParam);
+                    int journeyId = Integer.parseInt(journeyIdParam);
+                    Optional<TimeRecord> latestRecord = timeRecordService.getLatestTimeRecordByDriverAndJourney(driverId, journeyId);
+                    if (latestRecord.isPresent()) {
+                        out.print(gsonUtil.serialize(latestRecord.get()));
+                    } else {
+                        response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+                        out.print(gsonUtil.serialize(new ErrorResponse("Nenhum registro de tempo encontrado para o motorista e jornada especificados.")));
+                    }
+                } else {
+                    response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                    out.print(gsonUtil.serialize(new ErrorResponse("Parâmetros 'driverId' e 'journeyId' são obrigatórios para buscar o último registro.")));
+                }
+            } else {
+                response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                out.print(gsonUtil.serialize(new ErrorResponse("URL inválida")));
             }
         } catch (NumberFormatException e) {
+            LOGGER.log(Level.WARNING, "ID ou parâmetro numérico inválido: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse("ID inválido no caminho da URL.")));
-        } catch (DateTimeParseException e) { // Adicionado tratamento para erro de parsing de data
+            out.print(gsonUtil.serialize(new ErrorResponse("ID ou parâmetro numérico inválido")));
+        } catch (BusinessException e) {
+            LOGGER.log(Level.WARNING, "Erro de negócio: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Formato de data inválido. Use YYYY-MM-DD.")));
+            out.print(gsonUtil.serialize(new ErrorResponse(e.getMessage())));
         } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Erro de SQL: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Erro de banco de dados: " + e.getMessage())));
+            out.print(gsonUtil.serialize(new ErrorResponse("Erro de banco de dados")));
         } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Erro inesperado: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Erro inesperado: " + e.getMessage())));
+            out.print(gsonUtil.serialize(new ErrorResponse("Erro inesperado")));
+        } finally {
+            out.flush();
         }
-        out.flush();
     }
 
     @Override
-    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
 
         try {
-            TimeRecord timeRecord = gsonSerializer.deserialize(request.getReader().readLine(), TimeRecord.class);
-            int newRecordId = timeRecordService.registerTimeRecord(timeRecord);
-            timeRecord.setId(newRecordId); // Define o ID gerado no objeto
+            TimeRecord timeRecord = gsonUtil.deserialize(request.getReader(), TimeRecord.class);
+            TimeRecord createdRecord = timeRecordService.createTimeRecord(timeRecord);
+            
             response.setStatus(HttpServletResponse.SC_CREATED);
-            out.print(gsonSerializer.serialize(timeRecord));
-        } catch (IllegalArgumentException e) {
+            out.print(gsonUtil.serialize(createdRecord));
+        } catch (BusinessException e) {
+            LOGGER.log(Level.WARNING, "Erro de negócio ao criar registro de tempo: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse(e.getMessage())));
+            out.print(gsonUtil.serialize(new ErrorResponse(e.getMessage())));
         } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Erro de SQL ao criar registro de tempo: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Erro ao registrar ponto: " + e.getMessage())));
+            out.print(gsonUtil.serialize(new ErrorResponse("Erro de banco de dados")));
         } catch (Exception e) {
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Dados de registro de ponto inválidos: " + e.getMessage())));
+            LOGGER.log(Level.SEVERE, "Erro inesperado ao criar registro de tempo: " + e.getMessage(), e);
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.print(gsonUtil.serialize(new ErrorResponse("Erro inesperado")));
+        } finally {
+            out.flush();
         }
-        out.flush();
     }
 
     @Override
-    protected void doPut(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    protected void doPut(HttpServletRequest request, HttpServletResponse response) throws IOException {
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
-
         String pathInfo = request.getPathInfo();
+
         if (pathInfo == null || pathInfo.equals("/")) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse("ID do registro de ponto é obrigatório para atualização.")));
+            out.print(gsonUtil.serialize(new ErrorResponse("ID do registro de tempo é obrigatório para atualização")));
+            out.flush();
+            return;
+        }
+
+        try {
+            int id = Integer.parseInt(pathInfo.substring(1));
+            TimeRecord updatedRecord = gsonUtil.deserialize(request.getReader(), TimeRecord.class);
+            updatedRecord.setId(id);
+
+            TimeRecord result = timeRecordService.updateTimeRecord(updatedRecord);
+            response.setStatus(HttpServletResponse.SC_OK);
+            out.print(gsonUtil.serialize(result));
+        } catch (NumberFormatException e) {
+            LOGGER.log(Level.WARNING, "ID inválido ao atualizar: " + e.getMessage(), e);
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            out.print(gsonUtil.serialize(new ErrorResponse("ID inválido")));
+        } catch (BusinessException e) {
+            LOGGER.log(Level.WARNING, "Erro de negócio ao atualizar: " + e.getMessage(), e);
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            out.print(gsonUtil.serialize(new ErrorResponse(e.getMessage())));
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Erro de SQL ao atualizar: " + e.getMessage(), e);
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.print(gsonUtil.serialize(new ErrorResponse("Erro de banco de dados")));
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Erro inesperado ao atualizar: " + e.getMessage(), e);
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.print(gsonUtil.serialize(new ErrorResponse("Erro inesperado")));
+        } finally {
+            out.flush();
+        }
+    }
+
+    @Override
+    protected void doDelete(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+        PrintWriter out = response.getWriter();
+        String pathInfo = request.getPathInfo();
+
+        if (pathInfo == null || pathInfo.equals("/")) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            out.print(gsonUtil.serialize(new ErrorResponse("ID é obrigatório para exclusão")));
             out.flush();
             return;
         }
 
         try {
             int recordId = Integer.parseInt(pathInfo.substring(1));
-            TimeRecord timeRecord = gsonSerializer.deserialize(request.getReader().readLine(), TimeRecord.class);
-            timeRecord.setId(recordId); // Garante que o ID do path seja usado
-
-            if (timeRecordService.updateTimeRecord(timeRecord)) {
-                response.setStatus(HttpServletResponse.SC_OK);
-                out.print(gsonSerializer.serialize(timeRecord));
+            boolean deleted = timeRecordService.deleteTimeRecord(recordId);
+            
+            if (deleted) {
+                response.setStatus(HttpServletResponse.SC_NO_CONTENT);
             } else {
                 response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                out.print(gsonSerializer.serialize(new ErrorResponse("Registro de ponto não encontrado para atualização.")));
+                out.print(gsonUtil.serialize(new ErrorResponse("Registro não encontrado")));
             }
         } catch (NumberFormatException e) {
+            LOGGER.log(Level.WARNING, "ID inválido ao deletar: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse("ID de registro de ponto inválido.")));
-        } catch (IllegalArgumentException e) {
+            out.print(gsonUtil.serialize(new ErrorResponse("ID inválido")));
+        } catch (BusinessException e) {
+            LOGGER.log(Level.WARNING, "Erro de negócio ao deletar: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse(e.getMessage())));
+            out.print(gsonUtil.serialize(new ErrorResponse(e.getMessage())));
         } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Erro de SQL ao deletar: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Erro ao atualizar registro de ponto: " + e.getMessage())));
+            out.print(gsonUtil.serialize(new ErrorResponse("Erro de banco de dados")));
         } catch (Exception e) {
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Dados de registro de ponto inválidos: " + e.getMessage())));
-        }
-        out.flush();
-    }
-
-    @Override
-    protected void doDelete(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        response.setContentType("application/json");
-        response.setCharacterEncoding("UTF-8");
-        PrintWriter out = response.getWriter();
-
-        String pathInfo = request.getPathInfo();
-        if (pathInfo == null || pathInfo.equals("/")) {
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse("ID do registro de ponto é obrigatório para exclusão.")));
-            out.flush();
-            return;
-        }
-
-        try {
-            int recordId = Integer.parseInt(pathInfo.substring(1));
-            if (timeRecordService.deleteTimeRecord(recordId)) {
-                response.setStatus(HttpServletResponse.SC_NO_CONTENT); // 204 No Content para exclusão bem-sucedida
-            } else {
-                response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                out.print(gsonSerializer.serialize(new ErrorResponse("Registro de ponto não encontrado para exclusão.")));
-            }
-        } catch (NumberFormatException e) {
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gsonSerializer.serialize(new ErrorResponse("ID de registro de ponto inválido.")));
-        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Erro inesperado ao deletar: " + e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            out.print(gsonSerializer.serialize(new ErrorResponse("Erro ao deletar registro de ponto: " + e.getMessage())));
+            out.print(gsonUtil.serialize(new ErrorResponse("Erro inesperado")));
+        } finally {
+            out.flush();
         }
-        out.flush();
     }
 
-    // Classe auxiliar para padronizar respostas de erro
     private static class ErrorResponse {
-        private String message;
+        private final String message;
+        private final LocalDateTime timestamp;
 
         public ErrorResponse(String message) {
             this.message = message;
+            this.timestamp = LocalDateTime.now();
+        }
+
+        public String getMessage() {
+            return message;
+        }
+
+        public LocalDateTime getTimestamp() {
+            return timestamp;
         }
     }
 }

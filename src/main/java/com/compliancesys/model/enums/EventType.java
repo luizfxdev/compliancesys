@@ -1,22 +1,31 @@
 package com.compliancesys.model.enums;
 
-/**
- * Enumeração para os tipos de eventos de registro de ponto de um motorista.
- * Define os diferentes estados de uma jornada de trabalho.
- */
 public enum EventType {
-    IN("Entrada"),
-    OUT("Saída"),
+    // Eventos de Jornada e Direção
     START_JOURNEY("Início de Jornada"),
     END_JOURNEY("Fim de Jornada"),
-    START_BREAK("Início de Pausa"),
-    END_BREAK("Fim de Pausa"),
+    START_DRIVE("Início de Direção"),
+    END_DRIVE("Fim de Direção"),
+    DRIVING("Dirigindo"),
+    RESUME_DRIVING("Retomada de Direção"),
+
+    // Eventos de Trabalho e Descanso
+    START_WORK("Início de Trabalho"),
+    END_WORK("Fim de Trabalho"),
+    START_REST("Início de Descanso"),
+    END_REST("Fim de Descanso"), 
+    REST("Descanso"),
+    START_BREAK("Início de Pausa"), 
+    END_BREAK("Fim de Pausa"),     
     START_MEAL("Início de Refeição"),
     END_MEAL("Fim de Refeição"),
-    START_DRIVING("Início de Direção"),
-    RESUME_DRIVING("Retomada de Direção"),
-    END_DRIVING("Fim de Direção"),
-    START_REST("Início de Descanso");
+
+    // Outros Eventos
+    ENTRY("Entrada"),
+    EXIT("Saída"),
+    PAUSE("Pausa"),
+    IDLE("Ocioso"),
+    OFF_DUTY("Fora de Serviço");
 
     private final String description;
 

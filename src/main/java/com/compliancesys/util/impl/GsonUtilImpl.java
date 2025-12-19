@@ -1,6 +1,9 @@
-package com.compliancesys.util.impl; // O pacote que os servlets estão esperando
+package com.compliancesys.util.impl;
 
-import java.time.Duration; // Importa a interface
+import java.io.IOException;
+import java.io.Reader;
+import java.lang.reflect.Type;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -12,42 +15,52 @@ import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializer;
 
-/**
- * Implementação concreta da interface GsonUtil para serialização e desserialização de objetos.
- * Configura o Gson para lidar com tipos de data/hora do Java 8 (java.time) e Duration.
- */
 public class GsonUtilImpl implements GsonUtil {
-
     private final Gson gson;
 
     public GsonUtilImpl() {
-        // Configura o Gson para lidar com LocalDateTime, LocalDate e Duration
-        GsonBuilder gsonBuilder = new GsonBuilder()
+        DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+        DateTimeFormatter dateFormatter = DateTimeFormatter.ISO_LOCAL_DATE;
+
+        this.gson = new GsonBuilder()
                 .registerTypeAdapter(LocalDateTime.class, (JsonSerializer<LocalDateTime>) (src, typeOfSrc, context) ->
-                        new JsonPrimitive(src.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)))
+                        new JsonPrimitive(src.format(dateTimeFormatter)))
                 .registerTypeAdapter(LocalDateTime.class, (JsonDeserializer<LocalDateTime>) (json, typeOfT, context) ->
-                        LocalDateTime.parse(json.getAsString(), DateTimeFormatter.ISO_LOCAL_DATE_TIME))
+                        LocalDateTime.parse(json.getAsString(), dateTimeFormatter))
                 .registerTypeAdapter(LocalDate.class, (JsonSerializer<LocalDate>) (src, typeOfSrc, context) ->
-                        new JsonPrimitive(src.format(DateTimeFormatter.ISO_LOCAL_DATE)))
+                        new JsonPrimitive(src.format(dateFormatter)))
                 .registerTypeAdapter(LocalDate.class, (JsonDeserializer<LocalDate>) (json, typeOfT, context) ->
-                        LocalDate.parse(json.getAsString(), DateTimeFormatter.ISO_LOCAL_DATE))
+                        LocalDate.parse(json.getAsString(), dateFormatter))
                 .registerTypeAdapter(Duration.class, (JsonSerializer<Duration>) (src, typeOfSrc, context) ->
-                        new JsonPrimitive(src.toString())) // Serializa Duration para String (ex: "PT1H30M")
+                        new JsonPrimitive(src.getSeconds()))
                 .registerTypeAdapter(Duration.class, (JsonDeserializer<Duration>) (json, typeOfT, context) ->
-                        Duration.parse(json.getAsString())) // Desserializa String para Duration
-                .setPrettyPrinting(); // Para saída JSON formatada, útil para depuração
-
-        this.gson = gsonBuilder.create();
+                        Duration.ofSeconds(json.getAsLong()))
+                .setPrettyPrinting()
+                .create();
     }
 
     @Override
-    public <T> String serialize(T object) {
-        return gson.toJson(object);
+    public <T> String serialize(T src) {
+        return gson.toJson(src);
     }
 
     @Override
-    public <T> T deserialize(String json, Class<T> type) {
-        return gson.fromJson(json, type);
+    public <T> T deserialize(String json, Class<T> classOfT) {
+        return gson.fromJson(json, classOfT);
+    }
+
+    @Override
+    public <T> T deserialize(String json, Type typeOfT) {
+        return gson.fromJson(json, typeOfT);
+    }
+
+    @Override
+    public <T> T deserialize(Reader reader, Class<T> classOfT) throws IOException {
+        return gson.fromJson(reader, classOfT);
+    }
+
+    @Override
+    public <T> T deserialize(Reader reader, Type typeOfT) throws IOException {
+        return gson.fromJson(reader, typeOfT);
     }
 }
-

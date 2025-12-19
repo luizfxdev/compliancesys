@@ -3,52 +3,51 @@ package com.compliancesys.model;
 import java.time.LocalDateTime;
 import java.util.Objects;
 
-/**
- * Representa um registro de comunicação móvel de um motorista.
- * Corresponde à tabela 'mobile_communications' no banco de dados.
- */
+import com.compliancesys.model.enums.EventType;
+
 public class MobileCommunication {
     private int id;
     private int driverId;
-    private int recordId; // ID do registro de ponto associado
+    private int journeyId;
     private LocalDateTime timestamp;
     private Double latitude;
     private Double longitude;
-    private LocalDateTime sendTimestamp; // ADICIONADO: Timestamp do envio da comunicação
-    private boolean sendSuccess; // ADICIONADO: Indica se o envio foi bem-sucedido
-    private String errorMessage; // ADICIONADO: Mensagem de erro, se houver
+    private EventType eventType;
+    private String eventTypeString;
+    private String deviceId;
+    private int signalStrength; // Adicionado
+    private int batteryLevel;   // Adicionado
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
     public MobileCommunication() {
     }
 
-    // Construtor completo
-    public MobileCommunication(int id, int driverId, int recordId, LocalDateTime timestamp, Double latitude, Double longitude, LocalDateTime sendTimestamp, boolean sendSuccess, String errorMessage, LocalDateTime createdAt, LocalDateTime updatedAt) {
+    public MobileCommunication(int id, int driverId, int journeyId, LocalDateTime timestamp,
+                               Double latitude, Double longitude, EventType eventType,
+                               String deviceId, int signalStrength, int batteryLevel, // Adicionado
+                               LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.driverId = driverId;
-        this.recordId = recordId;
+        this.journeyId = journeyId;
         this.timestamp = timestamp;
         this.latitude = latitude;
         this.longitude = longitude;
-        this.sendTimestamp = sendTimestamp; // Inicializa sendTimestamp
-        this.sendSuccess = sendSuccess;     // Inicializa sendSuccess
-        this.errorMessage = errorMessage;   // Inicializa errorMessage
+        this.eventType = eventType;
+        this.eventTypeString = eventType != null ? eventType.name() : null;
+        this.deviceId = deviceId;
+        this.signalStrength = signalStrength; // Adicionado
+        this.batteryLevel = batteryLevel;     // Adicionado
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
 
-    // Construtor para inserção (sem ID, createdAt, updatedAt)
-    public MobileCommunication(int driverId, int recordId, LocalDateTime timestamp, Double latitude, Double longitude, LocalDateTime sendTimestamp, boolean sendSuccess, String errorMessage) {
-        this(0, driverId, recordId, timestamp, latitude, longitude, sendTimestamp, sendSuccess, errorMessage, null, null);
+    public MobileCommunication(int driverId, int journeyId, LocalDateTime timestamp,
+                               Double latitude, Double longitude, EventType eventType,
+                               String deviceId, int signalStrength, int batteryLevel) { // Adicionado
+        this(0, driverId, journeyId, timestamp, latitude, longitude, eventType, deviceId, signalStrength, batteryLevel, null, null);
     }
 
-    // Construtor para atualização (com ID, sem createdAt, updatedAt)
-    public MobileCommunication(int id, int driverId, int recordId, LocalDateTime timestamp, Double latitude, Double longitude, LocalDateTime sendTimestamp, boolean sendSuccess, String errorMessage) {
-        this(id, driverId, recordId, timestamp, latitude, longitude, sendTimestamp, sendSuccess, errorMessage, null, null);
-    }
-
-    // Getters e Setters
     public int getId() {
         return id;
     }
@@ -65,12 +64,12 @@ public class MobileCommunication {
         this.driverId = driverId;
     }
 
-    public int getRecordId() {
-        return recordId;
+    public int getJourneyId() {
+        return journeyId;
     }
 
-    public void setRecordId(int recordId) {
-        this.recordId = recordId;
+    public void setJourneyId(int journeyId) {
+        this.journeyId = journeyId;
     }
 
     public LocalDateTime getTimestamp() {
@@ -97,28 +96,50 @@ public class MobileCommunication {
         this.longitude = longitude;
     }
 
-    public LocalDateTime getSendTimestamp() { // ADICIONADO: Getter para sendTimestamp
-        return sendTimestamp;
+    public EventType getEventType() {
+        return eventType;
     }
 
-    public void setSendTimestamp(LocalDateTime sendTimestamp) { // ADICIONADO: Setter para sendTimestamp
-        this.sendTimestamp = sendTimestamp;
+    public void setEventType(EventType eventType) {
+        this.eventType = eventType;
+        this.eventTypeString = eventType != null ? eventType.name() : null;
     }
 
-    public boolean isSendSuccess() { // ADICIONADO: Getter para sendSuccess
-        return sendSuccess;
+    public String getEventTypeString() {
+        return eventTypeString;
     }
 
-    public void setSendSuccess(boolean sendSuccess) { // ADICIONADO: Setter para sendSuccess
-        this.sendSuccess = sendSuccess;
+    public void setEventTypeString(String eventTypeString) {
+        this.eventTypeString = eventTypeString;
+        try {
+            this.eventType = eventTypeString != null ? EventType.valueOf(eventTypeString) : null;
+        } catch (IllegalArgumentException e) {
+            this.eventType = null;
+        }
     }
 
-    public String getErrorMessage() { // ADICIONADO: Getter para errorMessage
-        return errorMessage;
+    public String getDeviceId() {
+        return deviceId;
     }
 
-    public void setErrorMessage(String errorMessage) { // ADICIONADO: Setter para errorMessage
-        this.errorMessage = errorMessage;
+    public void setDeviceId(String deviceId) {
+        this.deviceId = deviceId;
+    }
+
+    public int getSignalStrength() { // Adicionado
+        return signalStrength;
+    }
+
+    public void setSignalStrength(int signalStrength) { // Adicionado
+        this.signalStrength = signalStrength;
+    }
+
+    public int getBatteryLevel() { // Adicionado
+        return batteryLevel;
+    }
+
+    public void setBatteryLevel(int batteryLevel) { // Adicionado
+        this.batteryLevel = batteryLevel;
     }
 
     public LocalDateTime getCreatedAt() {
@@ -138,40 +159,45 @@ public class MobileCommunication {
     }
 
     @Override
-    public String toString() {
-        return "MobileCommunication{" +
-                "id=" + id +
-                ", driverId=" + driverId +
-                ", recordId=" + recordId +
-                ", timestamp=" + timestamp +
-                ", latitude=" + latitude +
-                ", longitude=" + longitude +
-                ", sendTimestamp=" + sendTimestamp + // Incluído no toString
-                ", sendSuccess=" + sendSuccess +     // Incluído no toString
-                ", errorMessage='" + errorMessage + '\'' + // Incluído no toString
-                ", createdAt=" + createdAt +
-                ", updatedAt=" + updatedAt +
-                '}';
-    }
-
-    @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         MobileCommunication that = (MobileCommunication) o;
         return id == that.id &&
                 driverId == that.driverId &&
-                recordId == that.recordId &&
-                sendSuccess == that.sendSuccess && // Incluído no equals
+                journeyId == that.journeyId &&
+                signalStrength == that.signalStrength && // Adicionado
+                batteryLevel == that.batteryLevel &&     // Adicionado
                 Objects.equals(timestamp, that.timestamp) &&
                 Objects.equals(latitude, that.latitude) &&
                 Objects.equals(longitude, that.longitude) &&
-                Objects.equals(sendTimestamp, that.sendTimestamp) && // Incluído no equals
-                Objects.equals(errorMessage, that.errorMessage); // Incluído no equals
+                eventType == that.eventType &&
+                Objects.equals(deviceId, that.deviceId) &&
+                Objects.equals(createdAt, that.createdAt) &&
+                Objects.equals(updatedAt, that.updatedAt);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, driverId, recordId, timestamp, latitude, longitude, sendTimestamp, sendSuccess, errorMessage); // Incluído no hashCode
+        return Objects.hash(id, driverId, journeyId, timestamp, latitude, longitude, eventType,
+                deviceId, signalStrength, batteryLevel, createdAt, updatedAt); // Adicionado
+    }
+
+    @Override
+    public String toString() {
+        return "MobileCommunication{" +
+                "id=" + id +
+                ", driverId=" + driverId +
+                ", journeyId=" + journeyId +
+                ", timestamp=" + timestamp +
+                ", latitude=" + latitude +
+                ", longitude=" + longitude +
+                ", eventType=" + eventType +
+                ", deviceId='" + deviceId + '\'' +
+                ", signalStrength=" + signalStrength + // Adicionado
+                ", batteryLevel=" + batteryLevel +     // Adicionado
+                ", createdAt=" + createdAt +
+                ", updatedAt=" + updatedAt +
+                '}';
     }
 }
