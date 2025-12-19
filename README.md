@@ -271,9 +271,10 @@ Contribuições são bem-vindas! Para contribuir:
 
 ---
 
-## 📄 Licença
+## 🙏 Agradecimentos
 
-Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
+> Projeto desenvolvido como parte da **Trilha de Aceleração** proposta pela **GW Sistemas**.
+
 
 ---
 
@@ -290,4 +291,5 @@ Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para ma
 <div align="center">
   <sub>🚛 ComplianceSys - Dirigindo com Segurança e Conformidade 🛡️</sub>
 </div>
+
 
