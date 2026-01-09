@@ -1,26 +1,23 @@
+// src/main/java/com/compliancesys/service/JourneyService.java
 package com.compliancesys.service;
 
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
 import com.compliancesys.exception.BusinessException;
 import com.compliancesys.model.Journey;
-import com.compliancesys.model.TimeRecord;
 
 public interface JourneyService {
-    Journey createJourney(Journey journey) throws BusinessException;
-    Optional<Journey> getJourneyById(int id) throws BusinessException;
-    List<Journey> getAllJourneys() throws BusinessException;
-    Journey updateJourney(Journey journey) throws BusinessException;
-    boolean deleteJourney(int id) throws BusinessException;
-
-    // NOVO MÉTODO: Busca uma jornada específica por motorista e data
-    Optional<Journey> getJourneyByDriverIdAndDate(int driverId, LocalDate journeyDate) throws BusinessException;
-
-    // NOVO MÉTODO: Busca todas as jornadas de um motorista
-    List<Journey> getJourneysByDriverId(int driverId) throws BusinessException;
-
-    // Calcula e audita uma jornada com base nos registros de ponto
-    Journey calculateAndAuditJourney(int driverId, List<TimeRecord> timeRecords) throws BusinessException;
+    Journey createJourney(Journey journey) throws BusinessException, SQLException;
+    Optional<Journey> getJourneyById(int journeyId) throws BusinessException, SQLException;
+    List<Journey> getAllJourneys() throws BusinessException, SQLException;
+    Journey updateJourney(Journey journey) throws BusinessException, SQLException;
+    boolean deleteJourney(int journeyId) throws BusinessException, SQLException;
+    List<Journey> getJourneysByDriverId(int driverId) throws BusinessException, SQLException; // Adicionado
+    List<Journey> getJourneysByVehicleId(int vehicleId) throws BusinessException, SQLException; // Adicionado
+    List<Journey> getJourneysByCompanyId(int companyId) throws BusinessException, SQLException; // Adicionado
+    List<Journey> getJourneysByDateRange(LocalDate startDate, LocalDate endDate) throws BusinessException, SQLException; // Adicionado
+    Optional<Journey> getJourneyByDriverIdAndDate(int driverId, LocalDate journeyDate) throws BusinessException, SQLException; // Adicionado
 }

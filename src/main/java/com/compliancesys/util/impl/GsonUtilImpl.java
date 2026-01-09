@@ -1,28 +1,31 @@
-package com.compliancesys.util.impl; // O pacote que os servlets estão esperando
+// src/main/java/com/compliancesys/util/impl/GsonUtilImpl.java
+package com.compliancesys.util.impl;
 
-import java.time.Duration; // Importa a interface
+import java.io.IOException;
+import java.io.Reader;
+import java.lang.reflect.Type;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
-import com.compliancesys.util.GsonUtil;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.compliancesys.util.GsonUtil; // Import adicionado
+import com.google.gson.Gson;    // Import adicionado
+import com.google.gson.GsonBuilder;         // Import adicionado
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializer;
 
 /**
- * Implementação concreta da interface GsonUtil para serialização e desserialização de objetos.
- * Configura o Gson para lidar com tipos de data/hora do Java 8 (java.time) e Duration.
+ * Implementação de GsonUtil para serialização e desserialização de objetos Java para JSON
+ * e vice-versa, com suporte a tipos do Java 8 Date and Time API (java.time).
  */
 public class GsonUtilImpl implements GsonUtil {
-
     private final Gson gson;
 
     public GsonUtilImpl() {
-        // Configura o Gson para lidar com LocalDateTime, LocalDate e Duration
+        // Configura o Gson para lidar com LocalDateTime e LocalDate
         GsonBuilder gsonBuilder = new GsonBuilder()
+                .setPrettyPrinting() // Para JSON formatado, útil para depuração
                 .registerTypeAdapter(LocalDateTime.class, (JsonSerializer<LocalDateTime>) (src, typeOfSrc, context) ->
                         new JsonPrimitive(src.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)))
                 .registerTypeAdapter(LocalDateTime.class, (JsonDeserializer<LocalDateTime>) (json, typeOfT, context) ->
@@ -30,24 +33,47 @@ public class GsonUtilImpl implements GsonUtil {
                 .registerTypeAdapter(LocalDate.class, (JsonSerializer<LocalDate>) (src, typeOfSrc, context) ->
                         new JsonPrimitive(src.format(DateTimeFormatter.ISO_LOCAL_DATE)))
                 .registerTypeAdapter(LocalDate.class, (JsonDeserializer<LocalDate>) (json, typeOfT, context) ->
-                        LocalDate.parse(json.getAsString(), DateTimeFormatter.ISO_LOCAL_DATE))
-                .registerTypeAdapter(Duration.class, (JsonSerializer<Duration>) (src, typeOfSrc, context) ->
-                        new JsonPrimitive(src.toString())) // Serializa Duration para String (ex: "PT1H30M")
-                .registerTypeAdapter(Duration.class, (JsonDeserializer<Duration>) (json, typeOfT, context) ->
-                        Duration.parse(json.getAsString())) // Desserializa String para Duration
-                .setPrettyPrinting(); // Para saída JSON formatada, útil para depuração
-
+                        LocalDate.parse(json.getAsString(), DateTimeFormatter.ISO_LOCAL_DATE));
         this.gson = gsonBuilder.create();
     }
 
     @Override
-    public <T> String serialize(T object) {
-        return gson.toJson(object);
+    public String serialize(Object src) {
+        return gson.toJson(src);
     }
 
     @Override
-    public <T> T deserialize(String json, Class<T> type) {
-        return gson.fromJson(json, type);
+    public <T> T deserialize(String json, Class<T> classOfT) {
+        return gson.fromJson(json, classOfT);
+    }
+
+    @Override
+    public <T> T deserialize(String json, Type typeOfT) {
+        return gson.fromJson(json, typeOfT);
+    }
+
+    /**
+     * Desserializa um objeto JSON a partir de um Reader.
+     * @param reader O Reader contendo o JSON.
+     * @param classOfT A classe do objeto a ser desserializado.
+     * @param <T> O tipo do objeto.
+     * @return O objeto desserializado.
+     * @throws IOException Se ocorrer um erro de leitura.
+     */
+    public <T> T deserialize(Reader reader, Class<T> classOfT) throws IOException {
+        // Gson pode ler diretamente de um Reader, não precisa de BufferedReader explicitamente
+        return gson.fromJson(reader, classOfT);
+    }
+
+    /**
+     * Desserializa um objeto JSON a partir de um Reader, usando um Type para tipos genéricos.
+     * @param reader O Reader contendo o JSON.
+     * @param typeOfT O Type do objeto a ser desserializado (útil para List<T>, Map<K,V>, etc.).
+     * @param <T> O tipo do objeto.
+     * @return O objeto desserializado.
+     * @throws IOException Se ocorrer um erro de leitura.
+     */
+    public <T> T deserialize(Reader reader, Type typeOfT) throws IOException {
+        return gson.fromJson(reader, typeOfT);
     }
 }
-

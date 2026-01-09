@@ -1,95 +1,155 @@
 package com.compliancesys.config;
 
-import java.io.IOException;         // Importa para lidar com exceções de I/O.
-import java.io.InputStream;         // Importa para ler o arquivo de propriedades.
-import java.sql.Connection;         // Importa para a interface Connection do JDBC.
-import java.sql.DriverManager;      // Importa para gerenciar drivers JDBC.
-import java.sql.ResultSet;          // Importa para a interface ResultSet do JDBC.
-import java.sql.SQLException;       // Importa para lidar com exceções SQL.
-import java.sql.Statement;          // Importa para a interface Statement do JDBC.
-import java.util.Properties;        // Importa para trabalhar com arquivos de propriedades.
-import java.util.logging.Level;     // Importa para níveis de log.
-import java.util.logging.Logger;    // Importa para logging.
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.Properties;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
- * Classe de configuração do banco de dados para o sistema ComplianceSys.
- * Gerencia o carregamento das propriedades de conexão e o estabelecimento de conexões.
+ * Singleton para gerenciar a configuração e o pool de conexões com o banco de dados
+ * usando HikariCP.
+ * Carrega as propriedades de conexão de um arquivo 'database.properties'.
+ * Prioriza 'src/test/resources/database.properties' se existir e estiver em ambiente de teste.
  */
 public class DatabaseConfig {
+    private static final Logger LOGGER = Logger.getLogger(DatabaseConfig.class.getName());
+    private static DatabaseConfig instance;
+    private HikariDataSource dataSource;
+    private Properties dbProperties;
 
-    private static final Logger LOGGER = Logger.getLogger(DatabaseConfig.class.getName()); // Logger para a classe.
-    private static final Properties properties = new Properties(); // Objeto Properties para armazenar as configurações.
-    private static final String PROPERTIES_FILE = "database.properties"; // Nome do arquivo de propriedades.
+    // Construtor privado para o padrão Singleton
+    private DatabaseConfig() {
+        loadProperties();
+        initDataSource();
+    }
 
-    // Bloco estático para carregar as propriedades do banco de dados uma vez.
-    static {
-        try (InputStream input = DatabaseConfig.class.getClassLoader().getResourceAsStream(PROPERTIES_FILE)) {
-            if (input == null) {
-                LOGGER.log(Level.SEVERE, "Desculpe, não foi possível encontrar " + PROPERTIES_FILE);
-                throw new IOException("Arquivo de propriedades do banco de dados não encontrado: " + PROPERTIES_FILE);
+    /**
+     * Retorna a única instância de DatabaseConfig.
+     *
+     * @return A instância de DatabaseConfig.
+     */
+    public static synchronized DatabaseConfig getInstance() {
+        if (instance == null) {
+            instance = new DatabaseConfig();
+        }
+        return instance;
+    }
+
+    /**
+     * Carrega as propriedades do banco de dados.
+     * Tenta carregar de 'src/test/resources/database.properties' primeiro (para testes),
+     * e se não encontrar, carrega de 'src/main/resources/database.properties'.
+     */
+    private void loadProperties() {
+        dbProperties = new Properties();
+        String testPropertiesFile = "database.properties"; // Nome do arquivo em src/test/resources
+        String mainPropertiesFile = "database.properties"; // Nome do arquivo em src/main/resources
+
+        // Tenta carregar o arquivo de propriedades de teste
+        try (InputStream input = getClass().getClassLoader().getResourceAsStream(testPropertiesFile)) {
+            if (input != null) {
+                dbProperties.load(input);
+                LOGGER.log(Level.INFO, "Propriedades do banco de dados carregadas de src/test/resources/{0}", testPropertiesFile);
+                // Verifica se as propriedades de teste são para H2 ou PostgreSQL
+                if (dbProperties.getProperty("db.url", "").contains("h2:mem")) {
+                    LOGGER.log(Level.WARNING, "Atenção: O ambiente de teste está configurado para H2 em memória, mas o projeto usa PostgreSQL. Considere alinhar o banco de dados de teste.");
+                }
+                return; // Se carregou de teste, não precisa carregar de main
             }
-            properties.load(input); // Carrega as propriedades do arquivo.
-            LOGGER.log(Level.INFO, "Propriedades do banco de dados carregadas com sucesso.");
-        } catch (IOException ex) {
-            LOGGER.log(Level.SEVERE, "Erro ao carregar o arquivo de propriedades do banco de dados: " + PROPERTIES_FILE, ex);
-            // Re-lança a exceção como uma RuntimeException para falha na inicialização da aplicação.
-            throw new RuntimeException("Falha ao inicializar a configuração do banco de dados.", ex);
+        } catch (IOException e) {
+            LOGGER.log(Level.WARNING, "Não foi possível carregar as propriedades de teste de {0}. Tentando carregar de src/main/resources.", testPropertiesFile);
+        }
+
+        // Se não carregou de teste, tenta carregar o arquivo de propriedades principal
+        try (InputStream input = getClass().getClassLoader().getResourceAsStream(mainPropertiesFile)) {
+            if (input != null) {
+                dbProperties.load(input);
+                LOGGER.log(Level.INFO, "Propriedades do banco de dados carregadas de src/main/resources/{0}", mainPropertiesFile);
+            } else {
+                LOGGER.log(Level.SEVERE, "Arquivo de propriedades do banco de dados '{0}' não encontrado em src/main/resources.", mainPropertiesFile);
+                throw new RuntimeException("Arquivo de propriedades do banco de dados não encontrado.");
+            }
+        } catch (IOException e) {
+            LOGGER.log(Level.SEVERE, "Erro ao carregar as propriedades do banco de dados: " + e.getMessage(), e);
+            throw new RuntimeException("Erro ao carregar as propriedades do banco de dados.", e);
         }
     }
 
     /**
-     * Retorna uma nova conexão com o banco de dados.
-     * Este método agora é estático para ser acessado diretamente pela classe.
-     * @return Uma conexão com o banco de dados.
-     * @throws SQLException Se ocorrer um erro de conexão.
+     * Inicializa o HikariDataSource com as propriedades carregadas.
      */
-    public static Connection getConnection() throws SQLException { // CORRIGIDO: Método agora é estático
-        String url = properties.getProperty("db.url");
-        String user = properties.getProperty("db.user");
-        String password = properties.getProperty("db.password");
+    private void initDataSource() {
+        if (dbProperties.isEmpty()) {
+            LOGGER.log(Level.SEVERE, "Propriedades do banco de dados não foram carregadas. Não é possível inicializar o DataSource.");
+            throw new IllegalStateException("Propriedades do banco de dados não carregadas.");
+        }
 
-        LOGGER.log(Level.FINE, "Tentando conectar ao banco de dados: {0}", url);
-        Connection connection = DriverManager.getConnection(url, user, password);
-        LOGGER.log(Level.FINE, "Conexão com o banco de dados estabelecida com sucesso.");
-        return connection;
-    }
+        HikariConfig config = new HikariConfig();
+        config.setJdbcUrl(dbProperties.getProperty("db.url"));
+        config.setUsername(dbProperties.getProperty("db.username"));
+        config.setPassword(dbProperties.getProperty("db.password"));
+        config.setDriverClassName(dbProperties.getProperty("db.driver")); // Adicionado para carregar o driver dinamicamente
 
-    /**
-     * Fecha os recursos do banco de dados (Connection, Statement, ResultSet) de forma segura.
-     * @param conn A conexão a ser fechada.
-     * @param stmt O statement a ser fechado.
-     * @param rs O result set a ser fechado.
-     */
-    public static void closeResources(Connection conn, Statement stmt, ResultSet rs) {
+        // Configurações do HikariCP (podem vir do .properties também)
+        config.setMinimumIdle(Integer.parseInt(dbProperties.getProperty("db.hikari.minimumIdle", "5")));
+        config.setMaximumPoolSize(Integer.parseInt(dbProperties.getProperty("db.hikari.maximumPoolSize", "10")));
+        config.setConnectionTimeout(Long.parseLong(dbProperties.getProperty("db.hikari.connectionTimeout", "30000"))); // 30 segundos
+        config.setIdleTimeout(Long.parseLong(dbProperties.getProperty("db.hikari.idleTimeout", "600000"))); // 10 minutos
+        config.setMaxLifetime(Long.parseLong(dbProperties.getProperty("db.hikari.maxLifetime", "1800000"))); // 30 minutos
+
+        // Adiciona um teste de conexão para verificar a validade
+        config.setConnectionTestQuery("SELECT 1"); // Padrão para PostgreSQL
+
         try {
-            if (rs != null) {
-                rs.close();
-            }
-            if (stmt != null) {
-                stmt.close();
-            }
-            if (conn != null) {
-                conn.close();
-            }
-        } catch (SQLException ex) {
-            LOGGER.log(Level.SEVERE, "Erro ao fechar recursos do banco de dados.", ex);
+            dataSource = new HikariDataSource(config);
+            LOGGER.log(Level.INFO, "HikariCP DataSource inicializado com sucesso para URL: {0}", config.getJdbcUrl());
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Erro ao inicializar o HikariCP DataSource: " + e.getMessage(), e);
+            throw new RuntimeException("Falha ao inicializar o pool de conexões do banco de dados.", e);
         }
     }
 
     /**
-     * Sobrecarga para fechar Connection e Statement.
-     * @param conn A conexão a ser fechada.
-     * @param stmt O statement a ser fechado.
+     * Obtém uma conexão do pool.
+     *
+     * @return Uma conexão JDBC.
+     * @throws SQLException Se ocorrer um erro ao obter a conexão.
      */
-    public static void closeResources(Connection conn, Statement stmt) {
-        closeResources(conn, stmt, null);
+    public Connection getConnection() throws SQLException {
+        if (dataSource == null) {
+            LOGGER.log(Level.SEVERE, "DataSource não inicializado. Tentando inicializar novamente.");
+            initDataSource(); // Tenta reinicializar se for nulo (pode acontecer em cenários específicos)
+            if (dataSource == null) {
+                throw new SQLException("DataSource não pôde ser inicializado.");
+            }
+        }
+        return dataSource.getConnection();
     }
 
     /**
-     * Sobrecarga para fechar apenas a Connection.
-     * @param conn A conexão a ser fechada.
+     * Fecha o pool de conexões do HikariCP.
+     * Deve ser chamado ao desligar a aplicação para liberar recursos.
      */
-    public static void closeResources(Connection conn) {
-        closeResources(conn, null, null);
+    public void closeDataSource() {
+        if (dataSource != null && !dataSource.isClosed()) {
+            dataSource.close();
+            LOGGER.log(Level.INFO, "HikariCP DataSource fechado.");
+        }
+    }
+
+    // Método para redefinir a instância para testes (NÃO USAR EM PRODUÇÃO)
+    // Permite que os testes reinicializem o DatabaseConfig com diferentes propriedades.
+    public static synchronized void resetInstance() {
+        if (instance != null) {
+            instance.closeDataSource();
+            instance = null;
+            LOGGER.log(Level.INFO, "DatabaseConfig instance resetada.");
+        }
     }
 }

@@ -1,85 +1,60 @@
-// build.gradle for ComplianceSys project
-// Configures project dependencies and build tasks.
-
 plugins {
-    // Aplica o plugin Java para funcionalidades de compilação e teste.
     id 'java'
-    // Aplica o plugin WAR para construir um arquivo .war para implantação em servidores de aplicação como o Tomcat.
     id 'war'
 }
 
-// Configurações gerais do grupo e versão do projeto.
 group 'com.compliancesys'
 version '1.0-SNAPSHOT'
 
-// Define o repositório Maven Central para buscar as dependências.
 repositories {
     mavenCentral()
 }
 
-// Configurações para o compilador Java.
 java {
-    // Define a versão do Java a ser usada para compilação e execução.
-    // O projeto requer Java 8 ou superior.
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
 }
 
-// Bloco de dependências do projeto.
 dependencies {
-    // Dependências para o ambiente de execução (runtime) e compilação.
+    // Dependências para a aplicação em tempo de execução (runtime) e compilação
 
-    // Servlet API para desenvolvimento web com Tomcat.
-    // 'providedCompile' indica que o container (Tomcat) fornecerá esta dependência em tempo de execução.
-    // Para Gradle 7.x+, 'providedCompile' foi substituído por 'compileOnly' e 'testImplementation'.
-    compileOnly 'javax.servlet:javax.servlet-api:4.0.1' // Versão compatível com Tomcat 8+
+    // Servlet API (fornecida pelo Tomcat)
+    // Usamos 'providedCompile' para que o JAR não seja incluído no WAR,
+    // pois o servidor de aplicação (Tomcat) já o fornece.
+    // Para Gradle 7+, 'providedCompile' foi substituído por 'compileOnly'.
+    compileOnly 'javax.servlet:javax.servlet-api:4.0.1' // Compatível com Tomcat 8+ e Java 8+
 
-    // Dependência para a API de JavaServer Pages (JSP).
-    // Também é 'providedCompile'/'compileOnly' pois o Tomcat a fornece.
-    compileOnly 'javax.servlet.jsp:javax.servlet.jsp-api:2.3.3'
+    // PostgreSQL JDBC Driver
+    implementation 'org.postgresql:postgresql:42.7.3' // Versão recente e compatível
 
-    // Implementação do JSTL (JSP Standard Tag Library) para JSPs.
-    // 'implementation' significa que esta dependência será empacotada no WAR.
-    implementation 'org.glassfish.web:jakarta.servlet.jsp.jstl:1.2.6' // Compatível com JSP 2.3
+    // HikariCP - Pool de Conexões
+    implementation 'com.zaxxer:HikariCP:5.1.0' // Versão recente e estável
 
-    // Gson para serialização e desserialização de objetos Java para JSON.
-    // Essencial para a comunicação com o Gateway Mobile.
-    implementation 'com.google.code.gson:gson:2.10.1'
+    // Gson - Serialização/Desserialização JSON
+    implementation 'com.google.code.gson:gson:2.10.1' // Versão recente
 
-    // Driver JDBC para PostgreSQL.
-    // Necessário para a conexão com o banco de dados PostgreSQL.
-    // ATUALIZADO: Versão do driver PostgreSQL para a mais recente estável.
-    implementation 'org.postgresql:postgresql:42.7.3' 
+    // jBCrypt - Hashing de Senhas
+    implementation 'org.mindrot:jbcrypt:0.4' // Versão estável
 
-    // Dependências para testes unitários.
-
-    // JUnit Jupiter API para escrever testes.
+    // Dependências para Testes (test-only)
+    // JUnit Jupiter (JUnit 5)
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.0'
-    // JUnit Jupiter Engine para executar testes.
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.0'
 
-    // AssertJ para asserções mais legíveis e fluentes nos testes.
-    testImplementation 'org.assertj:assertj-core:3.24.2'
+    // Mockito - Framework de Mocking
+    testImplementation 'org.mockito:mockito-core:5.6.0'
+    testImplementation 'org.mockito:mockito-junit-jupiter:5.6.0' // Integração Mockito com JUnit 5
 
-    // Mockito para criação de mocks em testes unitários.
-    // Essencial para isolar a lógica de serviço das dependências de DAO.
-    testImplementation 'org.mockito:mockito-junit-jupiter:5.8.0' // ADICIONADO
+    // AssertJ - Biblioteca de Asserções (opcional, mas melhora a legibilidade dos testes)
+    testImplementation 'org.assertj:assertj-core:3.25.3' // Versão recente
 }
 
-// Configuração da tarefa de testes.
+// Configuração para execução de testes com JUnit Platform (JUnit 5)
 test {
-    // Usa a plataforma JUnit para executar os testes.
     useJUnitPlatform()
-    // Garante que os testes falhem se houver erros.
-    failFast = true
-    // Exibe os resultados dos testes no console.
-    testLogging {
-        events "passed", "skipped", "failed"
-    }
 }
 
-// Configuração da tarefa WAR para o nome do arquivo de saída.
+// Configuração para o WAR (opcional, mas útil para renomear o arquivo WAR)
 war {
-    // Define o nome do arquivo WAR gerado.
     archiveFileName = "${project.name}.war"
 }
